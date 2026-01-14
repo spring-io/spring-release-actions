@@ -1,0 +1,22 @@
+name: "plan-on-gchat"
+description: "Plan a release on GChat"
+author: "jzheaux"
+
+inputs:
+  gchat-webhook-url:
+    description: "The GChat Webhook to POST the announcement message to"
+    required: true
+  version-date:
+    description: "The version's scheduled release date"
+    required: true
+  version:
+    description: "The planned version"
+    required: true
+
+  project-name:
+    description: "the project name (for example, spring-security); will use repo name if not provided"
+    required: false
+
+runs:
+  using: "node20"
+  main: "../dist/plan-on-gchat/main/index.js"
