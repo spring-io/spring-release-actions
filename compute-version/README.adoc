@@ -1,0 +1,28 @@
+= Compute Version Action
+
+This GitHub action computes the project version.
+
+== Outputs
+
+|===
+| Output | Description
+
+| `version`
+| The version of the project.
+
+| `snapshot`
+| Whether the version is a snapshot version.
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Compute Version
+  id: project-version
+  uses: jzheaux/spring-io-actions/compute-version@main
+
+# Use the output from the `project-version` step
+- name: Echo version
+  run: echo "The project version is ${{ steps.project-version.outputs.version }}"
+----

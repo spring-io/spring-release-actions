@@ -1,0 +1,33 @@
+name: "compute-version"
+description: "An action that determines the project version"
+author: "jzheaux"
+outputs:
+  version:
+    description: "The version of the project"
+    value: ${{ steps.compute-version.outputs.version }}
+  snapshot:
+    description: "Whether the version is a snapshot version"
+    value: ${{ steps.compute-version.outputs.snapshot }}
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 24
+    - name: Find Scheduled Milestone for Current Version in Branch
+      id: compute-version
+      shell: bash
+      run: |
+        if test -f pom.xml
+        then
+          CURRENT_VERSION=$(mvn help:evaluate -Dexpression="project.version" -q -DforceStdout)
+        else
+          CURRENT_VERSION=$(cat gradle.properties | sed -n '/^version=/ { s/^version=//;p }')
+        fi
+        echo version=$CURRENT_VERSION >> $GITHUB_OUTPUT
+        if [[ $CURRENT_VERSION == *"-SNAPSHOT" ]]; then
+          echo snapshot=true >> $GITHUB_OUTPUT
+        else
+          echo snapshot=false >> $GITHUB_OUTPUT
+        fi
