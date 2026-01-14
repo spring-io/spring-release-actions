@@ -1,0 +1,40 @@
+= Schedule Milestone Action
+
+This GitHub action schedules a milestone, updating it if it already exists.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `version-date`
+| The version date.
+| `true`
+
+| `version`
+| The version to schedule.
+| `true`
+
+| `description`
+| The version description.
+| `false`
+
+| `repository`
+| The repository to publish the milestone to; uses the current repository by default.
+| `false`
+
+| `token`
+| The GitHub token for the repository; uses the current repository's token by default.
+| `false`
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Schedule Milestone
+  uses: jzheaux/spring-io-actions/schedule-milestone@main
+  with:
+    version-date: '2023-01-01'
+    version: '1.2.3'
+----

@@ -1,0 +1,25 @@
+name: "schedule-milestone"
+description: "An action that schedules a milestone, updating it if it already exists"
+author: "jzheaux"
+
+inputs:
+  version-date:
+    description: "The version date"
+    required: true
+  version:
+    description: "The version to schedule"
+    required: true
+
+  description:
+    description: "The version description"
+    required: false
+  repository:
+    description: "The repository to publish the milestone to; uses the current repository by default"
+    required: false
+  token:
+    description: "The GitHub token for the repository; uses the current repository's token by default"
+    required: false
+
+runs:
+  using: "node20"
+  main: "../dist/schedule-milestone/main/index.js"
