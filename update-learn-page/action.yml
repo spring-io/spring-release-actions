@@ -1,0 +1,34 @@
+name: "Update Learn Page"
+description: "Update #learn Page on Spring OSS and Commercial Websites"
+author: "jzheaux"
+
+inputs:
+  version:
+    description: "The current version"
+    required: true
+  website-token:
+    description: "The GitHub token needed to access spring-website-content or spring-website-commercial-content"
+    required: true
+
+  api-doc-url:
+    description: "The URL to the project's JavaDoc; supports {version} placeholder"
+    default: "https://docs.spring.io/{project}/site/docs/{version}/api/"
+    required: false
+  is-antora:
+    description: "Whether the reference documentation is Antora-based; defaults to true"
+    default: "true"
+    required: false
+  project-name:
+    description: "the project name (for example, spring-security); will use repo name if not provided"
+    required: false
+  ref-doc-url:
+    description: "The URL to the project's reference documentation; supports {version} placeholder"
+    default: "https://docs.spring.io/{project}/reference/{version}/index.html"
+    required: false
+  website-repository:
+    description: "The Spring Website GitHub repo from which to checkout documentation files"
+    required: false
+
+runs:
+  using: "node20"
+  main: "../dist/update-learn-page/main/index.js"

@@ -1,0 +1,48 @@
+= Update Learn Page Action
+
+This GitHub action updates the #learn page on Spring OSS and Commercial Websites.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `version`
+| The current version.
+| `true`
+
+| `website-token`
+| The GitHub token needed to access spring-website-content or spring-website-commercial-content.
+| `true`
+
+| `api-doc-url`
+| The URL to the project's JavaDoc; supports {version} placeholder.
+| `false`
+
+| `is-antora`
+| Whether the reference documentation is Antora-based; defaults to true.
+| `false`
+
+| `project-name`
+| The project name (for example, spring-security); will use repo name if not provided.
+| `false`
+
+| `ref-doc-url`
+| The URL to the project's reference documentation; supports {version} placeholder.
+| `false`
+
+| `website-repository`
+| The Spring Website GitHub repo from which to checkout documentation files.
+| `false`
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Update Learn Page
+  uses: jzheaux/spring-io-actions/update-learn-page@main
+  with:
+    version: '1.2.3'
+    website-token: ${{ secrets.WEBSITE_TOKEN }}
+----
