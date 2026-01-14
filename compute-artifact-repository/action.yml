@@ -1,0 +1,36 @@
+name: "compute-artifact-repository"
+description: "An action that determines the project version"
+author: "jzheaux"
+inputs:
+  version:
+    description: "The version to deploy"
+    required: true
+  repository:
+    description: "The project's repository; uses the current repository by default"
+    required: false
+    default: ${{ github.repository }}
+
+outputs:
+  repository:
+    description: "The version of the project"
+    value: ${{ steps.compute-artifact-repository.outputs.result }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Compute the Artifact Repository
+      id: compute-artifact-repository
+      shell: bash
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        if [[ $VERSION == *"-SNAPSHOT" ]] ; then
+          echo "result=libs-snapshot-local" >> $GITHUB_OUTPUT
+          exit 0;
+        fi
+        if [[ $REPOSITORY == *"-commercial" ]] ; then 
+          echo "result=libs-release-local" >> $GITHUB_OUTPUT
+          exit 0;
+        fi
+        echo "result=central" >> $GITHUB_OUTPUT
