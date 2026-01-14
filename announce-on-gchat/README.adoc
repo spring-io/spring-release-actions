@@ -1,0 +1,33 @@
+= Announce on GChat Action
+
+This GitHub action announces a release on GChat.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `gchat-webhook-url`
+| The GChat Webhook to POST the announcement message to.
+| `true`
+
+| `version`
+| The version that was just released.
+| `true`
+
+| `project-name`
+| The project name (for example, spring-security); will use repo name if not provided.
+| `false`
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Announce Release on GChat
+  uses: jzheaux/spring-io-actions/announce-on-gchat@main
+  with:
+    gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
+    version: ${{ needs.planner.outputs.version }}
+    project-name: 'spring-widgets'
+----

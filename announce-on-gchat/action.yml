@@ -1,0 +1,19 @@
+name: "announce-on-gchat"
+description: "Announce a release on GChat"
+author: "jzheaux"
+
+inputs:
+  gchat-webhook-url:
+    description: "The GChat Webhook to POST the announcement message to"
+    required: true
+  version:
+    description: "The version that was just released"
+    required: true
+
+  project-name:
+    description: "the project name (for example, spring-security); will use repo name if not provided"
+    required: false
+
+runs:
+  using: "node20"
+  main: "../dist/announce-on-gchat/main/index.js"
