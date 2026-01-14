@@ -1,0 +1,36 @@
+name: "compute-next-version"
+description: "An action that computes the next milestone release name and date"
+author: "jzheaux"
+
+inputs:
+  version:
+    description: "The current project version"
+    required: true
+  token:
+    description: "The token to query repository information"
+    required: true
+  website-token:
+    description: "The token to query website information"
+    required: true
+
+  repository:
+    description: "The repository to query for information"
+    required: false
+  project-slug:
+    description: "The website content slug"
+    required: false
+  website-repository:
+    description: "The repository for website content"
+    required: false
+
+outputs:
+  version:
+    description: "The next project version"
+  version-date:
+    description: "The scheduled date for the next project version"
+  version-type:
+    description: "The type of the next project version (for example, 'oss', 'enterprise')"
+
+runs:
+  using: "node20"
+  main: '../dist/compute-next-version/main/index.js'
