@@ -1,0 +1,23 @@
+name: "count-open-issues"
+description: "Count the open issues tied to a given milestone"
+author: "jzheaux"
+inputs:
+  milestone:
+    description: "The milestone to count open issues for"
+    required: true
+
+outputs:
+  count:
+    description: "The issue count"
+    value: ${{ steps.count-issues.outputs.count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Count open issues for ${{ inputs.milestone }}"
+      id: count-issues
+      shell: bash
+      env:
+        MILESTONE: ${{ inputs.milestone }}
+      run: |
+        echo count=`gh issue list --milestone "${MILESTONE}" | wc -l` >> $GITHUB_OUTPUT
