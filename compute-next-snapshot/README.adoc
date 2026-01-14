@@ -1,0 +1,37 @@
+= Compute Next Snapshot Action
+
+This GitHub action computes the next snapshot version for a project.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `version`
+| The current version.
+| `true`
+|===
+
+== Outputs
+
+|===
+| Output | Description
+
+| `version`
+| The next snapshot version for the project.
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Compute Next Snapshot
+  id: next-snapshot
+  uses: jzheaux/spring-io-actions/compute-next-snapshot@main
+  with:
+    version: '1.2.3'
+
+# Use the output from the `next-snapshot` step
+- name: Echo next snapshot version
+  run: echo "The next snapshot version is ${{ steps.next-snapshot.outputs.version }}"
+----
