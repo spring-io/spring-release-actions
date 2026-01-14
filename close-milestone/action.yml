@@ -1,0 +1,19 @@
+name: "close-milestone"
+description: "Closes the given milestone if it exists"
+author: "jzheaux"
+
+inputs:
+  version:
+    description: "The version to close"
+    required: true
+  token:
+    description: "The token with permissions to close milestones"
+    required: true
+
+  repository:
+    description: "The repository containing the milestone; uses the current repository by default"
+    required: false
+
+runs:
+  using: "node20"
+  main: "../dist/close-milestone/main/index.js"

@@ -1,0 +1,32 @@
+= Close Milestone Action
+
+This GitHub action closes a milestone.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `version`
+| The version to close.
+| `true`
+
+| `token`
+| The token with permissions to close milestones.
+| `true`
+
+| `repository`
+| The repository containing the milestone; uses the current repository by default.
+| `false`
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Close Milestone
+  uses: jzheaux/spring-io-actions/close-milestone@main
+  with:
+    version: '1.2.3'
+    token: ${{ secrets.TOKEN }}
+----
