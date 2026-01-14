@@ -1,0 +1,23 @@
+name: "get-todays-release-version"
+description: "An action gets any milestone due today that corresponds to the given version"
+author: "jzheaux"
+
+inputs:
+  snapshot-version:
+    description: "The current project SNAPSHOT version"
+    required: true
+  milestone-token:
+    description: "The token needed to query project milestone information"
+    required: true
+
+  milestone-repository:
+    description: "The repository to query project milestone information"
+    required: false
+
+outputs:
+  release-version:
+    description: "The project's release version"
+
+runs:
+  using: "node20"
+  main: '../dist/get-todays-release-version/main/index.js'
