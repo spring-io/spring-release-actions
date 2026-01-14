@@ -1,0 +1,25 @@
+name: "publish-release-notes"
+description: "An action that publishes the release notes, ensuring the needed tag exists"
+author: "jzheaux"
+
+inputs:
+  tag:
+    description: "The tag to use"
+    required: true
+
+  release-notes-location:
+    description: "The location of the release notes file; defaults to changelog.md"
+    required: false
+    default: "changelog.md"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Publish Release Notes
+      shell: bash
+      run: |
+        git config user.name 'github-actions[bot]'
+        git config user.email 'github-actions[bot]@users.noreply.github.com'
+        set +e
+        gh release delete ${{ inputs.tag }} -y --cleanup-tag
+        gh release create ${{ inputs.tag }} -F ${{ inputs.release-notes-location }} ${{ (contains(inputs.tag, '-M') || contains(inputs.tag, '-RC')) && '--prerelease' || '' }}

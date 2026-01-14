@@ -1,0 +1,27 @@
+= Publish Release Notes Action
+
+This GitHub action publishes release notes.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `tag`
+| The tag to use.
+| `true`
+
+| `release-notes-location`
+| The location of the release notes file; defaults to changelog.md.
+| `false`
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Publish Release Notes
+  uses: jzheaux/spring-io-actions/publish-release-notes@main
+  with:
+    tag: '1.2.3'
+----
