@@ -1,0 +1,23 @@
+= Push Next Development Version Action
+
+This GitHub action pushes the next development version.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `version`
+| The version number to use.
+| `true`
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Push Next Development Version
+  uses: jzheaux/spring-io-actions/push-next-development-version@main
+  with:
+    version: '1.2.3'
+----
