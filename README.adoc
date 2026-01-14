@@ -1,0 +1,16 @@
+= Spring Release Actions
+
+This repository is a collection of GitHub Actions that help with the release process of Spring projects.
+
+== Actions
+
+- link:./announce-on-gchat/README.adoc[Announce on GChat]
+- link:./close-milestone/README.adoc[Close Milestone]
+- link:./compute-next-snapshot/README.adoc[Compute Next Snapshot]
+- link:./compute-next-version/README.adoc[Compute Next Version]
+- link:./compute-version/README.adoc[Compute Version]
+- link:./plan-on-gchat/README.adoc[Plan on GChat]
+- link:./publish-release-notes/README.adoc[Publish Release Notes]
+- link:./push-next-development-version/README.adoc[Push Next Development Version]
+- link:./schedule-milestone/README.adoc[Schedule Milestone]
+- link:./update-learn-page/README.adoc[Update Learn Page]
