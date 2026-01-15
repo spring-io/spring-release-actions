@@ -1,32 +1,56 @@
-const core = require('@actions/core');
-const { Inputs } = require('../src/close-milestone/inputs');
+import { jest } from '@jest/globals';
 
-const run = require('../src/close-milestone');
+const mockSetFailed = jest.fn();
+const mockInputs = jest.fn();
 
-jest.mock('@actions/core');
-jest.mock('../src/milestones');
-jest.mock('../src/close-milestone/inputs');
+jest.unstable_mockModule('@actions/core', () => ({
+	setFailed: mockSetFailed
+}));
 
-const { Milestones } = require('../src/milestones');
+jest.unstable_mockModule('../src/close-milestone/inputs.js', () => ({
+	Inputs: mockInputs
+}));
+
+const { Milestones } = await import('../src/milestones.js');
+const { default: run } = await import('../src/close-milestone/index.js');
 
 describe('close-milestone', () => {
-    beforeEach(() => {
-        process.env.GITHUB_REPOSITORY = 'owner/repo';
-    });
+	let closeMilestoneSpy;
+
+	beforeEach(() => {
+		mockSetFailed.mockClear();
+		mockInputs.mockClear();
+		process.env.GITHUB_REPOSITORY = 'owner/repo';
+		closeMilestoneSpy = jest.spyOn(Milestones.prototype, 'closeMilestone').mockResolvedValue();
+		mockInputs.mockImplementation(() => ({
+			version: '',
+			repository: process.env.GITHUB_REPOSITORY,
+			token: 'token'
+		}));
+	});
+
+	afterEach(() => {
+		jest.restoreAllMocks();
+	});
 
 	it('closes a milestone', async () => {
-        Inputs.mockImplementation(() => ({
-            version: 'title'
-        }));
-        await run();
-		expect(Milestones.prototype.closeMilestone).toHaveBeenCalledWith('title');
+		mockInputs.mockImplementation(() => ({
+			version: 'title',
+			repository: process.env.GITHUB_REPOSITORY,
+			token: 'token'
+		}));
+		await run();
+		expect(closeMilestoneSpy).toHaveBeenCalledWith('title');
 	});
 
 	it('handles errors', async () => {
-        Milestones.prototype.closeMilestone.mockImplementation(() => {
-            throw new Error('error');
-        });
-        await run();
-        expect(core.setFailed).toHaveBeenCalledWith('error');
+		mockInputs.mockImplementation(() => ({
+			version: 'title',
+			repository: process.env.GITHUB_REPOSITORY,
+			token: 'token'
+		}));
+		closeMilestoneSpy.mockRejectedValue(new Error('error'));
+		await run();
+		expect(mockSetFailed).toHaveBeenCalledWith('error');
 	});
 });

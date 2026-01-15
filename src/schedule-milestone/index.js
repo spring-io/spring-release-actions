@@ -1,23 +1,23 @@
-const core = require("@actions/core");
-const { Inputs } = require("./inputs");
-const { Milestones } = require("../milestones");
+import * as core from "@actions/core";
+import { Inputs } from "./inputs.js";
+import { Milestones } from "../milestones.js";
 
 async function run() {
-	const inputs = new Inputs();
-	const milestones = new Milestones(inputs.token, inputs.repository);
-	try {
-		await milestones.scheduleMilestone(
-			inputs.version,
-			inputs.versionDate,
-			inputs.description,
-		);
-	} catch (error) {
-		core.setFailed(error.message);
-	}
+  const inputs = new Inputs();
+  const milestones = new Milestones(inputs.token, inputs.repository);
+  try {
+    await milestones.scheduleMilestone(
+      inputs.version,
+      inputs.versionDate,
+      inputs.description,
+    );
+  } catch (error) {
+    core.setFailed(error.message);
+  }
 }
 
-if (require.main === module) {
-	run();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  run();
 }
 
-module.exports = run;
+export default run;

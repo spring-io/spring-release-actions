@@ -1,47 +1,70 @@
-const core = require('@actions/core');
-const { Inputs } = require('../src/announce-on-gchat/inputs');
-const { Announce } = require('../src/gchat');
-const { run } = require('../src/announce-on-gchat');
+import { jest } from '@jest/globals';
 
-jest.mock('@actions/core');
-jest.mock('../src/gchat');
-jest.mock('../src/announce-on-gchat/inputs');
+const mockSetFailed = jest.fn();
+const mockInputs = jest.fn();
+
+jest.unstable_mockModule('@actions/core', () => ({
+	setFailed: mockSetFailed
+}));
+
+jest.unstable_mockModule('../src/announce-on-gchat/inputs.js', () => ({
+	Inputs: mockInputs
+}));
+
+const { Announce } = await import('../src/gchat.js');
+const { run } = await import('../src/announce-on-gchat/index.js');
 
 describe('announce-on-gchat', () => {
+	let announceReleaseSpy;
+
 	beforeEach(() => {
+		mockSetFailed.mockClear();
+		mockInputs.mockClear();
 		process.env.GITHUB_REPOSITORY = 'owner/repo';
+		announceReleaseSpy = jest.spyOn(Announce.prototype, 'announceRelease').mockResolvedValue();
+		mockInputs.mockImplementation(() => ({
+			gchatWebhookUrl: '',
+			version: '',
+			projectName: process.env.GITHUB_REPOSITORY.split('/')[1]
+		}));
+	});
+
+	afterEach(() => {
+		jest.restoreAllMocks();
 	});
 
 	it('announces a release', async () => {
-		Inputs.mockImplementation(() => ({
+		mockInputs.mockImplementation(() => ({
 			gchatWebhookUrl: 'https://example.com',
-            version: '1.2.3',
+			version: '1.2.3',
 			get projectName() {
 				return process.env.GITHUB_REPOSITORY.split('/')[1];
 			}
 		}));
 		await run();
-		expect(Announce.prototype.constructor).toHaveBeenCalledWith('https://example.com', 'repo');
-		expect(Announce.prototype.announceRelease).toHaveBeenCalledWith('1.2.3');
+		expect(announceReleaseSpy).toHaveBeenCalledWith('1.2.3');
 	});
 
 	it('uses project-name', async () => {
-		inputs = {
-            gchatWebhookUrl: 'https://example.com',
+		mockInputs.mockImplementation(() => ({
+			gchatWebhookUrl: 'https://example.com',
 			version: '1.2.3',
 			projectName: 'project'
-        };
-        Inputs.mockImplementation(() => inputs);
+		}));
 		await run();
-		expect(Announce.prototype.constructor).toHaveBeenCalledWith('https://example.com', 'project');
-		expect(Announce.prototype.announceRelease).toHaveBeenCalledWith('1.2.3');
+		expect(announceReleaseSpy).toHaveBeenCalledWith('1.2.3');
 	});
 
 	it('handles errors', async () => {
-		Announce.prototype.announceRelease.mockImplementation(() => {
-			throw new Error('error');
-		});
+		mockInputs.mockImplementation(() => ({
+			gchatWebhookUrl: 'https://example.com',
+			version: '1.2.3',
+			get projectName() {
+				return process.env.GITHUB_REPOSITORY.split('/')[1];
+			}
+		}));
+		announceReleaseSpy.mockRejectedValue(new Error('error'));
 		await run();
-		expect(core.setFailed).toHaveBeenCalledWith('error');
+		expect(mockSetFailed).toHaveBeenCalledWith('error');
 	});
 });

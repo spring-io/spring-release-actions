@@ -1,79 +1,80 @@
-const { Milestones } = require('../src/milestones');
+import { jest } from '@jest/globals';
 
-jest.mock('@octokit/rest');
+const mockListMilestones = jest.fn();
+const mockUpdateMilestone = jest.fn();
+const mockCreateMilestone = jest.fn();
+const mockOctokit = jest.fn(() => ({
+	rest: {
+		issues: {
+			listMilestones: mockListMilestones,
+			updateMilestone: mockUpdateMilestone,
+			createMilestone: mockCreateMilestone
+		}
+	}
+}));
 
-const {Octokit} = require('@octokit/rest');
+jest.unstable_mockModule('@octokit/rest', () => ({
+	Octokit: mockOctokit
+}));
+
+const { Milestones } = await import('../src/milestones.js');
 
 describe('Milestones', () => {
-    let milestones;
-	let mockListMilestones;
-    let mockUpdateMilestone;
-    let mockCreateMilestone;
+	let milestones;
 
-    beforeEach(() => {
-        process.env.GITHUB_REPOSITORY = 'owner/repo';
-		mockListMilestones = jest.fn();
-        mockUpdateMilestone = jest.fn();
-        mockCreateMilestone = jest.fn();
-        Octokit.mockImplementation(() => {
-            return {
-                rest: {
-                    issues: {
-						listMilestones: mockListMilestones,
-                        updateMilestone: mockUpdateMilestone,
-                        createMilestone: mockCreateMilestone
-                    }
-                }
-            };
-        });
-        milestones = new Milestones('token', process.env.GITHUB_REPOSITORY);
-        jest.clearAllMocks();
-    });
+	beforeEach(() => {
+		process.env.GITHUB_REPOSITORY = 'owner/repo';
+		mockListMilestones.mockClear();
+		mockUpdateMilestone.mockClear();
+		mockCreateMilestone.mockClear();
+		mockOctokit.mockClear();
+		milestones = new Milestones('token', process.env.GITHUB_REPOSITORY);
+	});
 
-    describe('closeMilestone', () => {
-        it('closes a milestone', async () => {
-            milestones.findMilestoneByTitle = jest.fn().mockResolvedValue({number: 1});
-            await milestones.closeMilestone('title');
-            expect(mockUpdateMilestone).toHaveBeenCalledWith({
-                owner: 'owner',
-                repo: 'repo',
-                milestone_number: 1,
-                state: 'closed'
-            });
-        });
+	describe('closeMilestone', () => {
+		it('closes a milestone', async () => {
+			milestones.findMilestoneByTitle = jest.fn().mockResolvedValue({number: 1});
+			await milestones.closeMilestone('title');
+			expect(mockUpdateMilestone).toHaveBeenCalledWith({
+				owner: 'owner',
+				repo: 'repo',
+				milestone_number: 1,
+				state: 'closed'
+			});
+		});
 
-        it('does nothing if milestone not found', async () => {
-            milestones.findMilestoneByTitle = jest.fn().mockResolvedValue(null);
-            await milestones.closeMilestone('title');
-            expect(mockUpdateMilestone).not.toHaveBeenCalled();
-        });
-    });
+		it('does nothing if milestone not found', async () => {
+			milestones.findMilestoneByTitle = jest.fn().mockResolvedValue(null);
+			await milestones.closeMilestone('title');
+			expect(mockUpdateMilestone).not.toHaveBeenCalled();
+		});
+	});
 
-    describe('scheduleMilestone', () => {
-        it('updates an existing milestone', async () => {
-            milestones.findMilestoneByTitle = jest.fn().mockResolvedValue({number: 1});
-            await milestones.scheduleMilestone('title', '2025-12-25', 'description');
-            expect(mockUpdateMilestone).toHaveBeenCalledWith({
-                owner: 'owner',
-                repo: 'repo',
-                milestone_number: 1,
-                due_on: '2025-12-25T00:00:00.000Z',
-                description: 'description'
-            });
-        });
+	describe('scheduleMilestone', () => {
+		it('updates an existing milestone', async () => {
+			milestones.findMilestoneByTitle = jest.fn().mockResolvedValue({number: 1});
+			await milestones.scheduleMilestone('title', '2025-12-25', 'description');
+			expect(mockUpdateMilestone).toHaveBeenCalledWith({
+				owner: 'owner',
+				repo: 'repo',
+				milestone_number: 1,
+				due_on: '2025-12-25T00:00:00.000Z',
+				description: 'description'
+			});
+		});
 
-        it('creates a new milestone', async () => {
-            milestones.findMilestoneByTitle = jest.fn().mockResolvedValue(null);
-            await milestones.scheduleMilestone('title', '2025-12-25', 'description');
-            expect(mockCreateMilestone).toHaveBeenCalledWith({
-                owner: 'owner',
-                repo: 'repo',
-                title: 'title',
-                due_on: '2025-12-25T00:00:00.000Z',
-                description: 'description'
-            });
-        });
-    });
+		it('creates a new milestone', async () => {
+			milestones.findMilestoneByTitle = jest.fn().mockResolvedValue(null);
+			await milestones.scheduleMilestone('title', '2025-12-25', 'description');
+			expect(mockCreateMilestone).toHaveBeenCalledWith({
+				owner: 'owner',
+				repo: 'repo',
+				title: 'title',
+				due_on: '2025-12-25T00:00:00.000Z',
+				description: 'description'
+			});
+		});
+	});
 
 	describe('findEarliestOpenMilestoneByGeneration', () => {
 		it('finds milestone due today', async() => {

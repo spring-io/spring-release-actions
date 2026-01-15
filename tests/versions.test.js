@@ -1,4 +1,4 @@
-const { Version } = require('../src/versions');
+import { Version } from '../src/versions.js';
 
 const generation = {
     dayOfWeek: 1,

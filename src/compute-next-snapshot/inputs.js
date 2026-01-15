@@ -1,15 +1,13 @@
-const core = require("@actions/core");
+import * as core from "@actions/core";
 
 class Inputs {
-	constructor() {
-		this._version = core.getInput("version", { required: true });
-	}
+  constructor() {
+    this._version = core.getInput("version", { required: true });
+  }
 
-	get version() {
-		return this._version;
-	}
+  get version() {
+    return this._version;
+  }
 }
 
-module.exports = {
-	Inputs,
-};
+export { Inputs };

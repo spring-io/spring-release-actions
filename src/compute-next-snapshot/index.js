@@ -1,20 +1,18 @@
-const core = require("@actions/core");
+import * as core from "@actions/core";
 
-const { Inputs } = require("./inputs");
-const { Version } = require("../versions");
+import { Inputs } from "./inputs.js";
+import { Version } from "../versions.js";
 
 const inputs = new Inputs();
 
 async function run() {
-	const version = new Version(inputs.version);
-	const next = version.nextSnapshot();
-	core.setOutput("version", next.version);
+  const version = new Version(inputs.version);
+  const next = version.nextSnapshot();
+  core.setOutput("version", next.version);
 }
 
-if (require.main === module) {
-	run();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  run();
 }
 
-module.exports = {
-	run,
-};
+export { run };

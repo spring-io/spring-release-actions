@@ -1,4 +1,4 @@
-const { getWeekOfMonthAndDayOfWeek, getReleaseDate, mod } = require('../src/lib');
+import { getWeekOfMonthAndDayOfWeek, getReleaseDate, mod } from '../src/lib.js';
 
 describe('getWeekOfMonthAndDayOfWeek', () => {
     it('should return the correct week of month and day of week', () => {
