@@ -4,8 +4,8 @@
   "description": "Release-related actions for Spring projects",
   "type": "module",
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "@actions/io": "^1.1.3",
+    "@actions/core": "^2.0.1",
+    "@actions/io": "^2.0.0",
     "@octokit/rest": "^22.0.1",
     "axios": "^1.13.2",
     "compare-versions": "^6.1.0",
