@@ -18,6 +18,7 @@ runs:
     - name: Publish Release Notes
       shell: bash
       env:
+        GH_TOKEN: ${{ github.token }}
         TAG: ${{ inputs.tag }}
         RELEASE_NOTES_LOCATION: ${{ inputs.release-notes-location }}
         PRERELEASE: ${{ (contains(inputs.tag, '-M') || contains(inputs.tag, '-RC')) && '--prerelease' || '' }}
