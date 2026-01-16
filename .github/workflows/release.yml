@@ -13,13 +13,13 @@ jobs:
     steps:
       - if: ${{ steps.compute-version.outputs.snapshot == 'true' }}
         id: release-version
-        uses: spring-io/spring-release-actions/get-todays-release-version@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/get-todays-release-version@main
         with:
           milestone-token: ${{ github.token }}
           snapshot-version: ${{ github.ref_name }}
       - if: ${{ steps.release-version.outputs.release-version != '' }}
         id: count-issues
-        uses: spring-io/spring-release-actions/count-open-issues@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/count-open-issues@main
         with:
           milestone: ${{ steps.release-version.outputs.release-version }}
   releaser:
@@ -36,24 +36,24 @@ jobs:
           token: ${{ github.token }}
           config-file: etc/release-notes-sections.yml
       - name: Publish Changelog
-        uses: spring-io/spring-release-actions/publish-release-notes@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/publish-release-notes@main
         with:
           tag: ${{ needs.planner.outputs.release-version }}
       - name: Close Release Milestone
-        uses: spring-io/spring-release-actions/close-milestone@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/close-milestone@main
         with:
           version: ${{ needs.planner.outputs.release-version }}
           token: ${{ github.token }}
       - id: next-release-milestone
         name: "Compute Milestone After ${{ needs.planner.outputs.release-version }}"
-        uses: spring-io/spring-io-actions/compute-next-version@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/compute-next-version@main
         with:
           version: ${{ needs.planner.outputs.release-version }}
           token: ${{ github.token }}
           website-token: ${{ github.token }}
           website-repository: 'spring-io/spring-release-actions'
       - name: "Ensure ${{ steps.next-release-milestone.outputs.next-version }} Scheduled"
-        uses: spring-io/spring-io-actions/schedule-milestone@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/schedule-milestone@main
         if: ${{ steps.next-release-milestone.outputs.release-type  == 'oss' }}
         with:
           version: ${{ steps.next-release-milestone.outputs.next-version }}
@@ -62,7 +62,7 @@ jobs:
           announce: "true"
       - id: next-next-release-milestone
         name: "Compute Milestone After ${{ steps.next-release-milestone.outputs.next-version }}"
-        uses: spring-io/spring-io-actions/compute-next-version@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/compute-next-version@main
         if: ${{ steps.next-release-milestone.outputs.next-version-type  == 'oss' }}
         with:
           version: ${{ steps.next-release-milestone.outputs.next-version }}
@@ -70,7 +70,7 @@ jobs:
           website-token: ${{ github.token }}
           website-repository: 'spring-io/spring-release-actions'
       - name: "Ensure ${{ steps.next-next-release-milestone.outputs.next-version-type }} Scheduled"
-        uses: spring-io/spring-io-actions/schedule-milestone@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/schedule-milestone@main
         if: ${{ steps.next-next-release-milestone.outputs.next-version-type  == 'oss' }}
         with:
           version: ${{ steps.next-next-release-milestone.outputs.next-version }}
@@ -78,7 +78,7 @@ jobs:
           token: ${{ github.token }}
           announce: "true"
       - name: Announce Release on GChat
-        uses: spring-io/spring-release-actions/announce-on-gchat@${{github.ref_name}}
+        uses: spring-io/spring-release-actions/announce-on-gchat@main
         with:
           version: ${{ needs.planner.outputs.release-version }}
           gchat-webhook-url: ${{ secrets.SPRING_RELEASE_GCHAT_WEBHOOK_URL }}
