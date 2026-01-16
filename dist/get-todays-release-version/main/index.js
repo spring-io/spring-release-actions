@@ -32444,6 +32444,11 @@ class Milestones {
       per_page: 100,
     });
 
+    console.log(
+      `Looking for milestone for generation ${generation.major}.${generation.minor} due today`,
+    );
+    console.log(`Found ${milestones.length} open milestones`);
+
     const filtered = milestones
       .filter((m) => {
         const [major, minor, rest] = m.title.split("\.");
@@ -32455,6 +32460,7 @@ class Milestones {
       .filter((m) => _isToday(new Date(m.due_on)))
       .sort((a, b) => (0,umd.compareVersions)(a.title, b.title));
     if (!filtered || !filtered.length) {
+      console.log("No open milestones due today");
       return null;
     }
 
@@ -32541,14 +32547,16 @@ const milestones = new Milestones(
 async function run() {
   const version = new Version(inputs.version);
   if (!version.snapshot) {
+    console.log("Version is not a snapshot; no release version to determine.");
     core.setOutput("release-version", "");
     return;
   }
-  const milestone = milestones.findOpenMilestoneDueTodayForGeneration({
+  const milestone = await milestones.findOpenMilestoneDueTodayForGeneration({
     major: version.major,
     minor: version.minor,
   });
   if (!milestone) {
+    console.log("No milestone due today for the generation.");
     core.setOutput("release-version", "");
     return;
   }

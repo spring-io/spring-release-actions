@@ -32411,6 +32411,11 @@ class Milestones {
       per_page: 100,
     });
 
+    console.log(
+      `Looking for milestone for generation ${generation.major}.${generation.minor} due today`,
+    );
+    console.log(`Found ${milestones.length} open milestones`);
+
     const filtered = milestones
       .filter((m) => {
         const [major, minor, rest] = m.title.split("\.");
@@ -32422,6 +32427,7 @@ class Milestones {
       .filter((m) => _isToday(new Date(m.due_on)))
       .sort((a, b) => (0,umd.compareVersions)(a.title, b.title));
     if (!filtered || !filtered.length) {
+      console.log("No open milestones due today");
       return null;
     }
 

@@ -13,14 +13,16 @@ const milestones = new Milestones(
 async function run() {
   const version = new Version(inputs.version);
   if (!version.snapshot) {
+    console.log("Version is not a snapshot; no release version to determine.");
     core.setOutput("release-version", "");
     return;
   }
-  const milestone = milestones.findOpenMilestoneDueTodayForGeneration({
+  const milestone = await milestones.findOpenMilestoneDueTodayForGeneration({
     major: version.major,
     minor: version.minor,
   });
   if (!milestone) {
+    console.log("No milestone due today for the generation.");
     core.setOutput("release-version", "");
     return;
   }
