@@ -63,22 +63,6 @@ jobs:
           version: ${{ steps.next-release-milestone.outputs.version }}
           version-date: ${{ steps.next-release-milestone.outputs.version-date }}
           token: ${{ github.token }}
-      - id: next-next-release-milestone
-        name: "Compute Milestone After ${{ steps.next-release-milestone.outputs.version }}"
-        uses: ./compute-next-version
-        if: ${{ steps.next-release-milestone.outputs.version-type  == 'oss' }}
-        with:
-          version: ${{ steps.next-release-milestone.outputs.version }}
-          token: ${{ github.token }}
-          website-token: ${{ github.token }}
-          website-repository: 'spring-io/spring-release-actions'
-      - name: "Ensure ${{ steps.next-next-release-milestone.outputs.version }} Scheduled"
-        uses: ./schedule-milestone
-        if: ${{ steps.next-next-release-milestone.outputs.version-type  == 'oss' }}
-        with:
-          version: ${{ steps.next-next-release-milestone.outputs.version }}
-          version-date: ${{ steps.next-next-release-milestone.outputs.version-date }}
-          token: ${{ github.token }}
       - name: Announce Release on GChat
         uses: ./announce-on-gchat
         with:
