@@ -32181,7 +32181,7 @@ class Version {
    * @returns {boolean}
    */
   get snapshot() {
-    return this._classifier === "SNAPSHOT";
+    return this._classifier === "SNAPSHOT" || this._patch === "x";
   }
 
   /**
