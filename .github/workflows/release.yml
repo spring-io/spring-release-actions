@@ -1,0 +1,84 @@
+name: "Perform Release"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  planner:
+    name: "Is there a release that is ready today?"
+    runs-on: ubuntu-latest
+    outputs:
+      release-version: ${{ steps.release-version.outputs.release-version }}
+      should-release: ${{ steps.count-issues.outputs.issue-count > 0 }}
+    steps:
+      - if: ${{ steps.compute-version.outputs.snapshot == 'true' }}
+        id: release-version
+        uses: spring-io/spring-release-actions/get-todays-release-version@${{github.ref_name}}
+        with:
+          milestone-token: ${{ github.token }}
+          snapshot-version: ${{ github.ref_name }}
+      - if: ${{ steps.release-version.outputs.release-version != '' }}
+        id: count-issues
+        uses: spring-io/spring-release-actions/count-open-issues@${{github.ref_name}}
+        with:
+          milestone: ${{ steps.release-version.outputs.release-version }}
+  releaser:
+    name: "Perform the Release"
+    needs: planner
+    if: ${{ needs.planner.outputs.should-release == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Generate Changelog
+        uses: spring-io/github-changelog-generator@v0.0.13
+        with:
+          milestone: ${{ needs.planner.outputs.release-version }}
+          token: ${{ github.token }}
+          config-file: etc/release-notes-sections.yml
+      - name: Publish Changelog
+        uses: spring-io/spring-release-actions/publish-release-notes@${{github.ref_name}}
+        with:
+          tag: ${{ needs.planner.outputs.release-version }}
+      - name: Close Release Milestone
+        uses: spring-io/spring-release-actions/close-milestone@${{github.ref_name}}
+        with:
+          version: ${{ needs.planner.outputs.release-version }}
+          token: ${{ github.token }}
+      - id: next-release-milestone
+        name: "Compute Milestone After ${{ needs.planner.outputs.release-version }}"
+        uses: spring-io/spring-io-actions/compute-next-version@${{github.ref_name}}
+        with:
+          version: ${{ needs.planner.outputs.release-version }}
+          token: ${{ github.token }}
+          website-token: ${{ github.token }}
+          website-repository: 'spring-io/spring-release-actions'
+      - name: "Ensure ${{ steps.next-release-milestone.outputs.next-version }} Scheduled"
+        uses: spring-io/spring-io-actions/schedule-milestone@${{github.ref_name}}
+        if: ${{ steps.next-release-milestone.outputs.release-type  == 'oss' }}
+        with:
+          version: ${{ steps.next-release-milestone.outputs.next-version }}
+          version-date: ${{ steps.next-release-milestone.outputs.next-version-date }}
+          token: ${{ github.token }}
+          announce: "true"
+      - id: next-next-release-milestone
+        name: "Compute Milestone After ${{ steps.next-release-milestone.outputs.next-version }}"
+        uses: spring-io/spring-io-actions/compute-next-version@${{github.ref_name}}
+        if: ${{ steps.next-release-milestone.outputs.next-version-type  == 'oss' }}
+        with:
+          version: ${{ steps.next-release-milestone.outputs.next-version }}
+          token: ${{ github.token }}
+          website-token: ${{ github.token }}
+          website-repository: 'spring-io/spring-release-actions'
+      - name: "Ensure ${{ steps.next-next-release-milestone.outputs.next-version-type }} Scheduled"
+        uses: spring-io/spring-io-actions/schedule-milestone@${{github.ref_name}}
+        if: ${{ steps.next-next-release-milestone.outputs.next-version-type  == 'oss' }}
+        with:
+          version: ${{ steps.next-next-release-milestone.outputs.next-version }}
+          version-date: ${{ steps.next-next-release-milestone.outputs.next-version-date }}
+          token: ${{ github.token }}
+          announce: "true"
+      - name: Announce Release on GChat
+        uses: spring-io/spring-release-actions/announce-on-gchat@${{github.ref_name}}
+        with:
+          version: ${{ needs.planner.outputs.release-version }}
+          gchat-webhook-url: ${{ secrets.SPRING_RELEASE_GCHAT_WEBHOOK_URL }}
