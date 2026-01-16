@@ -32168,6 +32168,8 @@ class Version {
     this._minor = parseInt(parts[1], 10);
     this._patch = parseInt(parts[2], 10);
     this._classifier = parts.length === 3 ? "" : parts[3];
+    this._snapshot =
+      this._classifier === "SNAPSHOT" || Number.isNaN(this._patch);
   }
 
   /**
@@ -32214,7 +32216,7 @@ class Version {
    * @returns {boolean}
    */
   get snapshot() {
-    return this._classifier === "SNAPSHOT" || this._patch === "x";
+    return this._snapshot;
   }
 
   /**
@@ -32222,7 +32224,7 @@ class Version {
    * @returns {boolean}
    */
   get prerelease() {
-    return !!(this._classifier && this._classifier !== "SNAPSHOT");
+    return !!(this._classifier && !this._snapshot);
   }
 
   /**
@@ -32230,7 +32232,7 @@ class Version {
    * @returns {boolean}
    */
   get ga() {
-    return !this._classifier;
+    return !this._snapshot && !this.prerelease;
   }
 
   /**
