@@ -15,7 +15,7 @@ jobs:
       release-version: ${{ steps.release-version.outputs.release-version }}
       should-release: ${{ steps.count-issues.outputs.count == 0 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: release-version
         uses: ./get-todays-release-version
         with:
@@ -56,33 +56,31 @@ jobs:
           token: ${{ github.token }}
           website-token: ${{ github.token }}
           website-repository: 'spring-io/spring-release-actions'
-      - name: "Ensure ${{ steps.next-release-milestone.outputs.next-version }} Scheduled"
+      - name: "Ensure ${{ steps.next-release-milestone.outputs.version }} Scheduled"
         uses: ./schedule-milestone
-        if: ${{ steps.next-release-milestone.outputs.release-type  == 'oss' }}
+        if: ${{ steps.next-release-milestone.outputs.version-type  == 'oss' }}
         with:
-          version: ${{ steps.next-release-milestone.outputs.next-version }}
-          version-date: ${{ steps.next-release-milestone.outputs.next-version-date }}
+          version: ${{ steps.next-release-milestone.outputs.version }}
+          version-date: ${{ steps.next-release-milestone.outputs.version-date }}
           token: ${{ github.token }}
-          announce: "true"
       - id: next-next-release-milestone
-        name: "Compute Milestone After ${{ steps.next-release-milestone.outputs.next-version }}"
+        name: "Compute Milestone After ${{ steps.next-release-milestone.outputs.version }}"
         uses: ./compute-next-version
-        if: ${{ steps.next-release-milestone.outputs.next-version-type  == 'oss' }}
+        if: ${{ steps.next-release-milestone.outputs.version-type  == 'oss' }}
         with:
-          version: ${{ steps.next-release-milestone.outputs.next-version }}
+          version: ${{ steps.next-release-milestone.outputs.version }}
           token: ${{ github.token }}
           website-token: ${{ github.token }}
           website-repository: 'spring-io/spring-release-actions'
-      - name: "Ensure ${{ steps.next-next-release-milestone.outputs.next-version-type }} Scheduled"
+      - name: "Ensure ${{ steps.next-next-release-milestone.outputs.version }} Scheduled"
         uses: ./schedule-milestone
-        if: ${{ steps.next-next-release-milestone.outputs.next-version-type  == 'oss' }}
+        if: ${{ steps.next-next-release-milestone.outputs.version-type  == 'oss' }}
         with:
-          version: ${{ steps.next-next-release-milestone.outputs.next-version }}
-          version-date: ${{ steps.next-next-release-milestone.outputs.next-version-date }}
+          version: ${{ steps.next-next-release-milestone.outputs.version }}
+          version-date: ${{ steps.next-next-release-milestone.outputs.version-date }}
           token: ${{ github.token }}
-          announce: "true"
       - name: Announce Release on GChat
-        uses: ./announce-on-gchat@main
+        uses: ./announce-on-gchat
         with:
           version: ${{ needs.planner.outputs.release-version }}
           gchat-webhook-url: ${{ secrets.SPRING_RELEASE_GCHAT_WEBHOOK_URL }}
