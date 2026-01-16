@@ -25,9 +25,9 @@ This GitHub action announces a release on GChat.
 [source,yaml]
 ----
 - name: Announce Release on GChat
-  uses: jzheaux/spring-io-actions/announce-on-gchat@main
+  uses: spring-io/spring-release-actions/announce-on-gchat@main
   with:
     gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
-    version: ${{ needs.planner.outputs.version }}
+    version: '1.2.3'
     project-name: 'spring-widgets'
 ----

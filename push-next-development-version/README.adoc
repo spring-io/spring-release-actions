@@ -17,7 +17,7 @@ This GitHub action pushes the next development version.
 [source,yaml]
 ----
 - name: Push Next Development Version
-  uses: jzheaux/spring-io-actions/push-next-development-version@main
+  uses: spring-io/spring-release-actions/push-next-development-version@main
   with:
     version: '1.2.3'
 ----

@@ -29,7 +29,7 @@ This GitHub action plans a release on GChat.
 [source,yaml]
 ----
 - name: Plan on GChat
-  uses: jzheaux/spring-io-actions/plan-on-gchat@main
+  uses: spring-io/spring-release-actions/plan-on-gchat@main
   with:
     gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
     version-date: '2023-01-01'

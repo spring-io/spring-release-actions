@@ -27,7 +27,7 @@ This GitHub action computes the next snapshot version for a project.
 ----
 - name: Compute Next Snapshot
   id: next-snapshot
-  uses: jzheaux/spring-io-actions/compute-next-snapshot@main
+  uses: spring-io/spring-release-actions/compute-next-snapshot@main
   with:
     version: '1.2.3'
 

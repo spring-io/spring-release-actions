@@ -20,7 +20,7 @@ This GitHub action computes the project version.
 ----
 - name: Compute Version
   id: project-version
-  uses: jzheaux/spring-io-actions/compute-version@main
+  uses: spring-io/spring-release-actions/compute-version@main
 
 # Use the output from the `project-version` step
 - name: Echo version

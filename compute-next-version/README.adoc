@@ -53,7 +53,7 @@ This GitHub action computes the next milestone release name and date.
 ----
 - name: Compute Next Version
   id: next-version
-  uses: jzheaux/spring-io-actions/compute-next-version@main
+  uses: spring-io/spring-release-actions/compute-next-version@main
   with:
     version: '1.2.3'
     token: ${{ secrets.TOKEN }}

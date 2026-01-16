@@ -25,7 +25,7 @@ This GitHub action closes a milestone.
 [source,yaml]
 ----
 - name: Close Milestone
-  uses: jzheaux/spring-io-actions/close-milestone@main
+  uses: spring-io/spring-release-actions/close-milestone@main
   with:
     version: '1.2.3'
     token: ${{ secrets.TOKEN }}
