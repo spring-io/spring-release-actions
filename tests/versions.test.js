@@ -55,6 +55,17 @@ describe('version', () => {
         expect(v.snapshot).toBe(true);
     });
 
+    it('should parse a .x version', () => {
+        const v = new Version('1.2.x');
+        expect(v.major).toBe(1);
+        expect(v.minor).toBe(2);
+        expect(v.patch).toBe(NaN);
+        expect(v.classifier).toBe('');
+        expect(v.ga).toBe(false);
+        expect(v.prerelease).toBe(false);
+        expect(v.snapshot).toBe(true);
+    });
+
     it('should calculate the next GA release', () => {
         const v = new Version('1.2.3', new Date(2025, 10, 24));
         const next = v.nextMilestone(generation);
