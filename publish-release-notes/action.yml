@@ -17,9 +17,13 @@ runs:
   steps:
     - name: Publish Release Notes
       shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+        RELEASE_NOTES_LOCATION: ${{ inputs.release-notes-location }}
+        PRERELEASE: ${{ (contains(inputs.tag, '-M') || contains(inputs.tag, '-RC')) && '--prerelease' || '' }}
       run: |
         git config user.name 'github-actions[bot]'
         git config user.email 'github-actions[bot]@users.noreply.github.com'
         set +e
-        gh release delete ${{ inputs.tag }} -y --cleanup-tag
-        gh release create ${{ inputs.tag }} -F ${{ inputs.release-notes-location }} ${{ (contains(inputs.tag, '-M') || contains(inputs.tag, '-RC')) && '--prerelease' || '' }}
+        gh release delete $TAG -y --cleanup-tag
+        gh release create $TAG -F $RELEASE_NOTES_LOCATION $PRERELEASE
