@@ -11,8 +11,7 @@ jobs:
       release-version: ${{ steps.release-version.outputs.release-version }}
       should-release: ${{ steps.count-issues.outputs.issue-count > 0 }}
     steps:
-      - if: ${{ steps.compute-version.outputs.snapshot == 'true' }}
-        id: release-version
+      - id: release-version
         uses: spring-io/spring-release-actions/get-todays-release-version@main
         with:
           milestone-token: ${{ github.token }}
