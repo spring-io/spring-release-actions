@@ -16,7 +16,7 @@ class Announce {
    * @returns {Promise<void>}
    */
   async announceRelease(milestoneTitle) {
-    const text = `${this.projectName}-announcing \`${milestoneTitle}\` is available now`;
+    const text = `${this.projectName}-announcing \`${milestoneTitle}\``;
     await axios.post(this.announcementUrl, { text });
   }
 
