@@ -1,6 +1,24 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
+    target-branch: "0.0.x"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - 'type: dependency-upgrade'
+      - 'in: build'
+
+  - package-ecosystem: "npm"
+    target-branch: "0.0.x"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - 'type: dependency-upgrade'
+      - 'in: build'
+
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
