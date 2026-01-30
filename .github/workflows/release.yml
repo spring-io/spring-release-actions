@@ -15,7 +15,7 @@ jobs:
       release-version: ${{ steps.release-version.outputs.release-version }}
       should-release: ${{ steps.count-issues.outputs.count == 0 }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: release-version
         uses: ./get-todays-release-version
         with:
@@ -32,7 +32,7 @@ jobs:
     if: ${{ needs.planner.outputs.should-release == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Generate Changelog
         uses: spring-io/github-changelog-generator@c247eb874a8bbc2c7b91ed7227d8eb66eb639d38 # v0.0.13
         with:
