@@ -2,13 +2,6 @@ name: Transpile Javascript
 
 on:
   push:
-    branches:
-      - main
-      - '*.x'
-    paths:
-      - 'src/**'
-      - 'package.json'
-      - 'package-lock.json'
 
 permissions:
   contents: write
