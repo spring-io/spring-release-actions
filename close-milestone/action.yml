@@ -8,7 +8,7 @@ inputs:
     required: true
   token:
     description: "The token with permissions to close milestones"
-    required: true
+    required: false
 
   repository:
     description: "The repository containing the milestone; uses the current repository by default"
