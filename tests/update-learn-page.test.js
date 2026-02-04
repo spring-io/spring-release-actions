@@ -5,7 +5,9 @@ const mockInputs = jest.fn();
 const mockOctokit = jest.fn();
 
 jest.unstable_mockModule('@actions/core', () => ({
-	setFailed: mockSetFailed
+	setFailed: mockSetFailed,
+	warning: jest.fn(),
+	info: jest.fn()
 }));
 
 jest.unstable_mockModule('@octokit/rest', () => ({

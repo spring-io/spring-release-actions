@@ -10,7 +10,9 @@ let mockVersion = '';
 jest.unstable_mockModule('@actions/core', () => ({
 	setFailed: mockSetFailed,
 	setOutput: mockSetOutput,
-	getInput: mockGetInput
+	getInput: mockGetInput,
+	warning: jest.fn(),
+	info: jest.fn()
 }));
 
 jest.unstable_mockModule('../src/get-todays-release-version/inputs.js', () => ({
