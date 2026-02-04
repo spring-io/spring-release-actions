@@ -31203,9 +31203,7 @@ class Inputs {
     const repository = process.env.GITHUB_REPOSITORY.split("/")[1];
     const commercial = repository.endsWith("-commercial");
     this._version = getInput("version", { required: true });
-    this._token = getInput("token", {
-      required: true,
-    });
+    this._token = getInput("token") || process.env.GITHUB_TOKEN;
     this._websiteToken = getInput("website-token", { required: true });
     this._repository =
       getInput("repository") || process.env.GITHUB_REPOSITORY;
