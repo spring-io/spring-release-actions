@@ -67,13 +67,25 @@ describe('version', () => {
     });
 
     it('should calculate the next GA release', () => {
-        const v = new Version('1.2.3', new Date(2025, 10, 24));
-        const next = v.nextMilestone(generation);
+        let v = new Version('1.2.3', new Date(2025, 10, 24));
+        let next = v.nextMilestone(generation);
         expect(next.version).toBe('1.2.4');
         expect(next.type).toBe('oss');
         expect(next.dueDate.getFullYear()).toBe(2025);
         expect(next.dueDate.getMonth()).toBe(11);
         expect(next.dueDate.getDate()).toBe(22);
+        next = next.nextMilestone(generation);
+        expect(next.version).toBe('1.2.5');
+        expect(next.type).toBe('oss');
+        expect(next.dueDate.getFullYear()).toBe(2026);
+        expect(next.dueDate.getMonth()).toBe(0);
+        expect(next.dueDate.getDate()).toBe(26);
+        next = next.nextMilestone(generation);
+        expect(next.version).toBe('1.2.6');
+        expect(next.type).toBe('oss');
+        expect(next.dueDate.getFullYear()).toBe(2026);
+        expect(next.dueDate.getMonth()).toBe(1);
+        expect(next.dueDate.getDate()).toBe(23);
     });
 
     it('should calculate the next milestone release', () => {
