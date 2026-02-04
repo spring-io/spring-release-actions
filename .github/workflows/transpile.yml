@@ -1,0 +1,46 @@
+name: Transpile Javascript
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  transpile:
+    runs-on: ubuntu-latest
+    # Skip if this is a commit from this workflow
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Check for dist changes
+        id: changes
+        run: |
+          if git diff --quiet dist/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit transpiled files
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add dist/
+          git commit -m "Transpile Javascript [skip ci]"
+          git push
