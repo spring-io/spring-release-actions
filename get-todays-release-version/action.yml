@@ -8,7 +8,7 @@ inputs:
     required: true
   milestone-token:
     description: "The token needed to query project milestone information"
-    required: true
+    required: false
 
   milestone-repository:
     description: "The repository to query project milestone information"
