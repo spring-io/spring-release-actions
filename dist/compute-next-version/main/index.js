@@ -31108,7 +31108,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -36091,7 +36091,7 @@ async function run() {
   const nextVersion = release.version;
   const nextVersionType = release.type;
   const nextVersionDate = release.dueDate.toISOString().substring(0, 10);
-  console.log(
+  info(
     `Next version is ${nextVersion} (${nextVersionType}) on ${nextVersionDate}`,
   );
   setOutput("version", nextVersion);

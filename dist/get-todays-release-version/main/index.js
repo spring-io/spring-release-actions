@@ -31093,7 +31093,7 @@ function error(message, properties = {}) {
  * @param properties optional properties to add to the annotation.
  */
 function warning(message, properties = {}) {
-    issueCommand('warning', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    command_issueCommand('warning', utils_toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
  * Adds a notice issue
@@ -31108,7 +31108,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -35647,7 +35647,7 @@ const milestones = new Milestones(
 async function run() {
   const version = new Version(inputs.version);
   if (!version.snapshot) {
-    console.log("Version is not a snapshot; no release version to determine.");
+    warning("Version is not a snapshot; no release version to determine.");
     setOutput("release-version", "");
     return;
   }
@@ -35656,11 +35656,11 @@ async function run() {
     minor: version.minor,
   });
   if (!milestone) {
-    console.log("No milestone due today for the generation.");
+    warning("No milestone due today for the generation.");
     setOutput("release-version", "");
     return;
   }
-  console.log(`Today's release version is ${milestone.name}`);
+  info(`Today's release version is ${milestone.name}`);
   setOutput("release-version", milestone.name);
 }
 

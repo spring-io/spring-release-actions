@@ -31108,7 +31108,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -35629,7 +35629,7 @@ async function run() {
 
   let file;
   try {
-    console.log(`Retrieving ${path} from ${owner}/${repo}@${ref}`);
+    info(`Retrieving ${path} from ${owner}/${repo}@${ref}`);
     const response = await octokit.repos.getContent({ owner, repo, path, ref });
     file = {
       content: Buffer.from(response.data.content, "base64").toString(),
