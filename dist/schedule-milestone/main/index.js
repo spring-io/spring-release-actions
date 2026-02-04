@@ -35316,6 +35316,7 @@ class Version {
    */
   nextMilestone(generation) {
     if (this.snapshot) {
+      console.log(`returning null since version ${this} is a snapshot version`);
       return null;
     }
     if (this.ga) {
@@ -35369,7 +35370,10 @@ function _nextGaDate(version, generation) {
   let releaseYear = currentYear + Math.floor(releaseMonth / 12);
   releaseMonth = mod(releaseMonth, 12);
 
-  if (releaseMonth <= oss.end.month && releaseYear <= oss.end.year) {
+  if (
+    releaseYear < oss.end.year ||
+    (releaseYear === oss.end.year && releaseMonth <= oss.end.month)
+  ) {
     const dueDate = getReleaseDate(
       releaseMonth,
       releaseYear,
@@ -35387,8 +35391,9 @@ function _nextGaDate(version, generation) {
   releaseMonth = mod(releaseMonth, 12);
 
   if (
-    releaseMonth <= enterprise.end.month &&
-    releaseYear <= enterprise.end.year
+    releaseYear < enterprise.end.year ||
+    (releaseYear === enterprise.end.year &&
+      releaseMonth <= enterprise.end.month)
   ) {
     const dueDate = getReleaseDate(
       releaseMonth,
