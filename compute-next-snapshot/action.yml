@@ -10,7 +10,6 @@ inputs:
 outputs:
   version:
     description: "The next snapshot version for the project"
-    value: ${{ steps.compute-version.outputs.version }}
 
 runs:
   using: "node20"
