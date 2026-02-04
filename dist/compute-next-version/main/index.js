@@ -32996,7 +32996,7 @@ async function run() {
   const nextVersion = release.version;
   const nextVersionType = release.type;
   const nextVersionDate = release.dueDate.toISOString().substring(0, 10);
-  console.log(
+  core.info(
     `Next version is ${nextVersion} (${nextVersionType}) on ${nextVersionDate}`,
   );
   core.setOutput("version", nextVersion);

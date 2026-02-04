@@ -32552,7 +32552,7 @@ const milestones = new Milestones(
 async function run() {
   const version = new Version(inputs.version);
   if (!version.snapshot) {
-    console.log("Version is not a snapshot; no release version to determine.");
+    core.warning("Version is not a snapshot; no release version to determine.");
     core.setOutput("release-version", "");
     return;
   }
@@ -32561,11 +32561,11 @@ async function run() {
     minor: version.minor,
   });
   if (!milestone) {
-    console.log("No milestone due today for the generation.");
+    core.warning("No milestone due today for the generation.");
     core.setOutput("release-version", "");
     return;
   }
-  console.log(`Today's release version is ${milestone.name}`);
+  core.info(`Today's release version is ${milestone.name}`);
   core.setOutput("release-version", milestone.name);
 }
 

@@ -32534,7 +32534,7 @@ async function run() {
 
   let file;
   try {
-    console.log(`Retrieving ${path} from ${owner}/${repo}@${ref}`);
+    core.info(`Retrieving ${path} from ${owner}/${repo}@${ref}`);
     const response = await octokit.repos.getContent({ owner, repo, path, ref });
     file = {
       content: Buffer.from(response.data.content, "base64").toString(),
