@@ -7,6 +7,11 @@ on:
   schedule:
     - cron: '0 10 * * *' # Once per day at 10am UTC
   workflow_dispatch: # Manual trigger
+    inputs:
+      simulate_failure:
+        description: 'Set to "true" to force test job to fail so notify runs (for local act testing)'
+        required: false
+        default: 'false'
 
 permissions: read-all
 
@@ -29,3 +34,21 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Simulate failure (workflow_dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.simulate_failure == 'true' }}
+        run: exit 1
+
+  notify:
+    needs: test
+    runs-on: ubuntu-latest
+    if: ${{ !success() }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Notify on Google Chat
+        uses: ./notify-on-gchat
+        with:
+          gchat-webhook-url: ${{ secrets.SPRING_RELEASE_ACTIONS_CI_GCHAT_WEBHOOK_URL }}
+          notify-on: failure
