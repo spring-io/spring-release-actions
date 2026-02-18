@@ -48,7 +48,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Notify on Google Chat
-        uses: ./notify-on-gchat
+        uses: ./status-on-gchat
         with:
           gchat-webhook-url: ${{ secrets.SPRING_RELEASE_ACTIONS_CI_GCHAT_WEBHOOK_URL }}
-          notify-on: failure
