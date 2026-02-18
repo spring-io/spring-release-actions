@@ -1,14 +1,10 @@
-name: Notify on Google Chat
-description: Sends a Google Chat message with workflow run details (status, workflow name, run info, and job results). Use in any repository to notify a space when a workflow succeeds, fails, or both.
+name: Send Workflow Status on Google Chat
+description: Sends a Google Chat message with run details for the current workflow
 
 inputs:
   gchat-webhook-url:
-    description: 'Google Chat Webhook URL (create in a space via Apps > Webhooks)'
+    description: 'The URL where to send the notification'
     required: true
-  notify-on:
-    description: 'When to send the notification (failure, success, or always). Default is failure.'
-    required: false
-    default: 'failure'
 
 runs:
   using: composite
@@ -27,7 +23,6 @@ runs:
         GITHUB_EVENT_PULL_REQUEST_HTML_URL: ${{ github.event.pull_request.html_url }}
         GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
         GITHUB_EVENT_HEAD_COMMIT_URL: ${{ github.event.head_commit.url }}
-        NOTIFY_ON: ${{ inputs.notify-on }}
       run: |
         # Pull additional details from GitHub API
         json=$(gh run view "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" --json name,number,displayTitle,url,headSha,jobs)
@@ -77,13 +72,7 @@ runs:
         echo "JOB_INFO=$jobInfo" >> $GITHUB_ENV
         # Output status and whether to send notification (based on notify-on input)
         echo "result=$runStatus" >> $GITHUB_OUTPUT
-        case "${NOTIFY_ON:-failure}" in
-          always) echo "send=true" >> $GITHUB_OUTPUT ;;
-          success) echo "send=$([ \"$runStatus\" = 'succeeded' ] && echo true || echo false)" >> $GITHUB_OUTPUT ;;
-          *) echo "send=$([ \"$runStatus\" = 'failed' ] || [ \"$runStatus\" = 'cancelled' ] || [ \"$runStatus\" = 'unsuccessful' ] && echo true || echo false)" >> $GITHUB_OUTPUT ;;
-        esac
     - shell: bash
-      if: steps.run-info.outputs.send == 'true'
       run: |
         curl -X POST "$WEBHOOK_URL" -H 'Content-Type: application/json' -d "{ \"text\": \"${WORKFLOW_STATUS}\n${WORKFLOW_INFO}: ${RUN_INFO}\n\n${JOB_INFO}\" }" || true
       env:
