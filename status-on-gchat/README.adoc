@@ -12,14 +12,13 @@ Send workflow run notifications to a Google Chat space. Use this action in any G
 |===
 | Input | Required | Default | Description
 | `gchat-webhook-url` | Yes | — | The Google Chat webhook URL for the space
-| `notify-on` | No | `failure` | When to send: `failure` (only on fail/cancel/unsuccessful), `success` (only on success), or `always`
 |===
 
 == Sample usage
 
 === Notify only on failure (default)
 
-Add a job that runs after your main jobs and calls the action. Notifications are sent only when the run has failed, was cancelled, or was otherwise unsuccessful.
+Add a job that runs after your main jobs and calls the action.
 
 [source,yaml]
 ----
@@ -35,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always()  # Run even when build fails
     steps:
-      - uses: spring-io/spring-release-actions/notify-on-gchat@v1
+      - uses: spring-io/spring-release-actions/status-on-gchat@main
         with:
           gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
 ----
@@ -48,25 +47,24 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: spring-io/spring-release-actions/notify-on-gchat@v1
+      - uses: spring-io/spring-release-actions/status-on-gchat@main
         with:
           gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
           notify-on: success
 ----
 
-=== Notify on every run (success or failure)
+=== Notify when the build fails
 
 [source,yaml]
 ----
   notify:
     needs: build
     runs-on: ubuntu-latest
-    if: always()
+    if: ${{ !success() }}
     steps:
-      - uses: spring-io/spring-release-actions/notify-on-gchat@v1
+      - uses: spring-io/spring-release-actions/status-on-gchat@main
         with:
           gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
-          notify-on: always
 ----
 
 Store the webhook URL as a repository or organization secret (e.g. `GCHAT_WEBHOOK_URL`) so it is not committed to the repo.
@@ -108,12 +106,3 @@ The message posted to Google Chat uses plain text with link markup. Examples:
 ----
 
 In Google Chat, the angle-bracket links render as clickable links (e.g. the run title links to the Actions run, workflow name to the workflow page, and each job to its job log).
-
-== Outputs
-
-|===
-| Output | Description
-| `result` | Overall run status: `succeeded`, `failed`, `cancelled`, or `unsuccessful`
-|===
-
-You can use `steps.<id>.outputs.result` from the run-info step (e.g. `steps.run-info.outputs.result`) in later steps if needed.
