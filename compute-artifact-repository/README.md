@@ -47,6 +47,6 @@ jobs:
 |-----------------|-------------------|-----------------------------------|-----------------------------------|
 | OSS             | `*-SNAPSHOT`      | `https://repo.spring.io`          | `libs-snapshot-local`             |
 | OSS             | release           | `central`                         | `central`                         |
-| Commercial      | `*-SNAPSHOT`      | `https://usw1.packages.broadcom.com` | `spring-enterprise-maven-snapshot-local` |
-| Commercial      | `*-RC*` or `*-M*` | `https://usw1.packages.broadcom.com` | `spring-enterprise-maven-milestone-local` |
+| Commercial      | `*-SNAPSHOT`      | `https://usw1.packages.broadcom.com` | `spring-enterprise-maven-dev-local` |
+| Commercial      | `*-RC*` or `*-M*` | `https://usw1.packages.broadcom.com` | `spring-enterprise-maven-stage-local` |
 | Commercial      | release           | `https://usw1.packages.broadcom.com` | `spring-enterprise-maven-prod-local`     |
