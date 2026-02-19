@@ -1,5 +1,5 @@
 name: "compute-artifact-repository"
-description: "An action that determines the project version"
+description: "An action that determines the deployment repository URI and name"
 author: "jzheaux"
 inputs:
   version:
@@ -11,26 +11,74 @@ inputs:
     default: ${{ github.repository }}
 
 outputs:
-  repository:
-    description: "The version of the project"
-    value: ${{ steps.compute-artifact-repository.outputs.result }}
+  uri:
+    description: "The artifact repository URI"
+    value: ${{ steps.commercial-repository-uri.outputs.result || steps.oss-repository-uri.outputs.result }}
+  name:
+    description: "The artifact repository name"
+    value: ${{ steps.commercial-repository-name.outputs.result || steps.oss-repository-name.outputs.result }}
 
 runs:
   using: "composite"
   steps:
-    - name: Compute the Artifact Repository
-      id: compute-artifact-repository
+    - name: Is Commercial?
+      id: is-commercial
       shell: bash
       env:
         REPOSITORY: ${{ inputs.repository }}
+      run: |
+        if [[ $REPOSITORY == *"-commercial" ]] ; then
+          echo "result=true" >> $GITHUB_OUTPUT
+        else
+          echo "result=false" >> $GITHUB_OUTPUT
+        fi
+    - name: Compute the Commercial Artifact Repository URI
+      id: commercial-repository-uri
+      if: ${{ steps.is-commercial.outputs.result == 'true' }}
+      shell: bash
+      run: |
+        echo "result=https://usw1.packages.broadcom.com" >> $GITHUB_OUTPUT
+    - name: Compute the Commercial Artifact Repository Name
+      id: commercial-repository-name
+      if: ${{ steps.is-commercial.outputs.result == 'true' }}
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        if [[ $VERSION == *"-SNAPSHOT" ]] ; then
+          echo "result=spring-enterprise-maven-snapshot-local" >> $GITHUB_OUTPUT
+          exit 0;
+        fi
+        if [[ $VERSION == *"-RC"* ]] ; then
+          echo "result=spring-enterprise-maven-milestone-local" >> $GITHUB_OUTPUT
+          exit 0;
+        fi
+        if [[ $VERSION == *"-M"* ]] ; then
+          echo "result=spring-enterprise-maven-milestone-local" >> $GITHUB_OUTPUT
+          exit 0;
+        fi
+        echo "result=spring-enterprise-maven-prod-local" >> $GITHUB_OUTPUT
+    - name: Compute the OSS Artifact Repository URI
+      id: oss-repository-uri
+      if: ${{ steps.is-commercial.outputs.result == 'false' }}
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        if [[ $VERSION == *"-SNAPSHOT" ]] ; then
+          echo "result=https://repo.spring.io" >> $GITHUB_OUTPUT
+          exit 0;
+        fi
+        echo "result=central" >> $GITHUB_OUTPUT
+    - name: Compute the OSS Artifact Repository Name
+      id: oss-repository-name
+      if: ${{ steps.is-commercial.outputs.result == 'false' }}
+      shell: bash
+      env:
         VERSION: ${{ inputs.version }}
       run: |
         if [[ $VERSION == *"-SNAPSHOT" ]] ; then
           echo "result=libs-snapshot-local" >> $GITHUB_OUTPUT
-          exit 0;
-        fi
-        if [[ $REPOSITORY == *"-commercial" ]] ; then 
-          echo "result=libs-release-local" >> $GITHUB_OUTPUT
           exit 0;
         fi
         echo "result=central" >> $GITHUB_OUTPUT
