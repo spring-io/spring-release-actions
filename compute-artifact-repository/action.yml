@@ -69,7 +69,7 @@ runs:
           echo "result=https://repo.spring.io" >> $GITHUB_OUTPUT
           exit 0;
         fi
-        echo "result=central" >> $GITHUB_OUTPUT
+        echo "result=https://repo1.maven.org" >> $GITHUB_OUTPUT
     - name: Compute the OSS Artifact Repository Name
       id: oss-repository-name
       if: ${{ steps.is-commercial.outputs.result == 'false' }}
@@ -81,4 +81,4 @@ runs:
           echo "result=libs-snapshot-local" >> $GITHUB_OUTPUT
           exit 0;
         fi
-        echo "result=central" >> $GITHUB_OUTPUT
+        echo "result=maven2" >> $GITHUB_OUTPUT
