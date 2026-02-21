@@ -1,0 +1,35 @@
+name: "check-maven-artifact"
+description: "Checks if a Maven artifact is available in the given repository"
+author: "jzheaux"
+
+inputs:
+  repository-url:
+    description: "The Maven repository base URL"
+    required: false
+    default: "https://repo1.maven.org/maven2"
+  artifact-path:
+    description: "The artifact path within the repository (e.g. org/springframework/spring-core)"
+    required: true
+  version:
+    description: "The artifact version to check for (e.g. 6.1.0)"
+    required: true
+  repository-username:
+    description: "The username for repository authentication"
+    required: false
+    default: ""
+  repository-password:
+    description: "The password for repository authentication"
+    required: false
+    default: ""
+  timeout:
+    description: "The number of minutes to wait for the artifact to appear; defaults to 0 (check once and return)"
+    required: false
+    default: "0"
+
+outputs:
+  found:
+    description: "Whether the artifact was found (true or false)"
+
+runs:
+  using: "node20"
+  main: "../dist/check-maven-artifact/main/index.js"
