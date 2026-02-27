@@ -32304,17 +32304,9 @@ var core = __nccwpck_require__(7484);
 
 class Inputs {
   constructor() {
-    this._gchatWebhookUrl = core.getInput("gchat-webhook-url");
-    this._version = core.getInput("version");
+    this.gchatWebhookUrl = core.getInput("gchat-webhook-url");
+    this.version = core.getInput("version");
     this._projectName = core.getInput("project-name", { required: false });
-  }
-
-  get gchatWebhookUrl() {
-    return this._gchatWebhookUrl;
-  }
-
-  get version() {
-    return this._version;
   }
 
   get projectName() {
@@ -37940,8 +37932,7 @@ class Announce {
 
 
 
-async function run() {
-  const inputs = new Inputs();
+async function run(inputs = new Inputs()) {
   const announce = new Announce(inputs.gchatWebhookUrl, inputs.projectName);
   try {
     await announce.announceRelease(inputs.version);

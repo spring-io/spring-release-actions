@@ -35,4 +35,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   run();
 }
 
-export default run;
+export { run };

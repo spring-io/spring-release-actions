@@ -2,22 +2,10 @@ import * as core from "@actions/core";
 
 class Inputs {
   constructor() {
-    this._version = core.getInput("version", { required: true });
-    this._token = core.getInput("token") || process.env.GITHUB_TOKEN;
-    this._repository =
+    this.version = core.getInput("version", { required: true });
+    this.token = core.getInput("token") || process.env.GITHUB_TOKEN;
+    this.repository =
       core.getInput("repository") || process.env.GITHUB_REPOSITORY;
-  }
-
-  get version() {
-    return this._version;
-  }
-
-  get token() {
-    return this._token;
-  }
-
-  get repository() {
-    return this._repository;
   }
 }
 

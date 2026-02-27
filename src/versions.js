@@ -137,7 +137,7 @@ function _nextGa(v, generation) {
 }
 
 function _nextGaVersion(version) {
-  return `${version._major}.${version._minor}.${version._patch + 1}`;
+  return `${version.major}.${version.minor}.${version.patch + 1}`;
 }
 
 function _nextGaDate(version, generation) {
@@ -197,21 +197,21 @@ function _nextMilestone(v, generation) {
 }
 
 function _nextMilestoneVersion(version) {
-  if (version._classifier === "M1") {
-    return `${version._major}.${version._minor}.${version._patch}-M2`;
+  if (version.classifier === "M1") {
+    return `${version.major}.${version.minor}.${version.patch}-M2`;
   }
-  if (version._classifier === "M2") {
-    return `${version._major}.${version._minor}.${version._patch}-M3`;
+  if (version.classifier === "M2") {
+    return `${version.major}.${version.minor}.${version.patch}-M3`;
   }
-  if (version._classifier.startsWith("M")) {
-    return `${version._major}.${version._minor}.${version._patch}-RC1`;
+  if (version.classifier.startsWith("M")) {
+    return `${version.major}.${version.minor}.${version.patch}-RC1`;
   }
-  return `${version._major}.${version._minor}.${version._patch}`;
+  return `${version.major}.${version.minor}.${version.patch}`;
 }
 
 function _nextMilestoneDate(version, generation) {
   const currentMonth = version.dueDate.getMonth();
-  const candidateMonths = releaseTrainMonths[version._classifier];
+  const candidateMonths = releaseTrainMonths[version.classifier];
   const index =
     mod(candidateMonths[0] - currentMonth, 12) <
     mod(candidateMonths[1] - currentMonth, 12)

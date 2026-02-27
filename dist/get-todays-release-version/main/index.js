@@ -28105,23 +28105,11 @@ var core = __nccwpck_require__(7484);
 
 class Inputs {
   constructor() {
-    this._version = core.getInput("snapshot-version", { required: true });
-    this._milestoneRepository =
+    this.version = core.getInput("snapshot-version", { required: true });
+    this.milestoneRepository =
       core.getInput("milestone-repository") || process.env.GITHUB_REPOSITORY;
-    this._milestoneToken =
+    this.milestoneToken =
       core.getInput("milestone-token") || process.env.GITHUB_TOKEN;
-  }
-
-  get version() {
-    return this._version;
-  }
-
-  get milestoneRepository() {
-    return this._milestoneRepository;
-  }
-
-  get milestoneToken() {
-    return this._milestoneToken;
   }
 }
 
@@ -32282,7 +32270,7 @@ function _nextGa(v, generation) {
 }
 
 function _nextGaVersion(version) {
-  return `${version._major}.${version._minor}.${version._patch + 1}`;
+  return `${version.major}.${version.minor}.${version.patch + 1}`;
 }
 
 function _nextGaDate(version, generation) {
@@ -32342,21 +32330,21 @@ function _nextMilestone(v, generation) {
 }
 
 function _nextMilestoneVersion(version) {
-  if (version._classifier === "M1") {
-    return `${version._major}.${version._minor}.${version._patch}-M2`;
+  if (version.classifier === "M1") {
+    return `${version.major}.${version.minor}.${version.patch}-M2`;
   }
-  if (version._classifier === "M2") {
-    return `${version._major}.${version._minor}.${version._patch}-M3`;
+  if (version.classifier === "M2") {
+    return `${version.major}.${version.minor}.${version.patch}-M3`;
   }
-  if (version._classifier.startsWith("M")) {
-    return `${version._major}.${version._minor}.${version._patch}-RC1`;
+  if (version.classifier.startsWith("M")) {
+    return `${version.major}.${version.minor}.${version.patch}-RC1`;
   }
-  return `${version._major}.${version._minor}.${version._patch}`;
+  return `${version.major}.${version.minor}.${version.patch}`;
 }
 
 function _nextMilestoneDate(version, generation) {
   const currentMonth = version.dueDate.getMonth();
-  const candidateMonths = releaseTrainMonths[version._classifier];
+  const candidateMonths = releaseTrainMonths[version.classifier];
   const index =
     mod(candidateMonths[0] - currentMonth, 12) <
     mod(candidateMonths[1] - currentMonth, 12)
@@ -32407,8 +32395,7 @@ class Milestones {
    */
   constructor(token, repo) {
     this.gh = new dist_src_Octokit({ auth: token });
-    this.owner = repo.split("/")[0];
-    this.repo = repo.split("/")[1];
+    [this.owner, this.repo] = repo.split("/");
     this.milestoneType = this.repo.endsWith("-commercial")
       ? "enterprise"
       : "oss";
@@ -32456,7 +32443,7 @@ class Milestones {
 
     const filtered = milestones
       .filter((m) => {
-        const [major, minor, rest] = m.title.split("\.");
+        const [major, minor] = m.title.split(".");
         return (
           generation.major === parseInt(major) &&
           generation.minor === parseInt(minor)
@@ -32464,7 +32451,7 @@ class Milestones {
       })
       .filter((m) => _isToday(new Date(m.due_on)))
       .sort((a, b) => (0,umd.compareVersions)(a.title, b.title));
-    if (!filtered || !filtered.length) {
+    if (filtered.length === 0) {
       console.log("No open milestones due today");
       return null;
     }
@@ -32543,13 +32530,11 @@ function _isToday(dueDate) {
 
 
 
-const inputs = new Inputs();
-const milestones = new Milestones(
-  inputs.milestoneToken,
-  inputs.milestoneRepository,
-);
-
-async function run() {
+async function run(inputs = new Inputs()) {
+  const milestones = new Milestones(
+    inputs.milestoneToken,
+    inputs.milestoneRepository,
+  );
   const version = new Version(inputs.version);
   if (!version.snapshot) {
     core.warning("Version is not a snapshot; no release version to determine.");
