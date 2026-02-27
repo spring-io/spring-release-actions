@@ -19,6 +19,7 @@
     "test": "^3.3.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
     "@vercel/ncc": "0.38.4",
     "jest": "^30.2.0",
     "undici": ">=7.22.0"
@@ -38,7 +39,8 @@
     "compile": "npm-run-all --parallel compile-*",
     "check": "npm-run-all --parallel prettier-check",
     "format": "npm-run-all --parallel prettier-write",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
+    "ci-test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
     "build": "npm run format && npm run compile",
     "all": "npm run build && npm test"
   }

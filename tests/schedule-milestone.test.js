@@ -1,11 +1,9 @@
 import { jest } from '@jest/globals';
+import * as core from '../__fixtures__/core.js';
 
-const mockSetFailed = jest.fn();
 const mockInputs = jest.fn();
 
-jest.unstable_mockModule('@actions/core', () => ({
-	setFailed: mockSetFailed
-}));
+jest.unstable_mockModule('@actions/core', () => core);
 
 jest.unstable_mockModule('../src/schedule-milestone/inputs.js', () => ({
 	Inputs: mockInputs
@@ -18,8 +16,6 @@ describe('schedule-milestone', () => {
 	let scheduleMilestoneSpy;
 
 	beforeEach(() => {
-		mockSetFailed.mockClear();
-		mockInputs.mockClear();
 		process.env.GITHUB_REPOSITORY = 'owner/repo';
 		scheduleMilestoneSpy = jest.spyOn(Milestones.prototype, 'scheduleMilestone').mockResolvedValue();
 		mockInputs.mockImplementation(() => ({
@@ -57,6 +53,6 @@ describe('schedule-milestone', () => {
 		}));
 		scheduleMilestoneSpy.mockRejectedValue(new Error('error'));
 		await run();
-		expect(mockSetFailed).toHaveBeenCalledWith('error');
+		expect(core.setFailed).toHaveBeenCalledWith('error');
 	});
 });
