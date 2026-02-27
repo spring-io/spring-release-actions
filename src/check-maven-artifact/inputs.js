@@ -10,6 +10,7 @@ class Inputs {
     this.password = core.getInput("repository-password") || "";
     const timeoutStr = core.getInput("timeout");
     this.timeout = timeoutStr ? parseInt(timeoutStr, 10) : 0;
+    Object.freeze(this);
   }
 }
 

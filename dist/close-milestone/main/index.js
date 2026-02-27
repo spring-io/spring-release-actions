@@ -28109,6 +28109,7 @@ class Inputs {
     this.token = core.getInput("token") || process.env.GITHUB_TOKEN;
     this.repository =
       core.getInput("repository") || process.env.GITHUB_REPOSITORY;
+    Object.freeze(this);
   }
 }
 

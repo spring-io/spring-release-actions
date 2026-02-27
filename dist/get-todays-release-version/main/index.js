@@ -28110,6 +28110,7 @@ class Inputs {
       core.getInput("milestone-repository") || process.env.GITHUB_REPOSITORY;
     this.milestoneToken =
       core.getInput("milestone-token") || process.env.GITHUB_TOKEN;
+    Object.freeze(this);
   }
 }
 

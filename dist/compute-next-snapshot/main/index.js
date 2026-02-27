@@ -27707,6 +27707,7 @@ var core = __nccwpck_require__(7484);
 class Inputs {
   constructor() {
     this.version = core.getInput("version", { required: true });
+    Object.freeze(this);
   }
 }
 
