@@ -32097,34 +32097,20 @@ class Inputs {
     this.refDocUrl =
       core.getInput("ref-doc-url", { required: false }) ||
       "https://docs.spring.io/{project}/reference/{version}/index.html";
-    this._projectName = core.getInput("project-name", { required: false });
-    this._websiteRepository = core.getInput("website-repository", {
-      required: false,
-    });
-  }
-
-  get projectName() {
-    return this._projectName || process.env.GITHUB_REPOSITORY;
-  }
-
-  get projectSlug() {
+    this.projectName =
+      core.getInput("project-name", { required: false }) ||
+      process.env.GITHUB_REPOSITORY;
     const name = this.projectName.substring(this.projectName.indexOf("/") + 1);
-    return name.endsWith("-commercial")
+    this.projectSlug = name.endsWith("-commercial")
       ? name.substring(0, name.length - "-commercial".length)
       : name;
-  }
-
-  get websiteRepository() {
-    return (
-      this._websiteRepository ||
-      (this.projectName.includes("commercial")
+    this.commercial = this.projectName.includes("commercial");
+    this.websiteRepository =
+      core.getInput("website-repository", { required: false }) ||
+      (this.commercial
         ? "spring-io/spring-website-commercial-content"
-        : "spring-io/spring-website-content")
-    );
-  }
-
-  get commercial() {
-    return this.projectName.includes("commercial");
+        : "spring-io/spring-website-content");
+    Object.freeze(this);
   }
 }
 

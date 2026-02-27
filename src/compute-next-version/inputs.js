@@ -16,6 +16,7 @@ class Inputs {
         : "spring-io/spring-website-content");
     this.projectSlug =
       core.getInput("project-slug") || repository.replace("-commercial", "");
+    Object.freeze(this);
   }
 }
 

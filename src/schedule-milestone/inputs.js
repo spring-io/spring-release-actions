@@ -8,6 +8,7 @@ class Inputs {
     this.repository =
       core.getInput("repository") || process.env.GITHUB_REPOSITORY;
     this.token = core.getInput("token") || process.env.GITHUB_TOKEN;
+    Object.freeze(this);
   }
 }
 
