@@ -3,6 +3,10 @@ import { jest } from '@jest/globals';
 const mockListMilestones = jest.fn();
 const mockUpdateMilestone = jest.fn();
 const mockCreateMilestone = jest.fn();
+const mockPaginate = jest.fn(async (endpoint, params) => {
+	const response = await endpoint(params);
+	return response.data;
+});
 const mockOctokit = jest.fn(() => ({
 	rest: {
 		issues: {
@@ -10,7 +14,8 @@ const mockOctokit = jest.fn(() => ({
 			updateMilestone: mockUpdateMilestone,
 			createMilestone: mockCreateMilestone
 		}
-	}
+	},
+	paginate: mockPaginate
 }));
 
 jest.unstable_mockModule('@octokit/rest', () => ({
