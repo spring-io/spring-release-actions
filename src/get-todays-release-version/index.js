@@ -4,13 +4,11 @@ import { Inputs } from "./inputs.js";
 import { Milestones } from "../milestones.js";
 import { Version } from "../versions.js";
 
-const inputs = new Inputs();
-const milestones = new Milestones(
-  inputs.milestoneToken,
-  inputs.milestoneRepository,
-);
-
-async function run() {
+async function run(inputs = new Inputs()) {
+  const milestones = new Milestones(
+    inputs.milestoneToken,
+    inputs.milestoneRepository,
+  );
   const version = new Version(inputs.version);
   if (!version.snapshot) {
     core.warning("Version is not a snapshot; no release version to determine.");
