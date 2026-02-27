@@ -4,8 +4,7 @@ import { Inputs } from "./inputs.js";
 import { Entry, LearnPage } from "../learn.js";
 import { Version } from "../versions.js";
 
-async function run() {
-  const inputs = new Inputs();
+async function run(inputs = new Inputs()) {
   if (inputs.version.endsWith("-SNAPSHOT")) {
     core.setFailed(
       "Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published",

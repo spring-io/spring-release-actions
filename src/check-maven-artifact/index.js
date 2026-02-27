@@ -2,8 +2,7 @@ import * as core from "@actions/core";
 import { Inputs } from "./inputs.js";
 import { MavenArtifact } from "../maven.js";
 
-async function run() {
-  const inputs = new Inputs();
+async function run(inputs = new Inputs()) {
   const artifact = new MavenArtifact(
     inputs.repositoryUrl,
     inputs.artifactPath,

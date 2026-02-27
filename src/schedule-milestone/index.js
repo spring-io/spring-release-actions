@@ -2,8 +2,7 @@ import * as core from "@actions/core";
 import { Inputs } from "./inputs.js";
 import { Milestones } from "../milestones.js";
 
-async function run() {
-  const inputs = new Inputs();
+async function run(inputs = new Inputs()) {
   const milestones = new Milestones(inputs.token, inputs.repository);
   try {
     await milestones.scheduleMilestone(

@@ -2,8 +2,7 @@ import * as core from "@actions/core";
 import { Inputs } from "./inputs.js";
 import { Announce } from "../gchat.js";
 
-async function run() {
-  const inputs = new Inputs();
+async function run(inputs = new Inputs()) {
   const announce = new Announce(inputs.gchatWebhookUrl, inputs.projectName);
   try {
     await announce.planRelease(inputs.version, inputs.versionDate);
