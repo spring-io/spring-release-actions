@@ -1,14 +1,10 @@
 import { jest } from '@jest/globals';
+import * as core from '../__fixtures__/core.js';
 
-const mockSetFailed = jest.fn();
 const mockInputs = jest.fn();
 const mockOctokit = jest.fn();
 
-jest.unstable_mockModule('@actions/core', () => ({
-	setFailed: mockSetFailed,
-	warning: jest.fn(),
-	info: jest.fn()
-}));
+jest.unstable_mockModule('@actions/core', () => core);
 
 jest.unstable_mockModule('@octokit/rest', () => ({
 	Octokit: mockOctokit
@@ -25,10 +21,6 @@ describe('Update Learn Page Action', () => {
 	let octokit;
 
 	beforeEach(() => {
-		mockSetFailed.mockClear();
-		mockInputs.mockClear();
-		mockOctokit.mockClear();
-
 		inputs = {
 			websiteToken: 'token',
 			version: '1.2.3',
@@ -49,14 +41,10 @@ describe('Update Learn Page Action', () => {
 		mockOctokit.mockImplementation(() => octokit);
 	});
 
-	afterEach(() => {
-		jest.clearAllMocks();
-	});
-
 	it('should fail if the version is a SNAPSHOT', async () => {
 		inputs.version = '1.2.3-SNAPSHOT';
 		await run();
-		expect(mockSetFailed).toHaveBeenCalledWith("Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published");
+		expect(core.setFailed).toHaveBeenCalledWith("Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published");
 	});
 
 	it('should create a new documentation file', async () => {
@@ -110,11 +98,7 @@ describe('Update Learn Page Action Commercial', () => {
 	let octokit;
 
 	beforeEach(() => {
-		mockSetFailed.mockClear();
-		mockInputs.mockClear();
-		mockOctokit.mockClear();
-
-		process.env.GITHUB_REPOSITORY = "owner/repo";
+		process.env.GITHUB_REPOSITORY = 'owner/repo';
 		inputs = {
 			websiteToken: 'token',
 			version: '1.2.3',
@@ -136,14 +120,10 @@ describe('Update Learn Page Action Commercial', () => {
 		mockOctokit.mockImplementation(() => octokit);
 	});
 
-	afterEach(() => {
-		jest.clearAllMocks();
-	});
-
 	it('should fail if the version is a SNAPSHOT', async () => {
 		inputs.version = '1.2.3-SNAPSHOT';
 		await run();
-		expect(mockSetFailed).toHaveBeenCalledWith("Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published");
+		expect(core.setFailed).toHaveBeenCalledWith("Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published");
 	});
 
 	it('should create a new documentation file', async () => {

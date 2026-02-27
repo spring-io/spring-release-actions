@@ -1,11 +1,9 @@
 import { jest } from '@jest/globals';
+import * as core from '../__fixtures__/core.js';
 
-const mockSetFailed = jest.fn();
 const mockInputs = jest.fn();
 
-jest.unstable_mockModule('@actions/core', () => ({
-	setFailed: mockSetFailed
-}));
+jest.unstable_mockModule('@actions/core', () => core);
 
 jest.unstable_mockModule('../src/announce-on-gchat/inputs.js', () => ({
 	Inputs: mockInputs
@@ -18,8 +16,6 @@ describe('announce-on-gchat', () => {
 	let announceReleaseSpy;
 
 	beforeEach(() => {
-		mockSetFailed.mockClear();
-		mockInputs.mockClear();
 		process.env.GITHUB_REPOSITORY = 'owner/repo';
 		announceReleaseSpy = jest.spyOn(Announce.prototype, 'announceRelease').mockResolvedValue();
 		mockInputs.mockImplementation(() => ({
@@ -65,6 +61,6 @@ describe('announce-on-gchat', () => {
 		}));
 		announceReleaseSpy.mockRejectedValue(new Error('error'));
 		await run();
-		expect(mockSetFailed).toHaveBeenCalledWith('error');
+		expect(core.setFailed).toHaveBeenCalledWith('error');
 	});
 });
