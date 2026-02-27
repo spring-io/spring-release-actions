@@ -3,9 +3,7 @@ import * as core from "@actions/core";
 import { Inputs } from "./inputs.js";
 import { Version } from "../versions.js";
 
-const inputs = new Inputs();
-
-async function run() {
+async function run(inputs = new Inputs()) {
   const version = new Version(inputs.version);
   const next = version.nextSnapshot();
   core.setOutput("version", next.version);

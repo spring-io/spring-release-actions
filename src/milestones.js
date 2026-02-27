@@ -17,8 +17,7 @@ class Milestones {
    */
   constructor(token, repo) {
     this.gh = new Octokit({ auth: token });
-    this.owner = repo.split("/")[0];
-    this.repo = repo.split("/")[1];
+    [this.owner, this.repo] = repo.split("/");
     this.milestoneType = this.repo.endsWith("-commercial")
       ? "enterprise"
       : "oss";
@@ -66,7 +65,7 @@ class Milestones {
 
     const filtered = milestones
       .filter((m) => {
-        const [major, minor, rest] = m.title.split("\.");
+        const [major, minor] = m.title.split(".");
         return (
           generation.major === parseInt(major) &&
           generation.minor === parseInt(minor)
@@ -74,7 +73,7 @@ class Milestones {
       })
       .filter((m) => _isToday(new Date(m.due_on)))
       .sort((a, b) => compareVersions(a.title, b.title));
-    if (!filtered || !filtered.length) {
+    if (filtered.length === 0) {
       console.log("No open milestones due today");
       return null;
     }

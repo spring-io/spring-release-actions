@@ -28107,47 +28107,18 @@ class Inputs {
   constructor() {
     const repository = process.env.GITHUB_REPOSITORY.split("/")[1];
     const commercial = repository.endsWith("-commercial");
-    this._version = core.getInput("version", { required: true });
-    this._token = core.getInput("token") || process.env.GITHUB_TOKEN;
-    this._websiteToken = core.getInput("website-token", { required: true });
-    this._repository =
+    this.version = core.getInput("version", { required: true });
+    this.token = core.getInput("token") || process.env.GITHUB_TOKEN;
+    this.websiteToken = core.getInput("website-token", { required: true });
+    this.repository =
       core.getInput("repository") || process.env.GITHUB_REPOSITORY;
-    let websiteRepository = core.getInput("website-repository");
-    if (!websiteRepository) {
-      websiteRepository = commercial
+    this.websiteRepository =
+      core.getInput("website-repository") ||
+      (commercial
         ? "spring-io/spring-website-commercial-content"
-        : "spring-io/spring-website-content";
-    }
-    let projectSlug = core.getInput("project-slug");
-    if (!projectSlug) {
-      projectSlug = repository.replace("-commercial", "");
-    }
-    this._projectSlug = projectSlug;
-    this._websiteRepository = websiteRepository;
-  }
-
-  get version() {
-    return this._version;
-  }
-
-  get token() {
-    return this._token;
-  }
-
-  get websiteToken() {
-    return this._websiteToken;
-  }
-
-  get repository() {
-    return this._repository;
-  }
-
-  get projectSlug() {
-    return this._projectSlug;
-  }
-
-  get websiteRepository() {
-    return this._websiteRepository;
+        : "spring-io/spring-website-content");
+    this.projectSlug =
+      core.getInput("project-slug") || repository.replace("-commercial", "");
   }
 }
 
@@ -32308,7 +32279,7 @@ function _nextGa(v, generation) {
 }
 
 function _nextGaVersion(version) {
-  return `${version._major}.${version._minor}.${version._patch + 1}`;
+  return `${version.major}.${version.minor}.${version.patch + 1}`;
 }
 
 function _nextGaDate(version, generation) {
@@ -32368,21 +32339,21 @@ function _nextMilestone(v, generation) {
 }
 
 function _nextMilestoneVersion(version) {
-  if (version._classifier === "M1") {
-    return `${version._major}.${version._minor}.${version._patch}-M2`;
+  if (version.classifier === "M1") {
+    return `${version.major}.${version.minor}.${version.patch}-M2`;
   }
-  if (version._classifier === "M2") {
-    return `${version._major}.${version._minor}.${version._patch}-M3`;
+  if (version.classifier === "M2") {
+    return `${version.major}.${version.minor}.${version.patch}-M3`;
   }
-  if (version._classifier.startsWith("M")) {
-    return `${version._major}.${version._minor}.${version._patch}-RC1`;
+  if (version.classifier.startsWith("M")) {
+    return `${version.major}.${version.minor}.${version.patch}-RC1`;
   }
-  return `${version._major}.${version._minor}.${version._patch}`;
+  return `${version.major}.${version.minor}.${version.patch}`;
 }
 
 function _nextMilestoneDate(version, generation) {
   const currentMonth = version.dueDate.getMonth();
-  const candidateMonths = releaseTrainMonths[version._classifier];
+  const candidateMonths = releaseTrainMonths[version.classifier];
   const index =
     mod(candidateMonths[0] - currentMonth, 12) <
     mod(candidateMonths[1] - currentMonth, 12)
@@ -32433,8 +32404,7 @@ class Milestones {
    */
   constructor(token, repo) {
     this.gh = new dist_src_Octokit({ auth: token });
-    this.owner = repo.split("/")[0];
-    this.repo = repo.split("/")[1];
+    [this.owner, this.repo] = repo.split("/");
     this.milestoneType = this.repo.endsWith("-commercial")
       ? "enterprise"
       : "oss";
@@ -32482,7 +32452,7 @@ class Milestones {
 
     const filtered = milestones
       .filter((m) => {
-        const [major, minor, rest] = m.title.split("\.");
+        const [major, minor] = m.title.split(".");
         return (
           generation.major === parseInt(major) &&
           generation.minor === parseInt(minor)
@@ -32490,7 +32460,7 @@ class Milestones {
       })
       .filter((m) => _isToday(new Date(m.due_on)))
       .sort((a, b) => (0,umd.compareVersions)(a.title, b.title));
-    if (!filtered || !filtered.length) {
+    if (filtered.length === 0) {
       console.log("No open milestones due today");
       return null;
     }
@@ -32967,19 +32937,17 @@ function _date(date) {
 
 
 
-const inputs = new Inputs();
-const milestones = new Milestones(inputs.token, inputs.repository);
-const projects = new Website(inputs);
-
-async function run() {
-  const version = await _getVersion();
+async function run(inputs = new Inputs()) {
+  const milestones = new Milestones(inputs.token, inputs.repository);
+  const projects = new Website(inputs);
+  const version = await _getVersion(milestones, inputs);
   if (!version) {
     core.setFailed(
       `Could not find milestone ${inputs.version} or it has no due date.`,
     );
     return;
   }
-  const generation = await _getGeneration(version);
+  const generation = await _getGeneration(projects, version);
   if (!generation) {
     core.setFailed(`Could not find generation for version ${inputs.version}.`);
     return;
@@ -33002,7 +32970,7 @@ async function run() {
   core.setOutput("version-type", nextVersionType);
 }
 
-async function _getVersion() {
+async function _getVersion(milestones, inputs) {
   const milestone = await milestones.findMilestoneByTitle(inputs.version);
   if (!milestone || !milestone.dueDate) {
     return null;
@@ -33010,11 +32978,11 @@ async function _getVersion() {
   return Version.fromMilestone(milestone);
 }
 
-async function _getGeneration(version) {
+async function _getGeneration(projects, version) {
   try {
     return await projects.getGenerationByVersion(version);
   } catch (error) {
-    core.setFailed(error);
+    core.setFailed(error.message);
   }
 }
 

@@ -4,7 +4,7 @@ import * as core from '../__fixtures__/core.js';
 jest.unstable_mockModule('@actions/core', () => core);
 
 const { Milestones } = await import('../src/milestones.js');
-const { default: run } = await import('../src/schedule-milestone/index.js');
+const { run } = await import('../src/schedule-milestone/index.js');
 
 describe('schedule-milestone', () => {
 	const defaultInputs = {

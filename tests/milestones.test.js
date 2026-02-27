@@ -23,12 +23,7 @@ describe('Milestones', () => {
 	let milestones;
 
 	beforeEach(() => {
-		process.env.GITHUB_REPOSITORY = 'owner/repo';
-		mockListMilestones.mockClear();
-		mockUpdateMilestone.mockClear();
-		mockCreateMilestone.mockClear();
-		mockOctokit.mockClear();
-		milestones = new Milestones('token', process.env.GITHUB_REPOSITORY);
+		milestones = new Milestones('token', 'owner/repo');
 	});
 
 	describe('closeMilestone', () => {
