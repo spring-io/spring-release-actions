@@ -37,6 +37,7 @@
     "compile-plan-on-gchat-main": "ncc build src/plan-on-gchat/index.js --out dist/plan-on-gchat/main --source-map --no-source-map-register",
     "compile-schedule-milestone-main": "ncc build src/schedule-milestone/index.js --out dist/schedule-milestone/main --source-map --no-source-map-register",
     "compile-update-learn-page-main": "ncc build src/update-learn-page/index.js --out dist/update-learn-page/main --source-map --no-source-map-register",
+    "compile-compute-artifact-repository-main": "ncc build src/compute-artifact-repository/index.js --out dist/compute-artifact-repository/main --source-map --no-source-map-register",
     "compile-status-on-gchat-main": "ncc build src/status-on-gchat/index.js --out dist/status-on-gchat/main --source-map --no-source-map-register",
     "compile": "npm-run-all --parallel compile-*",
     "check": "npm-run-all --parallel prettier-check",
@@ -51,6 +52,7 @@
     "integration-test-check-maven-artifact": "npx @github/local-action run ./check-maven-artifact ../src/check-maven-artifact/index.js ./integration-tests/check-maven-artifact.local-action.env",
     "integration-test-compute-next-snapshot": "npx @github/local-action run ./compute-next-snapshot ../src/compute-next-snapshot/index.js ./integration-tests/compute-next-snapshot.local-action.env",
     "integration-test-compute-next-version": "npx @github/local-action run ./compute-next-version ../src/compute-next-version/index.js ./integration-tests/compute-next-version.local-action.env",
+    "integration-test-compute-artifact-repository": "npx @github/local-action run ./compute-artifact-repository ../src/compute-artifact-repository/index.js ./integration-tests/compute-artifact-repository.local-action.env",
     "integration-test-get-todays-release-version": "npx @github/local-action run ./get-todays-release-version ../src/get-todays-release-version/index.js ./integration-tests/get-todays-release-version.local-action.env",
     "integration-test": "npm-run-all integration-test-*"
   }
