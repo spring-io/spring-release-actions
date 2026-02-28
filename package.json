@@ -47,6 +47,7 @@
     "all": "npm run build && npm test",
     "integration-test-status-on-gchat": "npx @github/local-action run ./status-on-gchat ../src/status-on-gchat/index.js ./integration-tests/status-on-gchat.local-action.env && npx @github/local-action run ./status-on-gchat ../src/status-on-gchat/index.js ./integration-tests/status-on-gchat.success.local-action.env",
     "integration-test-announce-on-gchat": "npx @github/local-action run ./announce-on-gchat ../src/announce-on-gchat/index.js ./integration-tests/announce-on-gchat.local-action.env",
+    "integration-test-plan-on-gchat": "npx @github/local-action run ./plan-on-gchat ../src/plan-on-gchat/index.js ./integration-tests/plan-on-gchat.local-action.env",
     "integration-test-check-maven-artifact": "npx @github/local-action run ./check-maven-artifact ../src/check-maven-artifact/index.js ./integration-tests/check-maven-artifact.local-action.env",
     "integration-test-compute-next-snapshot": "npx @github/local-action run ./compute-next-snapshot ../src/compute-next-snapshot/index.js ./integration-tests/compute-next-snapshot.local-action.env",
     "integration-test-compute-next-version": "npx @github/local-action run ./compute-next-version ../src/compute-next-version/index.js ./integration-tests/compute-next-version.local-action.env",
