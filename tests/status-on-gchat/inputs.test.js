@@ -1,15 +1,15 @@
 import { jest } from "@jest/globals";
-import * as core from "../__fixtures__/core.js";
+import * as core from "../../__fixtures__/core.js";
 
 jest.unstable_mockModule("@actions/core", () => core);
 
-const { Inputs } = await import("../src/close-milestone/inputs.js");
+const { Inputs } = await import("../../src/status-on-gchat/inputs.js");
 
 function setupGetInput(map) {
   core.getInput.mockImplementation((name) => map[name] ?? "");
 }
 
-describe("close-milestone Inputs constructor", () => {
+describe("status-on-gchat Inputs constructor", () => {
   const originalEnv = { ...process.env };
 
   afterEach(() => {
@@ -17,35 +17,29 @@ describe("close-milestone Inputs constructor", () => {
     jest.restoreAllMocks();
   });
 
-  it("settles version, token, repository from inputs and env", () => {
-    process.env.GITHUB_REPOSITORY = "spring-projects/spring-framework";
+  it("settles gchatWebhookUrl and token from inputs and env", () => {
     process.env.GITHUB_TOKEN = "env-token";
     setupGetInput({
-      version: "6.2.0",
+      "gchat-webhook-url": "https://webhook.example.com",
       token: "",
-      repository: "",
     });
 
     const inputs = new Inputs();
 
-    expect(inputs.version).toBe("6.2.0");
+    expect(inputs.gchatWebhookUrl).toBe("https://webhook.example.com");
     expect(inputs.token).toBe("env-token");
-    expect(inputs.repository).toBe("spring-projects/spring-framework");
     expect(Object.isFrozen(inputs)).toBe(true);
   });
 
-  it("uses explicit token and repository over env", () => {
-    process.env.GITHUB_REPOSITORY = "org/repo";
+  it("uses explicit token over GITHUB_TOKEN", () => {
     process.env.GITHUB_TOKEN = "env-token";
     setupGetInput({
-      version: "6.2.0",
+      "gchat-webhook-url": "",
       token: "input-token",
-      repository: "other/repo",
     });
 
     const inputs = new Inputs();
 
     expect(inputs.token).toBe("input-token");
-    expect(inputs.repository).toBe("other/repo");
   });
 });

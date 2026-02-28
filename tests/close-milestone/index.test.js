@@ -1,10 +1,10 @@
 import { jest } from '@jest/globals';
-import * as core from '../__fixtures__/core.js';
+import * as core from '../../__fixtures__/core.js';
 
 jest.unstable_mockModule('@actions/core', () => core);
 
-const { Milestones } = await import('../src/milestones.js');
-const { run } = await import('../src/close-milestone/index.js');
+const { Milestones } = await import('../../src/milestones.js');
+const { run } = await import('../../src/close-milestone/index.js');
 
 describe('close-milestone', () => {
 	const defaultInputs = {

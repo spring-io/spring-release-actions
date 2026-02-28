@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import * as core from '../__fixtures__/core.js';
+import * as core from '../../__fixtures__/core.js';
 
 const mockOctokit = jest.fn();
 
@@ -9,7 +9,7 @@ jest.unstable_mockModule('@octokit/rest', () => ({
 	Octokit: mockOctokit
 }));
 
-const { run } = await import('../src/update-learn-page/index.js');
+const { run } = await import('../../src/update-learn-page/index.js');
 
 describe('Update Learn Page Action', () => {
 	const defaultInputs = {

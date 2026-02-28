@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import * as core from "../__fixtures__/core.js";
+import * as core from "../../__fixtures__/core.js";
 
 const mockGetWorkflowRun = jest.fn();
 const mockListJobsForWorkflowRun = jest.fn();
@@ -25,7 +25,7 @@ const {
   computeRunStatus,
   buildRunInfo,
   buildMessage,
-} = await import("../src/status-on-gchat/index.js");
+} = await import("../../src/status-on-gchat/index.js");
 
 describe("status-on-gchat", () => {
   const defaultInputs = {
