@@ -1,18 +1,17 @@
-import { Octokit } from "@octokit/rest";
-import { Base64 } from "js-base64";
 import { getWeekOfMonthAndDayOfWeek } from "./lib.js";
 
+const PROJECTS_API_BASE = "https://api.spring.io";
+
 /**
- * Class for interacting with material in {@code spring-website-content}
+ * Class for interacting with Spring project metadata via the
+ * <a href="https://api.spring.io/projects">Projects API</a>.
  *
  * @author Josh Cummings
  */
 class Website {
   constructor(inputs) {
-    this.gh = new Octokit({ auth: inputs.websiteToken });
-    this.owner = inputs.websiteRepository.split("/")[0];
-    this.repo = inputs.websiteRepository.split("/")[1];
     this.projectSlug = inputs.projectSlug;
+    this.apiBase = inputs.projectsApiBase || PROJECTS_API_BASE;
   }
 
   /**
@@ -22,21 +21,15 @@ class Website {
    * @returns {Promise<{generation: {major: number, minor: number}, dayOfWeek: *, weekOfMonth: number, oss: {frequency: number, offset: number, end: {year: number, month: number}}, enterprise: {frequency: number, offset: number, end: {year: number, month: number}}}|null>}
    */
   async getGenerationByVersion(version) {
-    const file = await _load(
-      this.gh,
-      this.owner,
-      this.repo,
-      `/project/${this.projectSlug}/generations.json`,
-    );
-    const asStrings = JSON.parse(file);
+    const generations = await _fetchGenerations(this.apiBase, this.projectSlug);
     const { dayOfWeek, weekOfMonth } = getWeekOfMonthAndDayOfWeek(
       version.dueDate,
     );
-    for (const generation of asStrings.generations) {
+    for (const generation of generations) {
       console.log(
-        `Checking generation ${generation.generation} against ${version.major}.${version.minor}`,
+        `Checking generation ${generation.name} against ${version.major}.${version.minor}`,
       );
-      const majorMinor = _generation(generation.generation);
+      const majorMinor = _generation(generation.name);
       if (version.isSameMajorMinor(majorMinor)) {
         return {
           major: majorMinor.major,
@@ -46,12 +39,12 @@ class Website {
           oss: {
             frequency: 1,
             offset: 0,
-            end: _date(generation.ossSupportEnd),
+            end: _date(generation.ossSupportEndDate),
           },
           enterprise: {
             frequency: 3,
             offset: 1,
-            end: _date(generation.enterpriseSupportEnd),
+            end: _date(generation.commercialSupportEndDate),
           },
         };
       }
@@ -60,21 +53,26 @@ class Website {
   }
 }
 
-async function _load(gh, owner, repo, path, ref = "main") {
+async function _fetchGenerations(apiBase, projectSlug) {
+  const url = `${apiBase}/projects/${projectSlug}/generations`;
   try {
-    console.log(`Retrieving ${path} from ${owner}/${repo}@${ref}`);
-    const response = await gh.repos.getContent({
-      owner,
-      repo,
-      path,
-      ref,
-    });
-
-    // The content is returned in base64 encoding
-    const encodedContent = response.data.content;
-    return Base64.decode(encodedContent);
+    console.log(`Retrieving generations from ${url}`);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `Projects API returned ${response.status} for ${url}: ${response.statusText}`,
+      );
+    }
+    const body = await response.json();
+    const generations = body._embedded?.generations;
+    if (!Array.isArray(generations)) {
+      throw new Error(
+        `Unexpected response from Projects API: missing _embedded.generations`,
+      );
+    }
+    return generations;
   } catch (error) {
-    console.error("Error retrieving file content:", error);
+    console.error("Error retrieving generations:", error);
     throw error;
   }
 }
