@@ -1,17 +1,17 @@
 import { jest } from '@jest/globals';
-import * as core from '../__fixtures__/core.js';
+import * as core from '../../__fixtures__/core.js';
 
 const mockFindOpenMilestoneDueTodayForGeneration = jest.fn();
 
 jest.unstable_mockModule('@actions/core', () => core);
 
-jest.unstable_mockModule('../src/milestones.js', () => ({
+jest.unstable_mockModule('../../src/milestones.js', () => ({
 	Milestones: jest.fn().mockImplementation(() => ({
 		findOpenMilestoneDueTodayForGeneration: mockFindOpenMilestoneDueTodayForGeneration
 	}))
 }));
 
-const { run } = await import('../src/get-todays-release-version/index.js');
+const { run } = await import('../../src/get-todays-release-version/index.js');
 
 describe('get-todays-release-version', () => {
 	const defaultInputs = {

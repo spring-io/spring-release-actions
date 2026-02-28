@@ -1,9 +1,9 @@
 import { jest } from "@jest/globals";
-import * as core from "../__fixtures__/core.js";
+import * as core from "../../__fixtures__/core.js";
 
 jest.unstable_mockModule("@actions/core", () => core);
 
-const { Inputs } = await import("../src/get-todays-release-version/inputs.js");
+const { Inputs } = await import("../../src/get-todays-release-version/inputs.js");
 
 function setupGetInput(map) {
   core.getInput.mockImplementation((name) => map[name] ?? "");

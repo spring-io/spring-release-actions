@@ -1,10 +1,10 @@
 import { jest } from '@jest/globals';
-import * as core from '../__fixtures__/core.js';
+import * as core from '../../__fixtures__/core.js';
 
 jest.unstable_mockModule('@actions/core', () => core);
 
-const { Announce } = await import('../src/gchat.js');
-const { run } = await import('../src/plan-on-gchat/index.js');
+const { Announce } = await import('../../src/gchat.js');
+const { run } = await import('../../src/plan-on-gchat/index.js');
 
 describe('plan-on-gchat', () => {
 	const defaultInputs = {

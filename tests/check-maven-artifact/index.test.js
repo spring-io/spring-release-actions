@@ -1,10 +1,10 @@
 import { jest } from '@jest/globals';
-import * as core from '../__fixtures__/core.js';
+import * as core from '../../__fixtures__/core.js';
 
 jest.unstable_mockModule('@actions/core', () => core);
 
-const { MavenArtifact } = await import('../src/maven.js');
-const { run } = await import('../src/check-maven-artifact/index.js');
+const { MavenArtifact } = await import('../../src/maven.js');
+const { run } = await import('../../src/check-maven-artifact/index.js');
 
 describe('check-maven-artifact', () => {
 	const defaultInputs = {
