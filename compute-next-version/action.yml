@@ -9,18 +9,11 @@ inputs:
   token:
     description: "The token to query repository information"
     required: false
-  website-token:
-    description: "The token to query website information"
-    required: true
-
   repository:
     description: "The repository to query for information"
     required: false
   project-slug:
-    description: "The website content slug"
-    required: false
-  website-repository:
-    description: "The repository for website content"
+    description: "The project slug for the Projects API (https://api.spring.io/projects)"
     required: false
 
 outputs:

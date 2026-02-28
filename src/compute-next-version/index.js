@@ -40,7 +40,12 @@ async function run(inputs = new Inputs()) {
 
 async function _getVersion(milestones, inputs) {
   const milestone = await milestones.findMilestoneByTitle(inputs.version);
-  if (!milestone || !milestone.dueDate) {
+  if (!milestone) {
+    core.info("Failed to find milestone");
+    return null;
+  }
+  if (!milestone.dueDate) {
+    core.info("Failed to file milestone with due date");
     return null;
   }
   return Version.fromMilestone(milestone);

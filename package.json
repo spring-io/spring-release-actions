@@ -15,10 +15,11 @@
     "npm-run-all": "4.1.5",
     "patch-package": "8.0.1",
     "prettier": "3.8.1",
-    "undici": ">=7.22.0",
-    "test": "^3.3.0"
+    "test": "^3.3.0",
+    "undici": ">=7.22.0"
   },
   "devDependencies": {
+    "@github/local-action": "^7.0.1",
     "@jest/globals": "^30.2.0",
     "@vercel/ncc": "0.38.4",
     "jest": "^30.2.0",
@@ -36,12 +37,17 @@
     "compile-plan-on-gchat-main": "ncc build src/plan-on-gchat/index.js --out dist/plan-on-gchat/main --source-map --no-source-map-register",
     "compile-schedule-milestone-main": "ncc build src/schedule-milestone/index.js --out dist/schedule-milestone/main --source-map --no-source-map-register",
     "compile-update-learn-page-main": "ncc build src/update-learn-page/index.js --out dist/update-learn-page/main --source-map --no-source-map-register",
+    "compile-status-on-gchat-main": "ncc build src/status-on-gchat/index.js --out dist/status-on-gchat/main --source-map --no-source-map-register",
     "compile": "npm-run-all --parallel compile-*",
     "check": "npm-run-all --parallel prettier-check",
     "format": "npm-run-all --parallel prettier-write",
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
     "ci-test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
     "build": "npm run format && npm run compile",
-    "all": "npm run build && npm test"
+    "all": "npm run build && npm test",
+    "integration-test-status-on-gchat": "npx @github/local-action run ./status-on-gchat ../src/status-on-gchat/index.js ./tests/status-on-gchat.local-action.env && npx @github/local-action run ./status-on-gchat ../src/status-on-gchat/index.js ./tests/status-on-gchat.success.local-action.env",
+    "integration-test-announce-on-gchat": "npx @github/local-action run ./announce-on-gchat ../src/announce-on-gchat/index.js ./tests/announce-on-gchat.local-action.env",
+    "integration-test-compute-next-version": "npx @github/local-action run ./compute-next-version ../src/compute-next-version/index.js ./tests/compute-next-version.local-action.env",
+    "integration-test": "npm-run-all integration-test-*"
   }
 }
