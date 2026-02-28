@@ -43,6 +43,8 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
     "ci-test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
     "build": "npm run format && npm run compile",
-    "all": "npm run build && npm test"
+    "all": "npm run build && npm test",
+    "integration-test-status-on-gchat": "npx @github/local-action run ./status-on-gchat ../src/status-on-gchat/index.js ./tests/status-on-gchat.local-action.env && npx @github/local-action run ./status-on-gchat ../src/status-on-gchat/index.js ./tests/status-on-gchat.success.local-action.env",
+    "integration-test": "npm-run-all integration-test-*"
   }
 }
