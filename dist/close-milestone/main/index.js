@@ -35471,12 +35471,15 @@ class Milestones {
    * @returns {Promise<null | { number: number, name: string, dueDate: Date | null }>}
    */
   async findMilestoneByTitle(title) {
-    const { data: milestones } = await this.gh.rest.issues.listMilestones({
-      owner: this.owner,
-      repo: this.repo,
-      state: "all",
-      per_page: 100,
-    });
+    const milestones = await this.gh.paginate(
+      this.gh.rest.issues.listMilestones,
+      {
+        owner: this.owner,
+        repo: this.repo,
+        state: "all",
+        per_page: 100,
+      },
+    );
 
     const m = milestones.find((m) => m.title === title);
     if (!m) {
@@ -35492,12 +35495,15 @@ class Milestones {
   }
 
   async findOpenMilestoneDueTodayForGeneration(generation) {
-    const { data: milestones } = await this.gh.rest.issues.listMilestones({
-      owner: this.owner,
-      repo: this.repo,
-      state: "open",
-      per_page: 100,
-    });
+    const milestones = await this.gh.paginate(
+      this.gh.rest.issues.listMilestones,
+      {
+        owner: this.owner,
+        repo: this.repo,
+        state: "open",
+        per_page: 100,
+      },
+    );
 
     console.log(
       `Looking for milestone for generation ${generation.major}.${generation.minor} due today`,
