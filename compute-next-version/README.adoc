@@ -12,23 +12,15 @@ This GitHub action computes the next milestone release name and date.
 | `true`
 
 | `token`
-| The token to query repository information.
-| `true`
-
-| `website-token`
-| The token to query website information.
-| `true`
+| The token to query repository information (e.g. milestones).
+| `false`
 
 | `repository`
 | The repository to query for information.
 | `false`
 
 | `project-slug`
-| The website content slug.
-| `false`
-
-| `website-repository`
-| The repository for website content.
+| The project slug for the Projects API (https://api.spring.io/projects). Defaults to the repository name with `-commercial` stripped.
 | `false`
 |===
 
@@ -56,6 +48,5 @@ This GitHub action computes the next milestone release name and date.
   uses: spring-io/spring-release-actions/compute-next-version@main
   with:
     version: '1.2.3'
-    token: ${{ secrets.TOKEN }}
-    website-token: ${{ secrets.WEBSITE_TOKEN }}
+    token: ${{ secrets.GITHUB_TOKEN }}
 ----

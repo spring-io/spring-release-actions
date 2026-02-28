@@ -17,15 +17,13 @@ describe("compute-next-version Inputs constructor", () => {
     jest.restoreAllMocks();
   });
 
-  it("settles version, token, websiteToken, repository, websiteRepository, projectSlug from inputs and env", () => {
+  it("settles version, token, repository, projectSlug from inputs and env", () => {
     process.env.GITHUB_REPOSITORY = "spring-projects/spring-framework";
     process.env.GITHUB_TOKEN = "env-token";
     setupGetInput({
       version: "6.2.0",
       token: "",
-      "website-token": "website-token",
       repository: "",
-      "website-repository": "",
       "project-slug": "",
     });
 
@@ -33,9 +31,7 @@ describe("compute-next-version Inputs constructor", () => {
 
     expect(inputs.version).toBe("6.2.0");
     expect(inputs.token).toBe("env-token");
-    expect(inputs.websiteToken).toBe("website-token");
     expect(inputs.repository).toBe("spring-projects/spring-framework");
-    expect(inputs.websiteRepository).toBe("spring-io/spring-website-content");
     expect(inputs.projectSlug).toBe("spring-framework");
     expect(Object.isFrozen(inputs)).toBe(true);
   });
@@ -46,9 +42,7 @@ describe("compute-next-version Inputs constructor", () => {
     setupGetInput({
       version: "6.2.0",
       token: "input-token",
-      "website-token": "website-token",
       repository: "custom/override-repo",
-      "website-repository": "",
       "project-slug": "override-slug",
     });
 
@@ -59,23 +53,18 @@ describe("compute-next-version Inputs constructor", () => {
     expect(inputs.projectSlug).toBe("override-slug");
   });
 
-  it("settles websiteRepository to commercial content when repository ends with -commercial", () => {
+  it("strips -commercial from repository name for projectSlug when not overridden", () => {
     process.env.GITHUB_REPOSITORY = "spring-projects/spring-boot-commercial";
     process.env.GITHUB_TOKEN = "token";
     setupGetInput({
       version: "3.0.0",
       token: "",
-      "website-token": "website-token",
       repository: "",
-      "website-repository": "",
       "project-slug": "",
     });
 
     const inputs = new Inputs();
 
-    expect(inputs.websiteRepository).toBe(
-      "spring-io/spring-website-commercial-content"
-    );
     expect(inputs.projectSlug).toBe("spring-boot");
   });
 });
