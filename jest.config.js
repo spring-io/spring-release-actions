@@ -9,7 +9,7 @@ const config = {
     reporters: ['default'],
     testEnvironment: 'node',
     testMatch: ['**/*.test.js'],
-    testPathIgnorePatterns: ['/dist/', '/node_modules/'],
+    testPathIgnorePatterns: ['/dist/', '/node_modules/', '/action-tests/'],
     verbose: true,
 };
 export default config;
