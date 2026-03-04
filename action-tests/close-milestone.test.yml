@@ -1,0 +1,19 @@
+name: close-milestone
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close existing milestone
+        uses: ./close-milestone
+        with:
+          version: "1.0.0"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: owner/repo
+
+      - name: Close non-existent milestone
+        uses: ./close-milestone
+        with:
+          version: "9.9.9"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: owner/repo
