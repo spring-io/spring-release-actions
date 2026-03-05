@@ -1,28 +1,30 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+import { Milestones } from '../src/milestones.js';
 
-const mockListMilestones = jest.fn();
-const mockUpdateMilestone = jest.fn();
-const mockCreateMilestone = jest.fn();
-const mockPaginate = jest.fn(async (endpoint, params) => {
-	const response = await endpoint(params);
-	return response.data;
+const { mockListMilestones, mockUpdateMilestone, mockCreateMilestone, mockPaginate, mockOctokit } = vi.hoisted(() => {
+	const mockListMilestones = vi.fn();
+	const mockUpdateMilestone = vi.fn();
+	const mockCreateMilestone = vi.fn();
+	const mockPaginate = vi.fn(async (endpoint, params) => {
+		const response = await endpoint(params);
+		return response.data;
+	});
+	const mockOctokit = vi.fn(() => ({
+		rest: {
+			issues: {
+				listMilestones: mockListMilestones,
+				updateMilestone: mockUpdateMilestone,
+				createMilestone: mockCreateMilestone
+			}
+		},
+		paginate: mockPaginate
+	}));
+	return { mockListMilestones, mockUpdateMilestone, mockCreateMilestone, mockPaginate, mockOctokit };
 });
-const mockOctokit = jest.fn(() => ({
-	rest: {
-		issues: {
-			listMilestones: mockListMilestones,
-			updateMilestone: mockUpdateMilestone,
-			createMilestone: mockCreateMilestone
-		}
-	},
-	paginate: mockPaginate
-}));
 
-jest.unstable_mockModule('@octokit/rest', () => ({
+vi.mock('@octokit/rest', () => ({
 	Octokit: mockOctokit
 }));
-
-const { Milestones } = await import('../src/milestones.js');
 
 describe('Milestones', () => {
 	let milestones;
@@ -33,7 +35,7 @@ describe('Milestones', () => {
 
 	describe('closeMilestone', () => {
 		it('closes a milestone', async () => {
-			milestones.findMilestoneByTitle = jest.fn().mockResolvedValue({number: 1});
+			milestones.findMilestoneByTitle = vi.fn().mockResolvedValue({number: 1});
 			await milestones.closeMilestone('title');
 			expect(mockUpdateMilestone).toHaveBeenCalledWith({
 				owner: 'owner',
@@ -44,7 +46,7 @@ describe('Milestones', () => {
 		});
 
 		it('does nothing if milestone not found', async () => {
-			milestones.findMilestoneByTitle = jest.fn().mockResolvedValue(null);
+			milestones.findMilestoneByTitle = vi.fn().mockResolvedValue(null);
 			await milestones.closeMilestone('title');
 			expect(mockUpdateMilestone).not.toHaveBeenCalled();
 		});
@@ -52,7 +54,7 @@ describe('Milestones', () => {
 
 	describe('scheduleMilestone', () => {
 		it('updates an existing milestone', async () => {
-			milestones.findMilestoneByTitle = jest.fn().mockResolvedValue({number: 1});
+			milestones.findMilestoneByTitle = vi.fn().mockResolvedValue({number: 1});
 			await milestones.scheduleMilestone('title', '2025-12-25', 'description');
 			expect(mockUpdateMilestone).toHaveBeenCalledWith({
 				owner: 'owner',
@@ -64,7 +66,7 @@ describe('Milestones', () => {
 		});
 
 		it('creates a new milestone', async () => {
-			milestones.findMilestoneByTitle = jest.fn().mockResolvedValue(null);
+			milestones.findMilestoneByTitle = vi.fn().mockResolvedValue(null);
 			await milestones.scheduleMilestone('title', '2025-12-25', 'description');
 			expect(mockCreateMilestone).toHaveBeenCalledWith({
 				owner: 'owner',

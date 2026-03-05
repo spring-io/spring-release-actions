@@ -1,10 +1,9 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import * as core from '../__fixtures__/core.js';
 import { createMockGithubServer } from '../__fixtures__/github-server.js';
+import { run } from '../src/schedule-milestone/index.js';
 
-jest.unstable_mockModule('@actions/core', () => core);
-
-const { run } = await import('../src/schedule-milestone/index.js');
+vi.mock('@actions/core', async () => await import('../__fixtures__/core.js'));
 
 describe('schedule-milestone integration', () => {
 	const initialMilestones = [

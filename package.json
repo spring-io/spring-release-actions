@@ -24,10 +24,13 @@
     "@kie/act-js": "^2.6.2",
     "@kie/mock-github": "^2.0.1",
     "@vercel/ncc": "0.38.4",
+    "@vitest/coverage-v8": "^3.0.0",
     "express": "^4.22.1",
+    "husky": "^9.1.7",
     "jest": "^30.2.0",
     "msw": "^2.12.10",
-    "undici": ">=7.22.0"
+    "undici": ">=7.22.0",
+    "vitest": "^3.0.0"
   },
   "scripts": {
     "postinstall": "patch-package",
@@ -46,8 +49,9 @@
     "compile": "npm-run-all --parallel compile-*",
     "check": "npm-run-all --parallel prettier-check",
     "format": "npm-run-all --parallel prettier-write",
-    "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
-    "ci-test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "ci-test": "vitest run",
     "build": "npm run format && npm run compile",
     "all": "npm run build && npm test",
     "integration-test-status-on-gchat": "npx @github/local-action run ./status-on-gchat ../src/status-on-gchat/index.js ./integration-tests/status-on-gchat.local-action.env && npx @github/local-action run ./status-on-gchat ../src/status-on-gchat/index.js ./integration-tests/status-on-gchat.success.local-action.env",
@@ -59,6 +63,7 @@
     "integration-test-compute-artifact-repository": "npx @github/local-action run ./compute-artifact-repository ../src/compute-artifact-repository/index.js ./integration-tests/compute-artifact-repository.local-action.env",
     "integration-test-get-todays-release-version": "npx @github/local-action run ./get-todays-release-version ../src/get-todays-release-version/index.js ./integration-tests/get-todays-release-version.local-action.env",
     "integration-test": "npm-run-all integration-test-*",
-    "act-test": "ACT_BINARY=$(which act) NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest --config jest.action-tests.config.js"
+    "act-test": "ACT_BINARY=$(which act) vitest run --config vitest.act-tests.config.js",
+    "prepare": "husky"
   }
 }

@@ -1,14 +1,13 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+import { Announce } from '../src/gchat.js';
 
-const mockPost = jest.fn();
+const mockPost = vi.hoisted(() => vi.fn());
 
-jest.unstable_mockModule('axios', () => ({
+vi.mock('axios', () => ({
 	default: {
 		post: mockPost
 	}
 }));
-
-const { Announce } = await import('../src/gchat.js');
 
 describe('gchat', () => {
 	beforeEach(() => {

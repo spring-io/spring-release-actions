@@ -1,10 +1,9 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
+import { MavenArtifact } from '../../src/maven.js';
+import { run } from '../../src/check-maven-artifact/index.js';
 
-jest.unstable_mockModule('@actions/core', () => core);
-
-const { MavenArtifact } = await import('../../src/maven.js');
-const { run } = await import('../../src/check-maven-artifact/index.js');
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 describe('check-maven-artifact', () => {
 	const defaultInputs = {
@@ -20,12 +19,12 @@ describe('check-maven-artifact', () => {
 	let waitForSpy;
 
 	beforeEach(() => {
-		existsSpy = jest.spyOn(MavenArtifact.prototype, 'exists');
-		waitForSpy = jest.spyOn(MavenArtifact.prototype, 'waitFor');
+		existsSpy = vi.spyOn(MavenArtifact.prototype, 'exists');
+		waitForSpy = vi.spyOn(MavenArtifact.prototype, 'waitFor');
 	});
 
 	afterEach(() => {
-		jest.restoreAllMocks();
+		vi.restoreAllMocks();
 	});
 
 	it('reports found and sets output when artifact exists', async () => {

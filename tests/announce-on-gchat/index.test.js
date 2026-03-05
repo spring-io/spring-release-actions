@@ -1,10 +1,9 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
+import { Announce } from '../../src/gchat.js';
+import { run } from '../../src/announce-on-gchat/index.js';
 
-jest.unstable_mockModule('@actions/core', () => core);
-
-const { Announce } = await import('../../src/gchat.js');
-const { run } = await import('../../src/announce-on-gchat/index.js');
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 describe('announce-on-gchat', () => {
 	const defaultInputs = {
@@ -16,11 +15,11 @@ describe('announce-on-gchat', () => {
 	let announceReleaseSpy;
 
 	beforeEach(() => {
-		announceReleaseSpy = jest.spyOn(Announce.prototype, 'announceRelease').mockResolvedValue();
+		announceReleaseSpy = vi.spyOn(Announce.prototype, 'announceRelease').mockResolvedValue();
 	});
 
 	afterEach(() => {
-		jest.restoreAllMocks();
+		vi.restoreAllMocks();
 	});
 
 	it('announces a release', async () => {

@@ -1,17 +1,16 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
+import { run } from '../../src/get-todays-release-version/index.js';
 
-const mockFindOpenMilestoneDueTodayForGeneration = jest.fn();
+const mockFindOpenMilestoneDueTodayForGeneration = vi.hoisted(() => vi.fn());
 
-jest.unstable_mockModule('@actions/core', () => core);
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
-jest.unstable_mockModule('../../src/milestones.js', () => ({
-	Milestones: jest.fn().mockImplementation(() => ({
+vi.mock('../../src/milestones.js', () => ({
+	Milestones: vi.fn().mockImplementation(() => ({
 		findOpenMilestoneDueTodayForGeneration: mockFindOpenMilestoneDueTodayForGeneration
 	}))
 }));
-
-const { run } = await import('../../src/get-todays-release-version/index.js');
 
 describe('get-todays-release-version', () => {
 	const defaultInputs = {
@@ -22,10 +21,6 @@ describe('get-todays-release-version', () => {
 
 	beforeEach(() => {
 		mockFindOpenMilestoneDueTodayForGeneration.mockReturnValue(null);
-	});
-
-	afterEach(() => {
-		jest.restoreAllMocks();
 	});
 
 	describe('when version ends in -SNAPSHOT', () => {

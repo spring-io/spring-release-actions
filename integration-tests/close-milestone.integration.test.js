@@ -1,11 +1,10 @@
-import { jest } from "@jest/globals";
+import { vi } from 'vitest';
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import * as core from "../__fixtures__/core.js";
+import * as core from '../__fixtures__/core.js';
+import { run } from '../src/close-milestone/index.js';
 
-jest.unstable_mockModule("@actions/core", () => core);
-
-const { run } = await import("../src/close-milestone/index.js");
+vi.mock('@actions/core', async () => await import('../__fixtures__/core.js'));
 
 const milestones = [];
 

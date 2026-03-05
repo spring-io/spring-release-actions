@@ -1,9 +1,8 @@
-import { jest } from "@jest/globals";
-import * as core from "../../__fixtures__/core.js";
+import { vi } from 'vitest';
+import * as core from '../../__fixtures__/core.js';
+import { Inputs } from '../../src/compute-next-snapshot/inputs.js';
 
-jest.unstable_mockModule("@actions/core", () => core);
-
-const { Inputs } = await import("../../src/compute-next-snapshot/inputs.js");
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 function setupGetInput(map) {
   core.getInput.mockImplementation((name) => map[name] ?? "");
@@ -11,7 +10,7 @@ function setupGetInput(map) {
 
 describe("compute-next-snapshot Inputs constructor", () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("settles version and freezes", () => {

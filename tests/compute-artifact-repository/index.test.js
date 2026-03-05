@@ -1,15 +1,12 @@
-import { jest } from "@jest/globals";
-import * as core from "../../__fixtures__/core.js";
+import { vi } from 'vitest';
+import * as core from '../../__fixtures__/core.js';
+import { run } from '../../src/compute-artifact-repository/index.js';
 
-jest.unstable_mockModule("@actions/core", () => core);
-
-const { run } = await import(
-  "../../src/compute-artifact-repository/index.js"
-);
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 describe("compute-artifact-repository", () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe("OSS repository", () => {

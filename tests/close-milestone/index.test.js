@@ -1,10 +1,9 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
+import { Milestones } from '../../src/milestones.js';
+import { run } from '../../src/close-milestone/index.js';
 
-jest.unstable_mockModule('@actions/core', () => core);
-
-const { Milestones } = await import('../../src/milestones.js');
-const { run } = await import('../../src/close-milestone/index.js');
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 describe('close-milestone', () => {
 	const defaultInputs = {
@@ -16,11 +15,11 @@ describe('close-milestone', () => {
 	let closeMilestoneSpy;
 
 	beforeEach(() => {
-		closeMilestoneSpy = jest.spyOn(Milestones.prototype, 'closeMilestone').mockResolvedValue();
+		closeMilestoneSpy = vi.spyOn(Milestones.prototype, 'closeMilestone').mockResolvedValue();
 	});
 
 	afterEach(() => {
-		jest.restoreAllMocks();
+		vi.restoreAllMocks();
 	});
 
 	it('closes a milestone', async () => {
