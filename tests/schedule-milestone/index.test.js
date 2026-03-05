@@ -1,10 +1,9 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
+import { Milestones } from '../../src/milestones.js';
+import { run } from '../../src/schedule-milestone/index.js';
 
-jest.unstable_mockModule('@actions/core', () => core);
-
-const { Milestones } = await import('../../src/milestones.js');
-const { run } = await import('../../src/schedule-milestone/index.js');
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 describe('schedule-milestone', () => {
 	const defaultInputs = {
@@ -18,11 +17,11 @@ describe('schedule-milestone', () => {
 	let scheduleMilestoneSpy;
 
 	beforeEach(() => {
-		scheduleMilestoneSpy = jest.spyOn(Milestones.prototype, 'scheduleMilestone').mockResolvedValue();
+		scheduleMilestoneSpy = vi.spyOn(Milestones.prototype, 'scheduleMilestone').mockResolvedValue();
 	});
 
 	afterEach(() => {
-		jest.restoreAllMocks();
+		vi.restoreAllMocks();
 	});
 
 	it('schedules a milestone', async () => {

@@ -1,15 +1,14 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
+import { run } from '../../src/update-learn-page/index.js';
 
-const mockOctokit = jest.fn();
+const mockOctokit = vi.hoisted(() => vi.fn());
 
-jest.unstable_mockModule('@actions/core', () => core);
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
-jest.unstable_mockModule('@octokit/rest', () => ({
+vi.mock('@octokit/rest', () => ({
 	Octokit: mockOctokit
 }));
-
-const { run } = await import('../../src/update-learn-page/index.js');
 
 describe('Update Learn Page Action', () => {
 	const defaultInputs = {
@@ -28,8 +27,8 @@ describe('Update Learn Page Action', () => {
 	beforeEach(() => {
 		octokit = {
 			repos: {
-				getContent: jest.fn(),
-				createOrUpdateFileContents: jest.fn()
+				getContent: vi.fn(),
+				createOrUpdateFileContents: vi.fn()
 			}
 		};
 		mockOctokit.mockImplementation(() => octokit);
@@ -92,8 +91,8 @@ describe('Update Learn Page Action Commercial', () => {
 	beforeEach(() => {
 		octokit = {
 			repos: {
-				getContent: jest.fn(),
-				createOrUpdateFileContents: jest.fn()
+				getContent: vi.fn(),
+				createOrUpdateFileContents: vi.fn()
 			}
 		};
 		mockOctokit.mockImplementation(() => octokit);

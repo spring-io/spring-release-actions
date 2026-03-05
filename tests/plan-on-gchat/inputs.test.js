@@ -1,9 +1,8 @@
-import { jest } from "@jest/globals";
-import * as core from "../../__fixtures__/core.js";
+import { vi } from 'vitest';
+import * as core from '../../__fixtures__/core.js';
+import { Inputs } from '../../src/plan-on-gchat/inputs.js';
 
-jest.unstable_mockModule("@actions/core", () => core);
-
-const { Inputs } = await import("../../src/plan-on-gchat/inputs.js");
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 function setupGetInput(map) {
   core.getInput.mockImplementation((name) => map[name] ?? "");
@@ -14,7 +13,7 @@ describe("plan-on-gchat Inputs constructor", () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("settles gchatWebhookUrl, version, versionDate, projectName from inputs and env", () => {

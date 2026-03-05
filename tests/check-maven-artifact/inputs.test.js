@@ -1,9 +1,8 @@
-import { jest } from "@jest/globals";
-import * as core from "../../__fixtures__/core.js";
+import { vi } from 'vitest';
+import * as core from '../../__fixtures__/core.js';
+import { Inputs } from '../../src/check-maven-artifact/inputs.js';
 
-jest.unstable_mockModule("@actions/core", () => core);
-
-const { Inputs } = await import("../../src/check-maven-artifact/inputs.js");
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 function setupGetInput(map) {
   core.getInput.mockImplementation((name) => map[name] ?? "");
@@ -11,7 +10,7 @@ function setupGetInput(map) {
 
 describe("check-maven-artifact Inputs constructor", () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("settles repositoryUrl, artifactPath, version, username, password, timeout from inputs with defaults", () => {

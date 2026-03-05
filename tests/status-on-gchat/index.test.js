@@ -1,31 +1,27 @@
-import { jest } from "@jest/globals";
-import * as core from "../../__fixtures__/core.js";
+import { vi } from 'vitest';
+import * as core from '../../__fixtures__/core.js';
+import { run, computeRunStatus, buildRunInfo, buildMessage } from '../../src/status-on-gchat/index.js';
 
-const mockGetWorkflowRun = jest.fn();
-const mockListJobsForWorkflowRun = jest.fn();
-const mockOctokit = jest.fn(() => ({
-  actions: {
-    getWorkflowRun: mockGetWorkflowRun,
-    listJobsForWorkflowRun: mockListJobsForWorkflowRun,
-  },
-}));
+const { mockGetWorkflowRun, mockListJobsForWorkflowRun, mockOctokit, mockAxiosPost } = vi.hoisted(() => {
+  const mockGetWorkflowRun = vi.fn();
+  const mockListJobsForWorkflowRun = vi.fn();
+  const mockOctokit = vi.fn(() => ({
+    actions: {
+      getWorkflowRun: mockGetWorkflowRun,
+      listJobsForWorkflowRun: mockListJobsForWorkflowRun,
+    },
+  }));
+  const mockAxiosPost = vi.fn();
+  return { mockGetWorkflowRun, mockListJobsForWorkflowRun, mockOctokit, mockAxiosPost };
+});
 
-const mockAxiosPost = jest.fn();
-
-jest.unstable_mockModule("@actions/core", () => core);
-jest.unstable_mockModule("@octokit/rest", () => ({
+vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
+vi.mock('@octokit/rest', () => ({
   Octokit: mockOctokit,
 }));
-jest.unstable_mockModule("axios", () => ({
+vi.mock('axios', () => ({
   default: { post: mockAxiosPost },
 }));
-
-const {
-  run,
-  computeRunStatus,
-  buildRunInfo,
-  buildMessage,
-} = await import("../../src/status-on-gchat/index.js");
 
 describe("status-on-gchat", () => {
   const defaultInputs = {
@@ -68,7 +64,7 @@ describe("status-on-gchat", () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe("run", () => {

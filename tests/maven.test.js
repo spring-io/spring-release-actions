@@ -1,12 +1,11 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+import { MavenArtifact } from '../src/maven.js';
 
-const mockAxiosHead = jest.fn();
+const mockAxiosHead = vi.hoisted(() => vi.fn());
 
-jest.unstable_mockModule('axios', () => ({
+vi.mock('axios', () => ({
 	default: { head: mockAxiosHead }
 }));
-
-const { MavenArtifact } = await import('../src/maven.js');
 
 describe('MavenArtifact', () => {
 	const repositoryUrl = 'https://repo1.maven.org/maven2';
@@ -15,11 +14,11 @@ describe('MavenArtifact', () => {
 
 	beforeEach(() => {
 		mockAxiosHead.mockClear();
-		jest.useFakeTimers();
+		vi.useFakeTimers();
 	});
 
 	afterEach(() => {
-		jest.useRealTimers();
+		vi.useRealTimers();
 	});
 
 	describe('url', () => {
@@ -110,7 +109,7 @@ describe('MavenArtifact', () => {
 				.mockResolvedValue({ status: 200 });
 			const artifact = new MavenArtifact(repositoryUrl, artifactPath, version);
 			const waitForPromise = artifact.waitFor(5, 1);
-			await jest.runAllTimersAsync();
+			await vi.runAllTimersAsync();
 			const found = await waitForPromise;
 			expect(found).toBe(true);
 			expect(mockAxiosHead).toHaveBeenCalledTimes(3);
@@ -122,7 +121,7 @@ describe('MavenArtifact', () => {
 			mockAxiosHead.mockRejectedValue(error);
 			const artifact = new MavenArtifact(repositoryUrl, artifactPath, version);
 			const waitForPromise = artifact.waitFor(0.001, 1);
-			await jest.runAllTimersAsync();
+			await vi.runAllTimersAsync();
 			const found = await waitForPromise;
 			expect(found).toBe(false);
 		});
