@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
-import { run } from '../../src/update-learn-page/index.js';
+import { run, buildUpdatedPage } from '../../src/update-learn-page/index.js';
+import { Version } from '../../src/versions.js';
 
 const mockOctokit = vi.hoisted(() => vi.fn());
 
@@ -70,6 +71,54 @@ describe('Update Learn Page Action', () => {
 		expect(content[0].version).toBe('1.2.4-SNAPSHOT');
 		expect(content[1].version).toBe('1.2.3');
 		expect(content[2].version).toBe('1.1.0');
+	});
+});
+
+describe('buildUpdatedPage', () => {
+	const refDocUrl = 'https://docs.spring.io/spring-boot/reference/{version}/index.html';
+	const apiDocUrl = 'https://docs.spring.io/spring-boot/site/docs/{version}/api/';
+	const version = new Version('1.2.3');
+
+	describe('OSS (non-commercial)', () => {
+		it('creates snapshot and GA entries when no existing page', () => {
+			const result = JSON.parse(buildUpdatedPage(null, version, true, refDocUrl, apiDocUrl, false));
+			expect(result).toHaveLength(2);
+			expect(result[0].version).toBe('1.2.4-SNAPSHOT');
+			expect(result[1].version).toBe('1.2.3');
+		});
+
+		it('prepends snapshot and GA, removes same-generation entries', () => {
+			const existing = [
+				{ version: '1.1.0', status: 'GENERAL_AVAILABILITY', current: false },
+				{ version: '1.2.2', status: 'GENERAL_AVAILABILITY', current: true },
+				{ version: '1.2.3-SNAPSHOT', status: 'SNAPSHOT', current: false },
+			];
+			const result = JSON.parse(buildUpdatedPage(JSON.stringify(existing), version, true, refDocUrl, apiDocUrl, false));
+			expect(result).toHaveLength(3);
+			expect(result[0].version).toBe('1.2.4-SNAPSHOT');
+			expect(result[1].version).toBe('1.2.3');
+			expect(result[2].version).toBe('1.1.0');
+		});
+	});
+
+	describe('commercial', () => {
+		it('creates a single GA entry when no existing page', () => {
+			const result = JSON.parse(buildUpdatedPage(null, version, true, refDocUrl, apiDocUrl, true));
+			expect(result).toHaveLength(1);
+			expect(result[0].version).toBe('1.2.3');
+		});
+
+		it('prepends GA without adding a snapshot entry', () => {
+			const existing = [
+				{ version: '1.1.0', status: 'GENERAL_AVAILABILITY', current: false },
+				{ version: '1.2.2', status: 'GENERAL_AVAILABILITY', current: true },
+			];
+			const result = JSON.parse(buildUpdatedPage(JSON.stringify(existing), version, true, refDocUrl, apiDocUrl, true));
+			expect(result).toHaveLength(3);
+			expect(result[0].version).toBe('1.2.3');
+			expect(result[1].version).toBe('1.2.2');
+			expect(result[2].version).toBe('1.1.0');
+		});
 	});
 });
 
