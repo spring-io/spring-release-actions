@@ -4,6 +4,31 @@ import { Inputs } from "./inputs.js";
 import { Entry, LearnPage } from "../learn.js";
 import { Version } from "../versions.js";
 
+function buildUpdatedPage(
+  existingJson,
+  version,
+  isAntora,
+  refDocUrl,
+  apiDocUrl,
+  commercial,
+) {
+  const learnPage = new LearnPage(existingJson ?? "[]");
+  const latestEntry = new Entry(version, isAntora, refDocUrl, apiDocUrl);
+
+  if (commercial) {
+    learnPage.entries = [latestEntry, ...learnPage.entries];
+  } else {
+    const snapshot = version.nextSnapshot();
+    const snapshotEntry = new Entry(snapshot, isAntora, refDocUrl, apiDocUrl);
+    const filtered = learnPage.entries.filter(
+      (e) => !e.version.isSameMajorMinor(version),
+    );
+    learnPage.entries = [latestEntry, snapshotEntry, ...filtered];
+  }
+
+  return learnPage.toString();
+}
+
 async function run(inputs = new Inputs()) {
   if (inputs.version.endsWith("-SNAPSHOT")) {
     core.setFailed(
@@ -31,7 +56,6 @@ async function run(inputs = new Inputs()) {
     }
   }
 
-  const learnPage = new LearnPage(file ? file.content : "[]");
   const version = new Version(inputs.version);
   const refDocUrl = inputs.refDocUrl.replace(
     /{project}|{slug}/g,
@@ -42,26 +66,16 @@ async function run(inputs = new Inputs()) {
     inputs.projectSlug,
   );
 
-  const latestEntry = new Entry(version, inputs.isAntora, refDocUrl, apiDocUrl);
-
-  if (inputs.commercial) {
-    learnPage.entries = [latestEntry, ...learnPage.entries];
-  } else {
-    const snapshot = version.nextSnapshot();
-    const snapshotEntry = new Entry(
-      snapshot,
+  const updatedContent = Buffer.from(
+    buildUpdatedPage(
+      file?.content,
+      version,
       inputs.isAntora,
       refDocUrl,
       apiDocUrl,
-    );
-
-    const filtered = learnPage.entries.filter(
-      (e) => !e.version.isSameMajorMinor(version),
-    );
-    learnPage.entries = [latestEntry, snapshotEntry, ...filtered];
-  }
-
-  const updatedContent = Buffer.from(learnPage.toString()).toString("base64");
+      inputs.commercial,
+    ),
+  ).toString("base64");
   const message = `Update #learn Page for ${inputs.projectName} ${inputs.version}`;
   await octokit.repos.createOrUpdateFileContents({
     owner,
@@ -77,4 +91,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   run();
 }
 
-export { run };
+export { run, buildUpdatedPage };
