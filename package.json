@@ -26,6 +26,7 @@
     "@vercel/ncc": "0.38.4",
     "@vitest/coverage-v8": "^3.0.0",
     "express": "^4.22.1",
+    "husky": "^9.1.7",
     "jest": "^30.2.0",
     "msw": "^2.12.10",
     "undici": ">=7.22.0",
@@ -62,6 +63,7 @@
     "integration-test-compute-artifact-repository": "npx @github/local-action run ./compute-artifact-repository ../src/compute-artifact-repository/index.js ./integration-tests/compute-artifact-repository.local-action.env",
     "integration-test-get-todays-release-version": "npx @github/local-action run ./get-todays-release-version ../src/get-todays-release-version/index.js ./integration-tests/get-todays-release-version.local-action.env",
     "integration-test": "npm-run-all integration-test-*",
-    "act-test": "ACT_BINARY=$(which act) vitest run --config vitest.act-tests.config.js"
+    "act-test": "ACT_BINARY=$(which act) vitest run --config vitest.act-tests.config.js",
+    "prepare": "husky"
   }
 }
