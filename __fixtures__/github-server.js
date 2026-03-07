@@ -13,9 +13,24 @@ function createMockGithubServer(initialMilestones = []) {
 	let milestones = initialMilestones.map((m) => ({ ...m }));
 	let nextNumber =
 		milestones.length > 0 ? Math.max(...milestones.map((m) => m.number)) + 1 : 1;
+	let contents = new Map();
 
 	const app = express();
 	app.use(express.json());
+
+	app.get("/repos/:owner/:repo/contents/*", (req, res) => {
+		const filePath = decodeURIComponent(req.params[0]);
+		const stored = contents.get(filePath);
+		if (!stored) return res.status(404).json({ message: "Not Found" });
+		res.json({ content: stored.content, sha: stored.sha, encoding: "base64" });
+	});
+
+	app.put("/repos/:owner/:repo/contents/*", (req, res) => {
+		const filePath = decodeURIComponent(req.params[0]);
+		const sha = req.body.sha || `sha-${Date.now()}`;
+		contents.set(filePath, { content: req.body.content, sha });
+		res.status(200).json({ content: { path: filePath, sha } });
+	});
 
 	app.get("/repos/:owner/:repo/milestones", (req, res) => {
 		const { state = "open" } = req.query;
@@ -62,10 +77,14 @@ function createMockGithubServer(initialMilestones = []) {
 		getMilestones() {
 			return milestones.map((m) => ({ ...m }));
 		},
+		getContent(filePath) {
+			return contents.get(filePath);
+		},
 		reset(newMilestones = []) {
 			milestones = newMilestones.map((m) => ({ ...m }));
 			nextNumber =
 				milestones.length > 0 ? Math.max(...milestones.map((m) => m.number)) + 1 : 1;
+			contents = new Map();
 		},
 	};
 }

@@ -1,0 +1,21 @@
+name: update-learn-page
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create documentation file
+        uses: ./update-learn-page
+        with:
+          version: "1.2.3"
+          website-token: ${{ secrets.GITHUB_TOKEN }}
+          website-repository: spring-io/spring-website-content
+          project-name: owner/spring-boot
+
+      - name: Update documentation file
+        uses: ./update-learn-page
+        with:
+          version: "1.2.4"
+          website-token: ${{ secrets.GITHUB_TOKEN }}
+          website-repository: spring-io/spring-website-content
+          project-name: owner/spring-boot

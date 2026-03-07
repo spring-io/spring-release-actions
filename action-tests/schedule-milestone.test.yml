@@ -1,0 +1,22 @@
+name: schedule-milestone
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create new milestone
+        uses: ./schedule-milestone
+        with:
+          version: "2.0.0"
+          version-date: "2025-06-01"
+          repository: owner/repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update existing milestone
+        uses: ./schedule-milestone
+        with:
+          version: "1.0.0"
+          version-date: "2025-01-15"
+          description: "Updated"
+          repository: owner/repo
+          token: ${{ secrets.GITHUB_TOKEN }}

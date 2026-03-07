@@ -36,7 +36,11 @@ async function run(inputs = new Inputs()) {
     );
     return;
   }
-  const octokit = new Octokit({ auth: inputs.websiteToken });
+  const baseUrl = process.env.GITHUB_API_URL;
+  const octokit = new Octokit({
+    auth: inputs.websiteToken,
+    ...(baseUrl && { baseUrl }),
+  });
   const [owner, repo] = inputs.websiteRepository.split("/");
   const path = `project/${inputs.projectSlug}/documentation.json`;
   const ref = "main";

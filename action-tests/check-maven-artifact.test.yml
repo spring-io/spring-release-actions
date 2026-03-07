@@ -1,0 +1,12 @@
+name: check-maven-artifact
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check artifact exists
+        uses: ./check-maven-artifact
+        with:
+          repository-url: ${{ env.MAVEN_REPO_URL }}
+          artifact-path: "org/springframework/spring-core"
+          version: "6.1.0"
