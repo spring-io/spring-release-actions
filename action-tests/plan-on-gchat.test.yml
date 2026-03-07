@@ -1,0 +1,13 @@
+name: plan-on-gchat
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Plan release
+        uses: ./plan-on-gchat
+        with:
+          gchat-webhook-url: ${{ env.GCHAT_WEBHOOK_URL }}
+          version: "1.2.4"
+          version-date: "2025-06-01"
+          project-name: spring-boot
