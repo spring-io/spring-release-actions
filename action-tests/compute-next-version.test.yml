@@ -4,6 +4,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start GitHub server
+        uses: ./__fixtures__/github-server
+        with:
+          milestones: '[{"number":1,"title":"1.0.0","state":"open","due_on":"2025-05-21T00:00:00Z","description":""}]'
+          port: "18083"
+
+      - name: Start Spring Projects server
+        uses: ./__fixtures__/spring-projects-server
+        with:
+          generations: '[{"name":"1.0","ossSupportEndDate":"2028-01","commercialSupportEndDate":"2031-01"}]'
+
       - name: Compute next version
         uses: ./compute-next-version
         with:
@@ -11,4 +24,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: owner/repo
           project-slug: spring-boot
-          projects-api-base: ${{ env.PROJECTS_API_URL }}
+          projects-api-base: ${{ env.PROJECTS_API_BASE }}

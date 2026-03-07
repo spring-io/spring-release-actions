@@ -1,0 +1,31 @@
+name: Mock GitHub API Server
+description: Starts a mock GitHub REST API server for action testing
+
+inputs:
+  milestones:
+    description: JSON array of initial milestone objects
+    default: '[]'
+  port:
+    description: Port to listen on (0 = random)
+    default: '0'
+
+outputs:
+  port:
+    description: Port the server is listening on
+    value: ${{ steps.start.outputs.port }}
+
+runs:
+  using: composite
+  steps:
+    - name: Start server
+      id: start
+      shell: bash
+      run: |
+        MILESTONES='${{ inputs.milestones }}' PORT='${{ inputs.port }}' node ${{ github.action_path }}/mock.js &
+        for i in $(seq 1 25); do
+          [ -f /tmp/github-server.port ] && break
+          sleep 0.2
+        done
+        PORT=$(cat /tmp/github-server.port)
+        echo "port=$PORT" >> $GITHUB_OUTPUT
+        echo "GITHUB_API_URL=http://localhost:$PORT" >> $GITHUB_ENV
