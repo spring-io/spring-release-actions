@@ -1,0 +1,14 @@
+name: compute-next-version
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compute next version
+        uses: ./compute-next-version
+        with:
+          version: "1.0.0"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: owner/repo
+          project-slug: spring-boot
+          projects-api-base: ${{ env.PROJECTS_API_URL }}
