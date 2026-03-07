@@ -28247,7 +28247,7 @@ var __webpack_exports__ = {};
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
-  L: () => (/* binding */ buildUpdatedPage),
+  L: () => (/* reexport */ buildUpdatedPage),
   e: () => (/* binding */ run)
 });
 
@@ -31196,6 +31196,50 @@ function getIDToken(aud) {
  */
 
 //# sourceMappingURL=core.js.map
+;// CONCATENATED MODULE: ./src/update-learn-page/inputs.js
+
+
+class Inputs {
+  constructor() {
+    this.version = getInput("version", { required: true });
+    this.websiteToken = getInput("website-token", { required: false });
+    this.token = process.env.GITHUB_TOKEN;
+    this.apiDocUrl =
+      getInput("api-doc-url", { required: false }) ||
+      "https://docs.spring.io/{project}/site/docs/{version}/api/";
+    this.isAntora = getBooleanInput("is-antora", { required: false });
+    this.refDocUrl =
+      getInput("ref-doc-url", { required: false }) ||
+      "https://docs.spring.io/{project}/reference/{version}/index.html";
+    this.projectName =
+      getInput("project-name", { required: false }) ||
+      process.env.GITHUB_REPOSITORY;
+    const name = this.projectName.substring(this.projectName.indexOf("/") + 1);
+    this.projectSlug = name.endsWith("-commercial")
+      ? name.substring(0, name.length - "-commercial".length)
+      : name;
+    this.commercial = this.projectName.includes("commercial");
+    this.websiteRepository =
+      getInput("website-repository", { required: false }) ||
+      (this.commercial
+        ? "spring-io/spring-website-commercial-content"
+        : "spring-io/spring-website-content");
+    this.projectsApiBase =
+      getInput("projects-api-base", { required: false }) || undefined;
+    this.resolvedRefDocUrl = this.refDocUrl.replace(
+      /{project}|{slug}/g,
+      this.projectSlug,
+    );
+    this.resolvedApiDocUrl = this.apiDocUrl.replace(
+      /{project}|{slug}/g,
+      this.projectSlug,
+    );
+    Object.freeze(this);
+  }
+}
+
+
+
 ;// CONCATENATED MODULE: ./node_modules/universal-user-agent/index.js
 function getUserAgent() {
   if (typeof navigator === "object" && "userAgent" in navigator) {
@@ -35179,39 +35223,6 @@ const dist_src_Octokit = Octokit.plugin(requestLog, legacyRestEndpointMethods, p
 );
 
 
-;// CONCATENATED MODULE: ./src/update-learn-page/inputs.js
-
-
-class Inputs {
-  constructor() {
-    this.version = getInput("version", { required: true });
-    this.websiteToken = getInput("website-token", { required: true });
-    this.apiDocUrl =
-      getInput("api-doc-url", { required: false }) ||
-      "https://docs.spring.io/{project}/site/docs/{version}/api/";
-    this.isAntora = getBooleanInput("is-antora", { required: false });
-    this.refDocUrl =
-      getInput("ref-doc-url", { required: false }) ||
-      "https://docs.spring.io/{project}/reference/{version}/index.html";
-    this.projectName =
-      getInput("project-name", { required: false }) ||
-      process.env.GITHUB_REPOSITORY;
-    const name = this.projectName.substring(this.projectName.indexOf("/") + 1);
-    this.projectSlug = name.endsWith("-commercial")
-      ? name.substring(0, name.length - "-commercial".length)
-      : name;
-    this.commercial = this.projectName.includes("commercial");
-    this.websiteRepository =
-      getInput("website-repository", { required: false }) ||
-      (this.commercial
-        ? "spring-io/spring-website-commercial-content"
-        : "spring-io/spring-website-content");
-    Object.freeze(this);
-  }
-}
-
-
-
 // EXTERNAL MODULE: ./node_modules/compare-versions/lib/umd/index.js
 var umd = __nccwpck_require__(2026);
 ;// CONCATENATED MODULE: ./src/lib.js
@@ -35569,8 +35580,7 @@ class LearnPage {
 
 
 
-;// CONCATENATED MODULE: ./src/update-learn-page/index.js
-
+;// CONCATENATED MODULE: ./src/update-learn-page/github-strategy.js
 
 
 
@@ -35601,13 +35611,7 @@ function buildUpdatedPage(
   return learnPage.toString();
 }
 
-async function run(inputs = new Inputs()) {
-  if (inputs.version.endsWith("-SNAPSHOT")) {
-    setFailed(
-      "Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published",
-    );
-    return;
-  }
+async function updateViaGithub(inputs) {
   const baseUrl = process.env.GITHUB_API_URL;
   const octokit = new dist_src_Octokit({
     auth: inputs.websiteToken,
@@ -35627,31 +35631,22 @@ async function run(inputs = new Inputs()) {
     };
   } catch (error) {
     if (error.status !== 404) {
-      setFailed(`Error getting file content: ${error.message}`);
-      return;
+      throw new Error(`Error getting file content: ${error.message}`);
     }
   }
 
   const version = new Version(inputs.version);
-  const refDocUrl = inputs.refDocUrl.replace(
-    /{project}|{slug}/g,
-    inputs.projectSlug,
-  );
-  const apiDocUrl = inputs.apiDocUrl.replace(
-    /{project}|{slug}/g,
-    inputs.projectSlug,
-  );
-
   const updatedContent = Buffer.from(
     buildUpdatedPage(
       file?.content,
       version,
       inputs.isAntora,
-      refDocUrl,
-      apiDocUrl,
+      inputs.resolvedRefDocUrl,
+      inputs.resolvedApiDocUrl,
       inputs.commercial,
     ),
   ).toString("base64");
+
   const message = `Update #learn Page for ${inputs.projectName} ${inputs.version}`;
   await octokit.repos.createOrUpdateFileContents({
     owner,
@@ -35661,6 +35656,131 @@ async function run(inputs = new Inputs()) {
     content: updatedContent,
     sha: file ? file.sha : undefined,
   });
+}
+
+
+
+;// CONCATENATED MODULE: ./src/update-learn-page/api-strategy.js
+
+
+
+const PROJECTS_API_BASE = "https://api.spring.io";
+
+async function updateViaApi(inputs) {
+  const apiBase = inputs.projectsApiBase ?? PROJECTS_API_BASE;
+  const slug = inputs.projectSlug;
+  const version = new Version(inputs.version);
+  const snapshot = version.nextSnapshot();
+
+  const credentials = Buffer.from(`${slug}:${inputs.token}`).toString("base64");
+  const auth = `Basic ${credentials}`;
+
+  const existing = await _fetchReleases(apiBase, slug);
+  for (const r of existing) {
+    if (version.isSameMajorMinor(new Version(r.version))) {
+      info(`Deleting release ${r.version} from ${slug}`);
+      await _deleteRelease(apiBase, slug, r.version, auth);
+    }
+  }
+
+  info(`Creating release ${inputs.version} for ${slug}`);
+  await _createRelease(
+    apiBase,
+    slug,
+    inputs.version,
+    inputs.isAntora,
+    inputs.resolvedRefDocUrl,
+    inputs.resolvedApiDocUrl,
+    auth,
+  );
+
+  info(`Creating release ${snapshot.version} for ${slug}`);
+  await _createRelease(
+    apiBase,
+    slug,
+    snapshot.version,
+    inputs.isAntora,
+    inputs.resolvedRefDocUrl,
+    inputs.resolvedApiDocUrl,
+    auth,
+  );
+}
+
+async function _fetchReleases(apiBase, slug) {
+  const url = `${apiBase}/projects/${slug}/releases`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to list releases for ${slug}: ${response.status} ${response.statusText}`,
+    );
+  }
+  const body = await response.json();
+  return body._embedded?.releases ?? [];
+}
+
+async function _deleteRelease(apiBase, slug, version, auth) {
+  const url = `${apiBase}/projects/${slug}/releases/${encodeURIComponent(version)}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: auth },
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(
+      `Failed to delete release ${version}: ${response.status} ${response.statusText}`,
+    );
+  }
+}
+
+async function _createRelease(
+  apiBase,
+  slug,
+  version,
+  isAntora,
+  referenceDocUrl,
+  apiDocUrl,
+  auth,
+) {
+  const url = `${apiBase}/projects/${slug}/releases`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: auth,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ version, isAntora, referenceDocUrl, apiDocUrl }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Failed to create release ${version}: ${response.status} ${response.statusText}`,
+    );
+  }
+}
+
+
+
+;// CONCATENATED MODULE: ./src/update-learn-page/index.js
+
+
+
+
+
+async function run(inputs = new Inputs()) {
+  if (inputs.version.endsWith("-SNAPSHOT")) {
+    setFailed(
+      "Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published",
+    );
+    return;
+  }
+
+  try {
+    if (inputs.websiteToken) {
+      await updateViaGithub(inputs);
+    } else {
+      await updateViaApi(inputs);
+    }
+  } catch (error) {
+    setFailed(error.message);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

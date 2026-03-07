@@ -3,7 +3,8 @@ import * as core from "@actions/core";
 class Inputs {
   constructor() {
     this.version = core.getInput("version", { required: true });
-    this.websiteToken = core.getInput("website-token", { required: true });
+    this.websiteToken = core.getInput("website-token", { required: false });
+    this.token = process.env.GITHUB_TOKEN;
     this.apiDocUrl =
       core.getInput("api-doc-url", { required: false }) ||
       "https://docs.spring.io/{project}/site/docs/{version}/api/";
@@ -24,6 +25,16 @@ class Inputs {
       (this.commercial
         ? "spring-io/spring-website-commercial-content"
         : "spring-io/spring-website-content");
+    this.projectsApiBase =
+      core.getInput("projects-api-base", { required: false }) || undefined;
+    this.resolvedRefDocUrl = this.refDocUrl.replace(
+      /{project}|{slug}/g,
+      this.projectSlug,
+    );
+    this.resolvedApiDocUrl = this.apiDocUrl.replace(
+      /{project}|{slug}/g,
+      this.projectSlug,
+    );
     Object.freeze(this);
   }
 }

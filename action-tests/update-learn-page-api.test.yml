@@ -1,0 +1,19 @@
+name: update-learn-page-api
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create releases
+        uses: ./update-learn-page
+        with:
+          version: "1.2.3"
+          project-name: owner/spring-boot
+          projects-api-base: ${{ env.PROJECTS_API_BASE }}
+
+      - name: Update releases
+        uses: ./update-learn-page
+        with:
+          version: "1.2.4"
+          project-name: owner/spring-boot
+          projects-api-base: ${{ env.PROJECTS_API_BASE }}

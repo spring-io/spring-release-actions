@@ -7,8 +7,10 @@ inputs:
     description: "The current version"
     required: true
   website-token:
-    description: "The GitHub token needed to access spring-website-content or spring-website-commercial-content"
-    required: true
+    description: "The GitHub token needed to directly edit spring-website-content or spring-website-commercial-content.
+      When supplied, the action edits the documentation.json file in the website repository directly (required for commercial repos).
+      When omitted, the action uses the Spring Projects REST API (suitable for OSS repos)."
+    required: false
 
   api-doc-url:
     description: "The URL to the project's JavaDoc; supports {version} placeholder"
