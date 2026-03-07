@@ -39,8 +39,195 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.simulate_failure == 'true' }}
         run: exit 1
 
-  notify:
+  action-test-announce-on-gchat:
     needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start GChat server
+        uses: ./__fixtures__/gchat-server
+      - name: Announce release
+        uses: ./announce-on-gchat
+        with:
+          gchat-webhook-url: ${{ env.GCHAT_WEBHOOK_URL }}
+          version: "1.2.3"
+          project-name: spring-boot
+
+  action-test-check-maven-artifact:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Maven repo server
+        uses: ./__fixtures__/maven-repo-server
+        with:
+          known-versions: '["6.1.0"]'
+      - name: Check artifact exists
+        uses: ./check-maven-artifact
+        with:
+          repository-url: ${{ env.MAVEN_REPO_URL }}
+          artifact-path: "org/springframework/spring-core"
+          version: "6.1.0"
+
+  action-test-close-milestone:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start GitHub server
+        uses: ./__fixtures__/github-server
+        with:
+          milestones: '[{"number":1,"title":"1.0.0","state":"open","due_on":null,"description":""}]'
+          port: "18080"
+      - name: Close existing milestone
+        uses: ./close-milestone
+        with:
+          version: "1.0.0"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: owner/repo
+      - name: Close non-existent milestone
+        uses: ./close-milestone
+        with:
+          version: "9.9.9"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: owner/repo
+
+  action-test-compute-next-version:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start GitHub server
+        uses: ./__fixtures__/github-server
+        with:
+          milestones: '[{"number":1,"title":"1.0.0","state":"open","due_on":"2025-05-21T00:00:00Z","description":""}]'
+          port: "18083"
+      - name: Start Spring Projects server
+        uses: ./__fixtures__/spring-projects-server
+        with:
+          generations: '[{"name":"1.0","ossSupportEndDate":"2028-01","commercialSupportEndDate":"2031-01"}]'
+      - name: Compute next version
+        uses: ./compute-next-version
+        with:
+          version: "1.0.0"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: owner/repo
+          project-slug: spring-boot
+          projects-api-base: ${{ env.PROJECTS_API_BASE }}
+
+  action-test-plan-on-gchat:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start GChat server
+        uses: ./__fixtures__/gchat-server
+      - name: Plan release
+        uses: ./plan-on-gchat
+        with:
+          gchat-webhook-url: ${{ env.GCHAT_WEBHOOK_URL }}
+          version: "1.2.4"
+          version-date: "2025-06-01"
+          project-name: spring-boot
+
+  action-test-schedule-milestone:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start GitHub server
+        uses: ./__fixtures__/github-server
+        with:
+          milestones: '[{"number":1,"title":"1.0.0","state":"open","due_on":"2025-01-01T00:00:00Z","description":""}]'
+          port: "18081"
+      - name: Create new milestone
+        uses: ./schedule-milestone
+        with:
+          version: "2.0.0"
+          version-date: "2025-06-01"
+          repository: owner/repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update existing milestone
+        uses: ./schedule-milestone
+        with:
+          version: "1.0.0"
+          version-date: "2025-01-15"
+          description: "Updated"
+          repository: owner/repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  action-test-status-on-gchat:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start GChat server
+        uses: ./__fixtures__/gchat-server
+      - name: Start GitHub server
+        uses: ./__fixtures__/github-server
+        with:
+          port: "18082"
+      - name: Send workflow status
+        uses: ./status-on-gchat
+        with:
+          gchat-webhook-url: ${{ env.GCHAT_WEBHOOK_URL }}
+
+  action-test-update-learn-page:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start GitHub server
+        uses: ./__fixtures__/github-server
+        with:
+          port: "18084"
+      - name: Create documentation file
+        uses: ./update-learn-page
+        with:
+          version: "1.2.3"
+          website-token: ${{ secrets.GITHUB_TOKEN }}
+          website-repository: spring-io/spring-website-content
+          project-name: owner/spring-boot
+      - name: Update documentation file
+        uses: ./update-learn-page
+        with:
+          version: "1.2.4"
+          website-token: ${{ secrets.GITHUB_TOKEN }}
+          website-repository: spring-io/spring-website-content
+          project-name: owner/spring-boot
+
+  action-test-update-learn-page-api:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Spring Projects server
+        uses: ./__fixtures__/spring-projects-server
+      - name: Create releases
+        uses: ./update-learn-page
+        with:
+          version: "1.2.3"
+          project-name: owner/spring-boot
+          projects-api-base: ${{ env.PROJECTS_API_BASE }}
+      - name: Update releases
+        uses: ./update-learn-page
+        with:
+          version: "1.2.4"
+          project-name: owner/spring-boot
+          projects-api-base: ${{ env.PROJECTS_API_BASE }}
+
+  notify:
+    needs:
+      - test
+      - action-test-announce-on-gchat
+      - action-test-check-maven-artifact
+      - action-test-close-milestone
+      - action-test-compute-next-version
+      - action-test-plan-on-gchat
+      - action-test-schedule-milestone
+      - action-test-status-on-gchat
+      - action-test-update-learn-page
+      - action-test-update-learn-page-api
     runs-on: ubuntu-latest
     if: ${{ !success() }}
     steps:
