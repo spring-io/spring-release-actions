@@ -1,0 +1,23 @@
+name: Mock GChat Server
+description: Starts a mock Google Chat webhook server for action testing
+
+outputs:
+  port:
+    description: Port the server is listening on
+    value: ${{ steps.start.outputs.port }}
+
+runs:
+  using: composite
+  steps:
+    - name: Start server
+      id: start
+      shell: bash
+      run: |
+        node ${{ github.action_path }}/mock.js &
+        for i in $(seq 1 25); do
+          [ -f /tmp/gchat-server.port ] && break
+          sleep 0.2
+        done
+        PORT=$(cat /tmp/gchat-server.port)
+        echo "port=$PORT" >> $GITHUB_OUTPUT
+        echo "GCHAT_WEBHOOK_URL=http://localhost:$PORT" >> $GITHUB_ENV

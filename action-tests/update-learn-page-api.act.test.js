@@ -1,5 +1,5 @@
 import { Act } from "@kie/act-js";
-import { createMockSpringProjectsServer } from "../__fixtures__/spring-projects-server.js";
+import { createMockSpringProjectsServer } from "../__fixtures__/spring-projects-server/mock.js";
 import path from "path";
 import { fileURLToPath } from "url";
 

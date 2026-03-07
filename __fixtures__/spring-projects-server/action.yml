@@ -1,0 +1,31 @@
+name: Mock Spring Projects Server
+description: Starts a mock Spring Projects REST API server for action testing
+
+inputs:
+  releases:
+    description: JSON array of initial release objects
+    default: '[]'
+  generations:
+    description: JSON array of generation objects
+    default: '[]'
+
+outputs:
+  port:
+    description: Port the server is listening on
+    value: ${{ steps.start.outputs.port }}
+
+runs:
+  using: composite
+  steps:
+    - name: Start server
+      id: start
+      shell: bash
+      run: |
+        RELEASES='${{ inputs.releases }}' GENERATIONS='${{ inputs.generations }}' node ${{ github.action_path }}/mock.js &
+        for i in $(seq 1 25); do
+          [ -f /tmp/spring-projects-server.port ] && break
+          sleep 0.2
+        done
+        PORT=$(cat /tmp/spring-projects-server.port)
+        echo "port=$PORT" >> $GITHUB_OUTPUT
+        echo "PROJECTS_API_BASE=http://localhost:$PORT" >> $GITHUB_ENV

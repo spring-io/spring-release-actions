@@ -1,5 +1,5 @@
 import { Act } from "@kie/act-js";
-import { createMockGchatServer } from "../__fixtures__/gchat-server.js";
+import { createMockGchatServer } from "../__fixtures__/gchat-server/mock.js";
 import { createMockGithubServer } from "../__fixtures__/github-server/mock.js";
 import path from "path";
 import { fileURLToPath } from "url";

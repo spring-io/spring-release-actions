@@ -1,0 +1,28 @@
+name: Mock Maven Repository Server
+description: Starts a mock Maven repository server for action testing
+
+inputs:
+  known-versions:
+    description: JSON array of artifact versions to return 200 for
+    default: '[]'
+
+outputs:
+  port:
+    description: Port the server is listening on
+    value: ${{ steps.start.outputs.port }}
+
+runs:
+  using: composite
+  steps:
+    - name: Start server
+      id: start
+      shell: bash
+      run: |
+        KNOWN_VERSIONS='${{ inputs.known-versions }}' node ${{ github.action_path }}/mock.js &
+        for i in $(seq 1 25); do
+          [ -f /tmp/maven-repo-server.port ] && break
+          sleep 0.2
+        done
+        PORT=$(cat /tmp/maven-repo-server.port)
+        echo "port=$PORT" >> $GITHUB_OUTPUT
+        echo "MAVEN_REPO_URL=http://localhost:$PORT" >> $GITHUB_ENV
