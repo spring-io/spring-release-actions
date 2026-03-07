@@ -1,5 +1,5 @@
 import { Act } from "@kie/act-js";
-import { createMockGithubServer } from "../__fixtures__/github-server.js";
+import { createMockGithubServer } from "../__fixtures__/github-server/mock.js";
 import express from "express";
 import { createServer } from "http";
 import path from "path";

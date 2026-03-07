@@ -21,7 +21,7 @@ runs:
       id: start
       shell: bash
       run: |
-        MILESTONES='${{ inputs.milestones }}' PORT='${{ inputs.port }}' node ${{ github.action_path }}/server.js &
+        MILESTONES='${{ inputs.milestones }}' PORT='${{ inputs.port }}' node ${{ github.action_path }}/mock.js &
         for i in $(seq 1 25); do
           [ -f /tmp/github-server.port ] && break
           sleep 0.2

@@ -1,5 +1,6 @@
 import express from "express";
 import { createServer } from "http";
+import { writeFileSync } from "fs";
 
 /**
  * Creates a stateful mock GitHub REST API server for integration testing.
@@ -38,6 +39,13 @@ function createMockGithubServer(initialMilestones = [], options = {}) {
 	const app = express();
 	app.use(express.json());
 
+	app.get("/_state", (req, res) => {
+		res.json({
+			milestones: milestones.map((m) => ({ ...m })),
+			contents: Object.fromEntries(contents),
+		});
+	});
+
 	app.get("/repos/:owner/:repo/contents/*", (req, res) => {
 		const filePath = decodeURIComponent(req.params[0]);
 		const stored = contents.get(filePath);
@@ -58,13 +66,6 @@ function createMockGithubServer(initialMilestones = [], options = {}) {
 
 	app.get("/repos/:owner/:repo/actions/runs/:run_id/jobs", (req, res) => {
 		res.json({ jobs });
-	});
-
-	app.get("/_state", (req, res) => {
-		res.json({
-			milestones: milestones.map((m) => ({ ...m })),
-			contents: Object.fromEntries(contents),
-		});
 	});
 
 	app.get("/repos/:owner/:repo/milestones", (req, res) => {
@@ -125,26 +126,28 @@ function createMockGithubServer(initialMilestones = [], options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Standalone mode — for use with local-action manual integration tests.
+// Standalone mode — used both by the composite action fixture and by manual
+// local-action runs.
 //
-// Usage:
-//   node __fixtures__/github-server.js [port]          (default: 3000)
+// Composite action:  MILESTONES='[...]' PORT=18080 node mock.js
+// Manual local run:  node mock.js [port]  (default port: 3000, default seed data)
 // ---------------------------------------------------------------------------
 if (import.meta.url === `file://${process.argv[1]}`) {
-	const port = parseInt(process.argv[2]) || 3000;
-	const seed = [
-		{ number: 1, title: "1.0.0", state: "open", due_on: "2025-01-01T00:00:00Z", description: "" },
-		{ number: 2, title: "1.1.0", state: "open", due_on: "2025-06-01T00:00:00Z", description: "" },
-	];
+	const milestones = process.env.MILESTONES
+		? JSON.parse(process.env.MILESTONES)
+		: [
+				{ number: 1, title: "1.0.0", state: "open", due_on: "2025-01-01T00:00:00Z", description: "" },
+				{ number: 2, title: "1.1.0", state: "open", due_on: "2025-06-01T00:00:00Z", description: "" },
+			];
+	const port = parseInt(process.env.PORT || process.argv[2] || "3000");
 
-	const srv = createMockGithubServer(seed);
-	await srv.start(port);
-	console.log(`Mock GitHub API server listening on http://localhost:${port}`);
+	const srv = createMockGithubServer(milestones);
+	const actualPort = await srv.start(port);
+	writeFileSync("/tmp/github-server.port", String(actualPort));
+	console.log(`Mock GitHub API server listening on http://localhost:${actualPort}`);
 
-	process.on("SIGINT", async () => {
-		await srv.stop();
-		process.exit(0);
-	});
+	process.on("SIGINT", async () => { await srv.stop(); process.exit(0); });
+	process.on("SIGTERM", async () => { await srv.stop(); process.exit(0); });
 }
 
 export { createMockGithubServer };
