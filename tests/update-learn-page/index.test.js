@@ -20,6 +20,8 @@ describe('Update Learn Page Action', () => {
 		projectSlug: 'spring-boot',
 		refDocUrl: 'https://docs.spring.io/spring-boot/reference/{version}/index.html',
 		apiDocUrl: 'https://docs.spring.io/spring-boot/site/docs/{version}/api/',
+		resolvedRefDocUrl: 'https://docs.spring.io/spring-boot/reference/{version}/index.html',
+		resolvedApiDocUrl: 'https://docs.spring.io/spring-boot/site/docs/{version}/api/',
 		isAntora: true
 	};
 
@@ -131,6 +133,8 @@ describe('Update Learn Page Action Commercial', () => {
 		projectSlug: 'spring-boot',
 		refDocUrl: 'https://docs.spring.io/spring-boot/reference/{version}/index.html',
 		apiDocUrl: 'https://docs.spring.io/spring-boot/site/docs/{version}/api/',
+		resolvedRefDocUrl: 'https://docs.spring.io/spring-boot/reference/{version}/index.html',
+		resolvedApiDocUrl: 'https://docs.spring.io/spring-boot/site/docs/{version}/api/',
 		isAntora: true,
 		commercial: true
 	};
