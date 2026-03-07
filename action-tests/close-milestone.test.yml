@@ -4,6 +4,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start GitHub server
+        uses: ./__fixtures__/github-server
+        with:
+          milestones: '[{"number":1,"title":"1.0.0","state":"open","due_on":null,"description":""}]'
+          port: "18080"
+
       - name: Close existing milestone
         uses: ./close-milestone
         with:

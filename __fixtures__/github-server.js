@@ -60,6 +60,13 @@ function createMockGithubServer(initialMilestones = [], options = {}) {
 		res.json({ jobs });
 	});
 
+	app.get("/_state", (req, res) => {
+		res.json({
+			milestones: milestones.map((m) => ({ ...m })),
+			contents: Object.fromEntries(contents),
+		});
+	});
+
 	app.get("/repos/:owner/:repo/milestones", (req, res) => {
 		const { state = "open" } = req.query;
 		const result =
