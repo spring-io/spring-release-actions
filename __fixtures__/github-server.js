@@ -9,11 +9,31 @@ import { createServer } from "http";
  *   POST  /repos/:owner/:repo/milestones
  *   PATCH /repos/:owner/:repo/milestones/:number
  */
-function createMockGithubServer(initialMilestones = []) {
+const DEFAULT_RUN = {
+	id: 1,
+	name: "CI",
+	run_number: 1,
+	path: "owner/repo/.github/workflows/ci.yml@main",
+	display_title: "Test workflow run",
+	head_sha: "abc1234567890",
+	head_commit: { message: "Test commit" },
+	event: "push",
+	actor: { login: "test-user", html_url: "https://github.com/test-user" },
+	triggering_actor: { login: "test-user", html_url: "https://github.com/test-user" },
+	pull_requests: [],
+};
+
+const DEFAULT_JOBS = [
+	{ id: 1, name: "build", conclusion: "success", html_url: "https://github.com/owner/repo/actions/runs/1/job/1" },
+];
+
+function createMockGithubServer(initialMilestones = [], options = {}) {
 	let milestones = initialMilestones.map((m) => ({ ...m }));
 	let nextNumber =
 		milestones.length > 0 ? Math.max(...milestones.map((m) => m.number)) + 1 : 1;
 	let contents = new Map();
+	const run = options.run ?? DEFAULT_RUN;
+	const jobs = options.jobs ?? DEFAULT_JOBS;
 
 	const app = express();
 	app.use(express.json());
@@ -30,6 +50,14 @@ function createMockGithubServer(initialMilestones = []) {
 		const sha = req.body.sha || `sha-${Date.now()}`;
 		contents.set(filePath, { content: req.body.content, sha });
 		res.status(200).json({ content: { path: filePath, sha } });
+	});
+
+	app.get("/repos/:owner/:repo/actions/runs/:run_id", (req, res) => {
+		res.json({ ...run, id: parseInt(req.params.run_id) });
+	});
+
+	app.get("/repos/:owner/:repo/actions/runs/:run_id/jobs", (req, res) => {
+		res.json({ jobs });
 	});
 
 	app.get("/repos/:owner/:repo/milestones", (req, res) => {

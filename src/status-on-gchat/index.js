@@ -89,7 +89,11 @@ async function run(inputs = new Inputs()) {
     return;
   }
 
-  const octokit = new Octokit({ auth: inputs.token });
+  const baseUrl = process.env.GITHUB_API_URL;
+  const octokit = new Octokit({
+    auth: inputs.token,
+    ...(baseUrl && { baseUrl }),
+  });
   const [owner, repo] = repository.split("/");
 
   let runResponse;

@@ -1,0 +1,12 @@
+name: announce-on-gchat
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce release
+        uses: ./announce-on-gchat
+        with:
+          gchat-webhook-url: ${{ env.GCHAT_WEBHOOK_URL }}
+          version: "1.2.3"
+          project-name: spring-boot

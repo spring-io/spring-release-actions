@@ -1,0 +1,10 @@
+name: status-on-gchat
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send workflow status
+        uses: ./status-on-gchat
+        with:
+          gchat-webhook-url: ${{ env.GCHAT_WEBHOOK_URL }}
