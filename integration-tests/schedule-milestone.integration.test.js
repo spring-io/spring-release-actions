@@ -1,9 +1,35 @@
 import { vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
 import * as core from '../__fixtures__/core.js';
-import { createMockGithubServer } from '../__fixtures__/github-server.js';
 import { run } from '../src/schedule-milestone/index.js';
 
 vi.mock('@actions/core', async () => await import('../__fixtures__/core.js'));
+
+const milestones = [];
+
+const server = setupServer(
+	http.get('https://api.github.com/repos/:owner/:repo/milestones', ({ request }) => {
+		const state = new URL(request.url).searchParams.get('state') || 'open';
+		const result = state === 'all' ? [...milestones] : milestones.filter((m) => m.state === state);
+		return HttpResponse.json(result);
+	}),
+	http.patch('https://api.github.com/repos/:owner/:repo/milestones/:number', async ({ request, params }) => {
+		const body = await request.json();
+		const milestone = milestones.find((m) => m.number === parseInt(params.number));
+		if (!milestone) {
+			return new HttpResponse(null, { status: 404 });
+		}
+		Object.assign(milestone, body);
+		return HttpResponse.json(milestone);
+	}),
+	http.post('https://api.github.com/repos/:owner/:repo/milestones', async ({ request }) => {
+		const body = await request.json();
+		const milestone = { number: milestones.length + 1, state: 'open', ...body };
+		milestones.push(milestone);
+		return HttpResponse.json(milestone, { status: 201 });
+	}),
+);
 
 describe('schedule-milestone integration', () => {
 	const initialMilestones = [
@@ -16,22 +42,18 @@ describe('schedule-milestone integration', () => {
 		},
 	];
 
-	let server;
-
-	beforeAll(async () => {
-		server = createMockGithubServer(initialMilestones);
-		const port = await server.start();
-		process.env.GITHUB_API_URL = `http://localhost:${port}`;
+	beforeAll(() => {
+		server.listen({ onUnhandledRequest: 'error' });
 	});
 
-	afterAll(async () => {
-		delete process.env.GITHUB_API_URL;
-		await server.stop();
-	});
+	afterAll(() => server.close());
 
 	beforeEach(() => {
-		server.reset(initialMilestones);
+		milestones.length = 0;
+		milestones.push(...initialMilestones.map((m) => ({ ...m })));
 	});
+
+	afterEach(() => server.resetHandlers());
 
 	it('creates a new milestone when it does not exist', async () => {
 		await run({
@@ -42,7 +64,7 @@ describe('schedule-milestone integration', () => {
 			token: 'test-token',
 		});
 
-		const created = server.getMilestones().find((m) => m.title === '2.0.0');
+		const created = milestones.find((m) => m.title === '2.0.0');
 		expect(created).toBeDefined();
 		expect(created.due_on).toBe('2025-12-25T00:00:00.000Z');
 		expect(created.description).toBe('GA release');
@@ -58,7 +80,7 @@ describe('schedule-milestone integration', () => {
 			token: 'test-token',
 		});
 
-		const updated = server.getMilestone(1);
+		const updated = milestones.find((m) => m.number === 1);
 		expect(updated.due_on).toBe('2025-06-15T00:00:00.000Z');
 		expect(updated.description).toBe('updated description');
 	});
@@ -72,8 +94,7 @@ describe('schedule-milestone integration', () => {
 			token: 'test-token',
 		});
 
-		// The pre-existing milestone is untouched
-		const existing = server.getMilestone(1);
+		const existing = milestones.find((m) => m.number === 1);
 		expect(existing.due_on).toBe('2025-01-01T00:00:00Z');
 		expect(existing.description).toBe('initial description');
 	});
