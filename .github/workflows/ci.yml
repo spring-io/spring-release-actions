@@ -96,12 +96,16 @@ jobs:
           port: "18080"
       - name: Close existing milestone
         uses: ./close-milestone
+        env:
+          GITHUB_API_URL: http://localhost:18080
         with:
           version: "1.0.0"
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: owner/repo
       - name: Close non-existent milestone
         uses: ./close-milestone
+        env:
+          GITHUB_API_URL: http://localhost:18080
         with:
           version: "9.9.9"
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -128,6 +132,8 @@ jobs:
           generations: '[{"name":"1.0","ossSupportEndDate":"2028-01","commercialSupportEndDate":"2031-01"}]'
       - name: Compute next version
         uses: ./compute-next-version
+        env:
+          GITHUB_API_URL: http://localhost:18083
         with:
           version: "1.0.0"
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -172,6 +178,8 @@ jobs:
           port: "18081"
       - name: Create new milestone
         uses: ./schedule-milestone
+        env:
+          GITHUB_API_URL: http://localhost:18081
         with:
           version: "2.0.0"
           version-date: "2025-06-01"
@@ -179,6 +187,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update existing milestone
         uses: ./schedule-milestone
+        env:
+          GITHUB_API_URL: http://localhost:18081
         with:
           version: "1.0.0"
           version-date: "2025-01-15"
@@ -204,6 +214,8 @@ jobs:
           port: "18082"
       - name: Send workflow status
         uses: ./status-on-gchat
+        env:
+          GITHUB_API_URL: http://localhost:18082
         with:
           gchat-webhook-url: ${{ env.GCHAT_WEBHOOK_URL }}
 
@@ -223,6 +235,8 @@ jobs:
           port: "18084"
       - name: Create documentation file
         uses: ./update-learn-page
+        env:
+          GITHUB_API_URL: http://localhost:18084
         with:
           version: "1.2.3"
           website-token: ${{ secrets.GITHUB_TOKEN }}
@@ -230,6 +244,8 @@ jobs:
           project-name: owner/spring-boot
       - name: Update documentation file
         uses: ./update-learn-page
+        env:
+          GITHUB_API_URL: http://localhost:18084
         with:
           version: "1.2.4"
           website-token: ${{ secrets.GITHUB_TOKEN }}
