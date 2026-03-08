@@ -10,7 +10,7 @@ describe("compute-next-version", () => {
     "computes the next version from a milestone and generation",
     async () => {
       const act = new Act(repoRoot);
-      act.setEnv("GITHUB_API_URL", "http://localhost:18083");
+      act.setEnv("OCTOKIT_BASE_URL", "http://localhost:18083");
       act.setSecret("GITHUB_TOKEN", "test-token");
 
       const steps = await act.runEvent("push", {

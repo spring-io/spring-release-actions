@@ -29,7 +29,7 @@ function buildUpdatedPage(
 }
 
 async function updateViaGithub(inputs) {
-  const baseUrl = process.env.GITHUB_API_URL;
+  const baseUrl = process.env.OCTOKIT_BASE_URL;
   const octokit = new Octokit({
     auth: inputs.websiteToken,
     ...(baseUrl && { baseUrl }),

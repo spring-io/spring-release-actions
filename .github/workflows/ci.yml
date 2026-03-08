@@ -97,7 +97,7 @@ jobs:
       - name: Close existing milestone
         uses: ./close-milestone
         env:
-          GITHUB_API_URL: http://localhost:18080
+          OCTOKIT_BASE_URL: http://localhost:18080
         with:
           version: "1.0.0"
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -105,7 +105,7 @@ jobs:
       - name: Close non-existent milestone
         uses: ./close-milestone
         env:
-          GITHUB_API_URL: http://localhost:18080
+          OCTOKIT_BASE_URL: http://localhost:18080
         with:
           version: "9.9.9"
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -133,7 +133,7 @@ jobs:
       - name: Compute next version
         uses: ./compute-next-version
         env:
-          GITHUB_API_URL: http://localhost:18083
+          OCTOKIT_BASE_URL: http://localhost:18083
         with:
           version: "1.0.0"
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -179,7 +179,7 @@ jobs:
       - name: Create new milestone
         uses: ./schedule-milestone
         env:
-          GITHUB_API_URL: http://localhost:18081
+          OCTOKIT_BASE_URL: http://localhost:18081
         with:
           version: "2.0.0"
           version-date: "2025-06-01"
@@ -188,7 +188,7 @@ jobs:
       - name: Update existing milestone
         uses: ./schedule-milestone
         env:
-          GITHUB_API_URL: http://localhost:18081
+          OCTOKIT_BASE_URL: http://localhost:18081
         with:
           version: "1.0.0"
           version-date: "2025-01-15"
@@ -215,7 +215,7 @@ jobs:
       - name: Send workflow status
         uses: ./status-on-gchat
         env:
-          GITHUB_API_URL: http://localhost:18082
+          OCTOKIT_BASE_URL: http://localhost:18082
         with:
           gchat-webhook-url: ${{ env.GCHAT_WEBHOOK_URL }}
 
@@ -236,7 +236,7 @@ jobs:
       - name: Create documentation file
         uses: ./update-learn-page
         env:
-          GITHUB_API_URL: http://localhost:18084
+          OCTOKIT_BASE_URL: http://localhost:18084
         with:
           version: "1.2.3"
           website-token: ${{ secrets.GITHUB_TOKEN }}
@@ -245,7 +245,7 @@ jobs:
       - name: Update documentation file
         uses: ./update-learn-page
         env:
-          GITHUB_API_URL: http://localhost:18084
+          OCTOKIT_BASE_URL: http://localhost:18084
         with:
           version: "1.2.4"
           website-token: ${{ secrets.GITHUB_TOKEN }}

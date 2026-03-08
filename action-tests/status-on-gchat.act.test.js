@@ -10,7 +10,7 @@ describe("status-on-gchat", () => {
     "posts a workflow status message to the webhook",
     async () => {
       const act = new Act(repoRoot);
-      act.setEnv("GITHUB_API_URL", "http://localhost:18082");
+      act.setEnv("OCTOKIT_BASE_URL", "http://localhost:18082");
       act.setSecret("GITHUB_TOKEN", "test-token");
 
       const steps = await act.runEvent("push", {

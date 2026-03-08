@@ -16,7 +16,7 @@ class Milestones {
    * @param repo the GH repository, like {@code spring-projects/spring-security} to operate on
    */
   constructor(token, repo) {
-    const baseUrl = process.env.GITHUB_API_URL;
+    const baseUrl = process.env.OCTOKIT_BASE_URL;
     this.gh = new Octokit({ auth: token, ...(baseUrl && { baseUrl }) });
     [this.owner, this.repo] = repo.split("/");
     this.milestoneType = this.repo.endsWith("-commercial")

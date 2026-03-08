@@ -10,7 +10,7 @@ describe("update-learn-page", () => {
     "creates a documentation file and then updates it",
     async () => {
       const act = new Act(repoRoot);
-      act.setEnv("GITHUB_API_URL", "http://localhost:18084");
+      act.setEnv("OCTOKIT_BASE_URL", "http://localhost:18084");
       act.setSecret("GITHUB_TOKEN", "test-token");
 
       const steps = await act.runEvent("push", {
