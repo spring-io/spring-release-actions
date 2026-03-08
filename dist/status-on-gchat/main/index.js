@@ -45341,7 +45341,7 @@ async function run(inputs = new Inputs()) {
     return;
   }
 
-  const baseUrl = process.env.GITHUB_API_URL;
+  const baseUrl = process.env.OCTOKIT_BASE_URL;
   const octokit = new dist_src_Octokit({
     auth: inputs.token,
     ...(baseUrl && { baseUrl }),

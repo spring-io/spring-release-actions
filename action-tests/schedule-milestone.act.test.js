@@ -11,7 +11,7 @@ describe("schedule-milestone", () => {
     async () => {
       const act = new Act(repoRoot);
       act.setSecret("GITHUB_TOKEN", "test-token");
-      act.setEnv("GITHUB_API_URL", "http://localhost:18081");
+      act.setEnv("OCTOKIT_BASE_URL", "http://localhost:18081");
 
       const steps = await act.runEvent("push", {
         workflowFile: path.join(__dirname, "schedule-milestone.test.yml"),
