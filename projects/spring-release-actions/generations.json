@@ -1,0 +1,10 @@
+{
+  "generations": [
+    {
+      "name": "0.0.x",
+      "initialRelease": "2026-01",
+      "ossSupportEndDate": "2099-01",
+      "commercialSupportEndDate": "2099-01"
+    }
+  ]
+}
