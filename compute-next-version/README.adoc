@@ -22,6 +22,10 @@ This GitHub action computes the next milestone release name and date.
 | `project-slug`
 | The project slug for the Projects API (https://api.spring.io/projects). Defaults to the repository name with `-commercial` stripped.
 | `false`
+
+| `projects-api-base`
+| The base URL or filesystem path for the Projects API. Defaults to `https://api.spring.io`. Use `.` to read generation metadata from the local `projects/` directory.
+| `false`
 |===
 
 == Outputs

@@ -1,3 +1,6 @@
+import { mkdir, rm, writeFile } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
 import { vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -47,5 +50,36 @@ describe("compute-next-version integration", () => {
     expect(core.setOutput).toHaveBeenCalledWith("version-date", expect.any(String));
     expect(core.setOutput).toHaveBeenCalledWith("version-type", expect.any(String));
     expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("reads generations from the filesystem when projectsApiBase is a path", async () => {
+    const dir = await mkdir(join(tmpdir(), "spring-test"), { recursive: true });
+    const apiBase = join(tmpdir(), "spring-test");
+    await mkdir(join(apiBase, "projects", "spring-boot"), { recursive: true });
+    await writeFile(
+      join(apiBase, "projects", "spring-boot", "generations.json"),
+      JSON.stringify({
+        generations: [
+          { name: "1.0", ossSupportEndDate: "2028-01", commercialSupportEndDate: "2031-01" },
+        ],
+      }),
+    );
+
+    try {
+      await run({
+        version: "1.0.0",
+        token: "test-token",
+        repository: "owner/repo",
+        projectSlug: "spring-boot",
+        projectsApiBase: apiBase,
+      });
+
+      expect(core.setOutput).toHaveBeenCalledWith("version", expect.any(String));
+      expect(core.setOutput).toHaveBeenCalledWith("version-date", expect.any(String));
+      expect(core.setOutput).toHaveBeenCalledWith("version-type", expect.any(String));
+      expect(core.setFailed).not.toHaveBeenCalled();
+    } finally {
+      await rm(apiBase, { recursive: true });
+    }
   });
 });

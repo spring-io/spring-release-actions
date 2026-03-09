@@ -54,8 +54,7 @@ jobs:
         with:
           version: ${{ needs.planner.outputs.release-version }}
           token: ${{ github.token }}
-          website-token: ${{ github.token }}
-          website-repository: 'spring-io/spring-release-actions'
+          projects-api-base: '.'
       - name: "Ensure ${{ steps.next-release-milestone.outputs.version }} Scheduled"
         uses: ./schedule-milestone
         if: ${{ steps.next-release-milestone.outputs.version-type  == 'oss' }}
