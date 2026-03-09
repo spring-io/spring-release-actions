@@ -15,6 +15,9 @@ inputs:
   project-slug:
     description: "The project slug for the Projects API (https://api.spring.io/projects)"
     required: false
+  projects-api-base:
+    description: "The base URL or filesystem path for the Projects API. Defaults to 'https://api.spring.io'. Use '.' to read generation metadata from the local 'projects/' directory."
+    required: false
 
 outputs:
   version:

@@ -35629,7 +35629,11 @@ function _isToday(dueDate) {
 
 
 
+;// CONCATENATED MODULE: external "fs/promises"
+const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("fs/promises");
 ;// CONCATENATED MODULE: ./src/website.js
+
+
 
 
 const PROJECTS_API_BASE = "https://api.spring.io";
@@ -35686,6 +35690,13 @@ class Website {
 }
 
 async function _fetchGenerations(apiBase, projectSlug) {
+  if (apiBase.startsWith("http://") || apiBase.startsWith("https://")) {
+    return _fetchGenerationsFromHttp(apiBase, projectSlug);
+  }
+  return _fetchGenerationsFromFilesystem(apiBase, projectSlug);
+}
+
+async function _fetchGenerationsFromHttp(apiBase, projectSlug) {
   const url = `${apiBase}/projects/${projectSlug}/generations`;
   try {
     console.log(`Retrieving generations from ${url}`);
@@ -35707,6 +35718,14 @@ async function _fetchGenerations(apiBase, projectSlug) {
     console.error("Error retrieving generations:", error);
     throw error;
   }
+}
+
+async function _fetchGenerationsFromFilesystem(apiBase, projectSlug) {
+  const filePath = (0,external_path_namespaceObject.join)(apiBase, "projects", projectSlug, "generations.json");
+  console.log(`Reading generations from ${filePath}`);
+  const content = await (0,promises_namespaceObject.readFile)(filePath, "utf-8");
+  const { generations } = JSON.parse(content);
+  return generations;
 }
 
 function _generation(generation) {
