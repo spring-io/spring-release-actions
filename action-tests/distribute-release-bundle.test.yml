@@ -1,0 +1,31 @@
+name: distribute-release-bundle
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start Artifactory server
+        id: artifactory-server
+        uses: ./__fixtures__/artifactory-server
+
+      - name: Distribute release bundle
+        uses: ./distribute-release-bundle
+        with:
+          artifactory-url: ${{ env.ARTIFACTORY_URL }}
+          bundle-name: "TNZ-spring-ldap"
+          version: "3.5.0"
+          build-name: "spring-ldap-3.5.x"
+          build-number: "42"
+          username: "user"
+          password: "pass"
+
+      - name: Verify state
+        shell: bash
+        run: |
+          STATE=$(curl -sf http://localhost:${{ steps.artifactory-server.outputs.port }}/_state)
+          BUNDLES=$(echo "$STATE" | jq '.bundles | length')
+          DISTRIBUTIONS=$(echo "$STATE" | jq '.distributions | length')
+          [ "$BUNDLES" -eq 1 ] || { echo "Expected 1 bundle, got $BUNDLES"; exit 1; }
+          [ "$DISTRIBUTIONS" -eq 1 ] || { echo "Expected 1 distribution, got $DISTRIBUTIONS"; exit 1; }

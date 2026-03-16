@@ -1,0 +1,57 @@
+= Distribute Release Bundle Action
+
+This GitHub action creates and distributes a JFrog release bundle for a Spring Enterprise commercial release.
+
+== Inputs
+
+|===
+| Input | Description | Required | Default
+
+| `version`
+| The release bundle version.
+| `true`
+| —
+
+| `username`
+| The Artifactory username.
+| `true`
+| —
+
+| `password`
+| The Artifactory password.
+| `true`
+| —
+
+| `bundle-name`
+| The release bundle name.
+| `false`
+| `TNZ-${{ github.event.repository.name }}`
+
+| `build-name`
+| The Artifactory build name.
+| `false`
+| `${{ github.event.repository.name }}-${{ github.ref_name }}`
+
+| `build-number`
+| The Artifactory build number.
+| `false`
+| `${{ github.run_number }}`
+
+| `artifactory-url`
+| The Artifactory server URL.
+| `false`
+| `https://usw1.packages.broadcom.com`
+
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Distribute Release Bundle
+  uses: spring-io/spring-release-actions/distribute-release-bundle@main
+  with:
+    version: ${{ inputs.project-version }}
+    username: ${{ secrets.COMMERCIAL_ARTIFACTORY_USERNAME }}
+    password: ${{ secrets.COMMERCIAL_ARTIFACTORY_PASSWORD }}
+----

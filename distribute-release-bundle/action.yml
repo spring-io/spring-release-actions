@@ -1,0 +1,34 @@
+name: "distribute-release-bundle"
+description: "Creates and distributes a JFrog release bundle for a Spring Enterprise release"
+author: "jzheaux"
+
+inputs:
+  artifactory-url:
+    description: "The Artifactory server URL"
+    required: false
+    default: "https://usw1.packages.broadcom.com"
+  bundle-name:
+    description: "The release bundle name"
+    required: false
+    default: "TNZ-${{ github.event.repository.name }}"
+  version:
+    description: "The release bundle version"
+    required: true
+  build-name:
+    description: "The Artifactory build name"
+    required: false
+    default: "${{ github.event.repository.name }}-${{ github.ref_name }}"
+  build-number:
+    description: "The Artifactory build number"
+    required: false
+    default: "${{ github.run_number }}"
+  username:
+    description: "The Artifactory username"
+    required: true
+  password:
+    description: "The Artifactory password"
+    required: true
+
+runs:
+  using: "node20"
+  main: "../dist/distribute-release-bundle/main/index.js"
