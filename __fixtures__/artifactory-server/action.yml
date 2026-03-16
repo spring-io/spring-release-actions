@@ -1,0 +1,28 @@
+name: Mock Artifactory Server
+description: Starts a mock JFrog Artifactory lifecycle server for action testing
+
+inputs:
+  port:
+    description: Port to listen on (0 = random)
+    default: '0'
+
+outputs:
+  port:
+    description: Port the server is listening on
+    value: ${{ steps.start.outputs.port }}
+
+runs:
+  using: composite
+  steps:
+    - name: Start server
+      id: start
+      shell: bash
+      run: |
+        PORT='${{ inputs.port }}' node ${{ github.action_path }}/mock.js &
+        for i in $(seq 1 25); do
+          [ -f /tmp/artifactory-server.port ] && break
+          sleep 0.2
+        done
+        PORT=$(cat /tmp/artifactory-server.port)
+        echo "port=$PORT" >> $GITHUB_OUTPUT
+        echo "ARTIFACTORY_URL=http://localhost:$PORT" >> $GITHUB_ENV
