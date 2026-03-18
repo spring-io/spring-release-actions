@@ -28,5 +28,5 @@ outputs:
     description: "The type of the next project version (for example, 'oss', 'enterprise')"
 
 runs:
-  using: "node20"
+  using: "node24"
   main: '../dist/compute-next-version/main/index.js'

@@ -12,5 +12,5 @@ outputs:
     description: "The next snapshot version for the project"
 
 runs:
-  using: "node20"
+  using: "node24"
   main: '../dist/compute-next-snapshot/main/index.js'

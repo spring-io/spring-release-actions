@@ -31,5 +31,5 @@ outputs:
     description: "Whether the artifact was found (true or false)"
 
 runs:
-  using: "node20"
+  using: "node24"
   main: "../dist/check-maven-artifact/main/index.js"

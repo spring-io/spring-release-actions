@@ -19,5 +19,5 @@ outputs:
     description: "The project's release version"
 
 runs:
-  using: "node20"
+  using: "node24"
   main: '../dist/get-todays-release-version/main/index.js'
