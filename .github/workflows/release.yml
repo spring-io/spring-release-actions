@@ -82,3 +82,9 @@ jobs:
         with:
           version: ${{ needs.planner.outputs.release-version }}
           gchat-webhook-url: ${{ secrets.SPRING_RELEASE_GCHAT_WEBHOOK_URL }}
+      - name: Plan Release on GChat
+        uses: ./plan-on-gchat
+        if: ${{ steps.next-release-milestone.outputs.version-type  == 'oss' }}
+        with:
+          version: ${{ steps.next-release-milestone.outputs.version }}
+          gchat-webhook-url: ${{ secrets.SPRING_RELEASE_GCHAT_WEBHOOK_URL }}
