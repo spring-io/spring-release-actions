@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
-import { Inputs } from '../../src/get-todays-release-version/inputs.js';
+import { Inputs } from '../../src/compute-next-scheduled-milestone/inputs.js';
 
 vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
@@ -8,7 +8,7 @@ function setupGetInput(map) {
   core.getInput.mockImplementation((name) => map[name] ?? "");
 }
 
-describe("get-todays-release-version Inputs constructor", () => {
+describe("compute-next-scheduled-milestone Inputs constructor", () => {
   const originalEnv = { ...process.env };
 
   afterEach(() => {

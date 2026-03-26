@@ -1,0 +1,27 @@
+name: compute-next-scheduled-milestone
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start GitHub server
+        uses: ./__fixtures__/github-server
+        with:
+          milestones: '[{"number":1,"title":"6.2.0-RC1","state":"open","due_on":"2027-01-15T08:00:00Z","description":""}]'
+          port: "18088"
+
+      - name: Compute next scheduled milestone for snapshot version
+        uses: ./compute-next-scheduled-milestone
+        with:
+          snapshot-version: "6.2.0-SNAPSHOT"
+          milestone-token: ${{ secrets.GITHUB_TOKEN }}
+          milestone-repository: owner/repo
+
+      - name: Compute next scheduled milestone for dot-x version
+        uses: ./compute-next-scheduled-milestone
+        with:
+          snapshot-version: "6.2.x"
+          milestone-token: ${{ secrets.GITHUB_TOKEN }}
+          milestone-repository: owner/repo

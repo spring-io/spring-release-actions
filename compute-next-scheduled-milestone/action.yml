@@ -1,5 +1,5 @@
-name: "get-todays-release-version"
-description: "An action gets any milestone due today that corresponds to the given version"
+name: "compute-next-scheduled-milestone"
+description: "An action that computes the next scheduled milestone for the given version generation"
 author: "jzheaux"
 
 inputs:
@@ -16,8 +16,10 @@ inputs:
 
 outputs:
   release-version:
-    description: "The project's release version"
+    description: "The project's next scheduled release version"
+  days-til-release:
+    description: "The number of days until the next scheduled release; 0 if the release is today"
 
 runs:
   using: "node24"
-  main: '../dist/get-todays-release-version/main/index.js'
+  main: '../dist/compute-next-scheduled-milestone/main/index.js'

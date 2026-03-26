@@ -4,7 +4,8 @@ class Inputs {
   constructor() {
     this.version = core.getInput("version", { required: true });
     this.websiteToken = core.getInput("website-token", { required: false });
-    this.token = process.env.GITHUB_TOKEN;
+    this.token =
+      core.getInput("token", { required: false }) || process.env.GITHUB_TOKEN;
     this.apiDocUrl =
       core.getInput("api-doc-url", { required: false }) ||
       "https://docs.spring.io/{project}/site/docs/{version}/api/";

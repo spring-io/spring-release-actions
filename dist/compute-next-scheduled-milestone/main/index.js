@@ -28247,6 +28247,7 @@ var __webpack_exports__ = {};
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
+  r: () => (/* binding */ _daysTilRelease),
   e: () => (/* binding */ run)
 });
 
@@ -28397,16 +28398,16 @@ function file_command_issueFileCommand(command, message) {
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
     }
-    if (!fs.existsSync(filePath)) {
+    if (!external_fs_namespaceObject.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
     }
-    fs.appendFileSync(filePath, `${toCommandValue(message)}${os.EOL}`, {
+    external_fs_namespaceObject.appendFileSync(filePath, `${utils_toCommandValue(message)}${external_os_namespaceObject.EOL}`, {
         encoding: 'utf8'
     });
 }
 function file_command_prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${crypto.randomUUID()}`;
-    const convertedValue = toCommandValue(value);
+    const delimiter = `ghadelimiter_${external_crypto_namespaceObject.randomUUID()}`;
+    const convertedValue = utils_toCommandValue(value);
     // These should realistically never happen, but just in case someone finds a
     // way to exploit uuid generation let's not allow keys or values that contain
     // the delimiter.
@@ -28416,7 +28417,7 @@ function file_command_prepareKeyValueMessage(key, value) {
     if (convertedValue.includes(delimiter)) {
         throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
     }
-    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
+    return `${key}<<${delimiter}${external_os_namespaceObject.EOL}${convertedValue}${external_os_namespaceObject.EOL}${delimiter}`;
 }
 //# sourceMappingURL=file-command.js.map
 ;// CONCATENATED MODULE: external "path"
@@ -31038,10 +31039,10 @@ function getBooleanInput(name, options) {
 function setOutput(name, value) {
     const filePath = process.env['GITHUB_OUTPUT'] || '';
     if (filePath) {
-        return issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
+        return file_command_issueFileCommand('OUTPUT', file_command_prepareKeyValueMessage(name, value));
     }
-    process.stdout.write(os.EOL);
-    issueCommand('set-output', { name }, toCommandValue(value));
+    process.stdout.write(external_os_namespaceObject.EOL);
+    command_issueCommand('set-output', { name }, utils_toCommandValue(value));
 }
 /**
  * Enables or disables the echoing of commands into stdout for the rest of the step.
@@ -31085,7 +31086,7 @@ function core_debug(message) {
  * @param properties optional properties to add to the annotation.
  */
 function error(message, properties = {}) {
-    command_issueCommand('error', utils_toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    issueCommand('error', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
  * Adds a warning issue
@@ -31093,7 +31094,7 @@ function error(message, properties = {}) {
  * @param properties optional properties to add to the annotation.
  */
 function warning(message, properties = {}) {
-    issueCommand('warning', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    command_issueCommand('warning', utils_toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
  * Adds a notice issue
@@ -31108,7 +31109,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -31195,17 +31196,16 @@ function getIDToken(aud) {
  */
 
 //# sourceMappingURL=core.js.map
-;// CONCATENATED MODULE: ./src/schedule-milestone/inputs.js
+;// CONCATENATED MODULE: ./src/compute-next-scheduled-milestone/inputs.js
 
 
 class Inputs {
   constructor() {
-    this.version = getInput("version");
-    this.versionDate = getInput("version-date");
-    this.description = getInput("description");
-    this.repository =
-      getInput("repository") || process.env.GITHUB_REPOSITORY;
-    this.token = getInput("token") || process.env.GITHUB_TOKEN;
+    this.version = getInput("snapshot-version", { required: true });
+    this.milestoneRepository =
+      getInput("milestone-repository") || process.env.GITHUB_REPOSITORY;
+    this.milestoneToken =
+      getInput("milestone-token") || process.env.GITHUB_TOKEN;
     Object.freeze(this);
   }
 }
@@ -35195,6 +35195,38 @@ const dist_src_Octokit = Octokit.plugin(requestLog, legacyRestEndpointMethods, p
 );
 
 
+;// CONCATENATED MODULE: ./src/lib.js
+function getWeekOfMonthAndDayOfWeek(releaseDate) {
+  const dayOfMonth = releaseDate.getDate();
+  const dayOfWeek = releaseDate.getDay();
+  const firstOfMonth = new Date(
+    releaseDate.getFullYear(),
+    releaseDate.getMonth(),
+    1,
+  );
+  const firstDayOfMonth = firstOfMonth.getDay();
+  const firstDayMonBased = (firstDayOfMonth + 6) % 7;
+  const offsetToFirstMonday = (7 - firstDayMonBased) % 7;
+  const firstFullWeekMonday = 1 + offsetToFirstMonday;
+  const weekOfMonth = Math.floor((dayOfMonth - firstFullWeekMonday) / 7);
+  return { dayOfWeek, weekOfMonth };
+}
+
+function getReleaseDate(month, year, dayOfWeek, weekOfMonth) {
+  const firstOfMonth = new Date(year, month, 1);
+  const firstDayOfMonth = firstOfMonth.getDay();
+  const firstDayMonBased = (firstDayOfMonth + 6) % 7;
+  const offsetToFirstMonday = (7 - firstDayMonBased) % 7;
+  const firstFullWeekMonday = 1 + offsetToFirstMonday;
+  const inputDayMonBased = (dayOfWeek + 6) % 7;
+  const dayOfMonth = firstFullWeekMonday + weekOfMonth * 7 + inputDayMonBased;
+  return new Date(year, month, dayOfMonth);
+}
+
+const mod = (a, n) => ((a % n) + n) % n;
+
+
+
 ;// CONCATENATED MODULE: ./src/versions.js
 
 
@@ -35604,22 +35636,56 @@ function _isOnOrAfterToday(dueDate) {
 
 
 
-;// CONCATENATED MODULE: ./src/schedule-milestone/index.js
+;// CONCATENATED MODULE: ./src/compute-next-scheduled-milestone/index.js
+
+
 
 
 
 
 async function run(inputs = new Inputs()) {
-  const milestones = new Milestones(inputs.token, inputs.repository);
-  try {
-    await milestones.scheduleMilestone(
-      inputs.version,
-      inputs.versionDate,
-      inputs.description,
-    );
-  } catch (error) {
-    setFailed(error.message);
+  const milestones = new Milestones(
+    inputs.milestoneToken,
+    inputs.milestoneRepository,
+  );
+  const version = new Version(inputs.version);
+  if (!version.snapshot) {
+    warning("Version is not a snapshot; no release version to determine.");
+    setOutput("release-version", "");
+    setOutput("days-til-release", "");
+    return;
   }
+  const milestone = await milestones.findNextOpenMilestoneForGeneration({
+    major: version.major,
+    minor: version.minor,
+  });
+  if (!milestone) {
+    warning("No upcoming milestone found for the generation.");
+    setOutput("release-version", "");
+    setOutput("days-til-release", "");
+    return;
+  }
+  const days = _daysTilRelease(milestone.dueDate);
+  info(
+    `Next scheduled release version is ${milestone.name} in ${days} day(s)`,
+  );
+  setOutput("release-version", milestone.name);
+  setOutput("days-til-release", days);
+}
+
+function _daysTilRelease(dueDate) {
+  const today = new Date();
+  const todayNorm = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const dueDateNorm = new Date(
+    dueDate.getFullYear(),
+    dueDate.getMonth(),
+    dueDate.getDate(),
+  );
+  return Math.round((dueDateNorm - todayNorm) / (24 * 60 * 60 * 1000));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -35628,7 +35694,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
 
 
+var __webpack_exports___daysTilRelease = __webpack_exports__.r;
 var __webpack_exports__run = __webpack_exports__.e;
-export { __webpack_exports__run as run };
+export { __webpack_exports___daysTilRelease as _daysTilRelease, __webpack_exports__run as run };
 
 //# sourceMappingURL=index.js.map
