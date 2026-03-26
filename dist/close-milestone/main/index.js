@@ -35495,7 +35495,7 @@ class Milestones {
     };
   }
 
-  async findOpenMilestoneDueTodayForGeneration(generation) {
+  async findNextOpenMilestoneForGeneration(generation) {
     const milestones = await this.gh.paginate(
       this.gh.rest.issues.listMilestones,
       {
@@ -35507,7 +35507,7 @@ class Milestones {
     );
 
     console.log(
-      `Looking for milestone for generation ${generation.major}.${generation.minor} due today`,
+      `Looking for next milestone for generation ${generation.major}.${generation.minor}`,
     );
     console.log(`Found ${milestones.length} open milestones`);
 
@@ -35519,10 +35519,13 @@ class Milestones {
           generation.minor === parseInt(minor)
         );
       })
-      .filter((m) => _isToday(new Date(m.due_on)))
-      .sort((a, b) => (0,umd.compareVersions)(a.title, b.title));
+      .filter((m) => m.due_on && _isOnOrAfterToday(new Date(m.due_on)))
+      .sort((a, b) => {
+        const dateDiff = new Date(a.due_on) - new Date(b.due_on);
+        return dateDiff !== 0 ? dateDiff : (0,umd.compareVersions)(a.title, b.title);
+      });
     if (filtered.length === 0) {
-      console.log("No open milestones due today");
+      console.log("No upcoming open milestones");
       return null;
     }
 
@@ -35582,13 +35585,19 @@ class Milestones {
   }
 }
 
-function _isToday(dueDate) {
+function _isOnOrAfterToday(dueDate) {
   const today = new Date();
-  return (
-    dueDate.getDate() === today.getDate() &&
-    dueDate.getMonth() === today.getMonth() &&
-    dueDate.getFullYear() === today.getFullYear()
+  const todayNorm = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
   );
+  const dueDateNorm = new Date(
+    dueDate.getFullYear(),
+    dueDate.getMonth(),
+    dueDate.getDate(),
+  );
+  return dueDateNorm >= todayNorm;
 }
 
 

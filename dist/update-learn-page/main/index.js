@@ -31203,7 +31203,8 @@ class Inputs {
   constructor() {
     this.version = getInput("version", { required: true });
     this.websiteToken = getInput("website-token", { required: false });
-    this.token = process.env.GITHUB_TOKEN;
+    this.token =
+      getInput("token", { required: false }) || process.env.GITHUB_TOKEN;
     this.apiDocUrl =
       getInput("api-doc-url", { required: false }) ||
       "https://docs.spring.io/{project}/site/docs/{version}/api/";
