@@ -14,6 +14,11 @@ This GitHub action computes the project version.
 | Whether the version is a snapshot version.
 |===
 
+== Prerequisites
+
+In Maven projects, this action uses the `mvn` CLI to determine the project version.
+It must run after https://github.com/actions/setup-java[`actions/setup-java`].
+
 == Example Usage
 
 [source,yaml]
