@@ -1,13 +1,21 @@
 import axios from "axios";
 
+const _noOpCore = {
+  debug: () => {},
+  info: () => {},
+  warning: () => {},
+  error: () => {},
+};
+
 /**
  * A class for announcing completed and planned milestones
  * @author Josh Cummings
  */
 class Announce {
-  constructor(announcementUrl, projectName) {
+  constructor(announcementUrl, projectName, core = _noOpCore) {
     this.announcementUrl = announcementUrl;
     this.projectName = projectName;
+    this.core = core;
   }
 
   /**
@@ -16,6 +24,9 @@ class Announce {
    * @returns {Promise<void>}
    */
   async announceRelease(milestoneTitle) {
+    this.core.info(
+      `Announcing release ${milestoneTitle} for ${this.projectName}`,
+    );
     const text = `${this.projectName}-announcing \`${milestoneTitle}\``;
     await axios.post(this.announcementUrl, { text });
   }
@@ -27,6 +38,9 @@ class Announce {
    * @returns {Promise<void>}
    */
   async planRelease(milestoneTitle, milestoneDate) {
+    this.core.info(
+      `Planning release ${milestoneTitle} on ${milestoneDate} for ${this.projectName}`,
+    );
     const text = `${this.projectName}-planning \`${milestoneTitle}\` on ${milestoneDate}`;
     await axios.post(this.announcementUrl, { text });
   }

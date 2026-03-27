@@ -9,6 +9,7 @@ async function run(inputs = new Inputs()) {
     inputs.version,
     inputs.username,
     inputs.password,
+    core,
   );
   try {
     let found;

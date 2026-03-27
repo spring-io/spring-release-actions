@@ -29,6 +29,7 @@ async function run(inputs = new Inputs()) {
     }
   }
 
+  core.info(`Artifact repository: ${name} at ${uri}`);
   core.setOutput("uri", uri);
   core.setOutput("name", name);
 }

@@ -37,7 +37,7 @@ __webpack_unused_export__ = Client
 __webpack_unused_export__ = Pool
 __webpack_unused_export__ = BalancedPool
 __webpack_unused_export__ = Agent
-__webpack_unused_export__ = ProxyAgent
+module.exports.kT = ProxyAgent
 __webpack_unused_export__ = EnvHttpProxyAgent
 __webpack_unused_export__ = RetryAgent
 __webpack_unused_export__ = RetryHandler
@@ -27538,7 +27538,7 @@ module.exports = {
 /***/ 770:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-/* unused reexport */ __nccwpck_require__(218);
+module.exports = __nccwpck_require__(218);
 
 
 /***/ }),
@@ -27558,10 +27558,10 @@ var assert = __nccwpck_require__(2613);
 var util = __nccwpck_require__(9023);
 
 
-__webpack_unused_export__ = httpOverHttp;
-__webpack_unused_export__ = httpsOverHttp;
-__webpack_unused_export__ = httpOverHttps;
-__webpack_unused_export__ = httpsOverHttps;
+exports.httpOverHttp = httpOverHttp;
+exports.httpsOverHttp = httpsOverHttp;
+exports.httpOverHttps = httpOverHttps;
+exports.httpsOverHttps = httpsOverHttps;
 
 
 function httpOverHttp(options) {
@@ -28221,6 +28221,36 @@ __webpack_unused_export__ = defaultContentType
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/create fake namespace object */
+/******/ (() => {
+/******/ 	var getProto = Object.getPrototypeOf ? (obj) => (Object.getPrototypeOf(obj)) : (obj) => (obj.__proto__);
+/******/ 	var leafPrototypes;
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 16: return value when it's Promise-like
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__nccwpck_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = this(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if(typeof value === 'object' && value) {
+/******/ 			if((mode & 4) && value.__esModule) return value;
+/******/ 			if((mode & 16) && typeof value.then === 'function') return value;
+/******/ 		}
+/******/ 		var ns = Object.create(null);
+/******/ 		__nccwpck_require__.r(ns);
+/******/ 		var def = {};
+/******/ 		leafPrototypes = leafPrototypes || [null, getProto({}), getProto([]), getProto(getProto)];
+/******/ 		for(var current = mode & 2 && value; typeof current == 'object' && !~leafPrototypes.indexOf(current); current = getProto(current)) {
+/******/ 			Object.getOwnPropertyNames(current).forEach((key) => (def[key] = () => (value[key])));
+/******/ 		}
+/******/ 		def['default'] = () => (value);
+/******/ 		__nccwpck_require__.d(ns, def);
+/******/ 		return ns;
+/******/ 	};
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/define property getters */
 /******/ (() => {
 /******/ 	// define getter functions for harmony exports
@@ -28238,6 +28268,17 @@ __webpack_unused_export__ = defaultContentType
 /******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 /******/ })();
 /******/ 
+/******/ /* webpack/runtime/make namespace object */
+/******/ (() => {
+/******/ 	// define __esModule on exports
+/******/ 	__nccwpck_require__.r = (exports) => {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -28250,6 +28291,52 @@ __nccwpck_require__.d(__webpack_exports__, {
   e: () => (/* binding */ run)
 });
 
+// NAMESPACE OBJECT: ./node_modules/@actions/core/lib/platform.js
+var platform_namespaceObject = {};
+__nccwpck_require__.r(platform_namespaceObject);
+__nccwpck_require__.d(platform_namespaceObject, {
+  arch: () => (arch),
+  getDetails: () => (getDetails),
+  isLinux: () => (isLinux),
+  isMacOS: () => (isMacOS),
+  isWindows: () => (isWindows),
+  platform: () => (platform)
+});
+
+// NAMESPACE OBJECT: ./node_modules/@actions/core/lib/core.js
+var core_namespaceObject = {};
+__nccwpck_require__.r(core_namespaceObject);
+__nccwpck_require__.d(core_namespaceObject, {
+  ExitCode: () => (ExitCode),
+  addPath: () => (addPath),
+  debug: () => (debug),
+  endGroup: () => (endGroup),
+  error: () => (error),
+  exportVariable: () => (exportVariable),
+  getBooleanInput: () => (getBooleanInput),
+  getIDToken: () => (getIDToken),
+  getInput: () => (getInput),
+  getMultilineInput: () => (getMultilineInput),
+  getState: () => (getState),
+  group: () => (group),
+  info: () => (info),
+  isDebug: () => (isDebug),
+  markdownSummary: () => (markdownSummary),
+  notice: () => (notice),
+  platform: () => (platform_namespaceObject),
+  saveState: () => (saveState),
+  setCommandEcho: () => (setCommandEcho),
+  setFailed: () => (setFailed),
+  setOutput: () => (setOutput),
+  setSecret: () => (setSecret),
+  startGroup: () => (startGroup),
+  summary: () => (summary),
+  toPlatformPath: () => (toPlatformPath),
+  toPosixPath: () => (toPosixPath),
+  toWin32Path: () => (toWin32Path),
+  warning: () => (warning)
+});
+
 ;// CONCATENATED MODULE: external "os"
 const external_os_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("os");
 ;// CONCATENATED MODULE: ./node_modules/@actions/core/lib/utils.js
@@ -28259,7 +28346,7 @@ const external_os_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta
  * Sanitizes an input into a string so it can be passed into issueCommand safely
  * @param input input to sanitize into a string
  */
-function utils_toCommandValue(input) {
+function toCommandValue(input) {
     if (input === null || input === undefined) {
         return '';
     }
@@ -28274,7 +28361,7 @@ function utils_toCommandValue(input) {
  * @returns The command properties to send with the actual annotation command
  * See IssueCommandProperties: https://github.com/actions/runner/blob/main/src/Runner.Worker/ActionCommandManager.cs#L646
  */
-function utils_toCommandProperties(annotationProperties) {
+function toCommandProperties(annotationProperties) {
     if (!Object.keys(annotationProperties).length) {
         return {};
     }
@@ -28324,12 +28411,12 @@ function utils_toCommandProperties(annotationProperties) {
  * This is an internal utility function that powers the public API functions
  * such as setSecret, warning, error, and exportVariable.
  */
-function command_issueCommand(command, properties, message) {
+function issueCommand(command, properties, message) {
     const cmd = new Command(command, properties, message);
     process.stdout.write(cmd.toString() + external_os_namespaceObject.EOL);
 }
-function command_issue(name, message = '') {
-    command_issueCommand(name, {}, message);
+function issue(name, message = '') {
+    issueCommand(name, {}, message);
 }
 const CMD_STRING = '::';
 class Command {
@@ -28366,13 +28453,13 @@ class Command {
     }
 }
 function escapeData(s) {
-    return utils_toCommandValue(s)
+    return toCommandValue(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A');
 }
 function escapeProperty(s) {
-    return utils_toCommandValue(s)
+    return toCommandValue(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A')
@@ -28392,7 +28479,7 @@ const external_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta
 
 
 
-function file_command_issueFileCommand(command, message) {
+function issueFileCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
@@ -28400,13 +28487,13 @@ function file_command_issueFileCommand(command, message) {
     if (!external_fs_namespaceObject.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
     }
-    external_fs_namespaceObject.appendFileSync(filePath, `${utils_toCommandValue(message)}${external_os_namespaceObject.EOL}`, {
+    external_fs_namespaceObject.appendFileSync(filePath, `${toCommandValue(message)}${external_os_namespaceObject.EOL}`, {
         encoding: 'utf8'
     });
 }
-function file_command_prepareKeyValueMessage(key, value) {
+function prepareKeyValueMessage(key, value) {
     const delimiter = `ghadelimiter_${external_crypto_namespaceObject.randomUUID()}`;
-    const convertedValue = utils_toCommandValue(value);
+    const convertedValue = toCommandValue(value);
     // These should realistically never happen, but just in case someone finds a
     // way to exploit uuid generation let's not allow keys or values that contain
     // the delimiter.
@@ -28423,8 +28510,10 @@ function file_command_prepareKeyValueMessage(key, value) {
 const external_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("path");
 // EXTERNAL MODULE: external "http"
 var external_http_ = __nccwpck_require__(8611);
+var external_http_namespaceObject = /*#__PURE__*/__nccwpck_require__.t(external_http_, 2);
 // EXTERNAL MODULE: external "https"
 var external_https_ = __nccwpck_require__(5692);
+var external_https_namespaceObject = /*#__PURE__*/__nccwpck_require__.t(external_https_, 2);
 ;// CONCATENATED MODULE: ./node_modules/@actions/http-client/lib/proxy.js
 function getProxyUrl(reqUrl) {
     const usingSsl = reqUrl.protocol === 'https:';
@@ -28517,7 +28606,7 @@ class DecodedURL extends URL {
 }
 //# sourceMappingURL=proxy.js.map
 // EXTERNAL MODULE: ./node_modules/tunnel/index.js
-var node_modules_tunnel = __nccwpck_require__(770);
+var tunnel = __nccwpck_require__(770);
 // EXTERNAL MODULE: ./node_modules/@actions/http-client/node_modules/undici/index.js
 var undici = __nccwpck_require__(3368);
 ;// CONCATENATED MODULE: ./node_modules/@actions/http-client/lib/index.js
@@ -28595,7 +28684,7 @@ const HttpResponseRetryCodes = [
     HttpCodes.ServiceUnavailable,
     HttpCodes.GatewayTimeout
 ];
-const RetryableHttpVerbs = (/* unused pure expression or super */ null && (['OPTIONS', 'GET', 'DELETE', 'HEAD']));
+const RetryableHttpVerbs = ['OPTIONS', 'GET', 'DELETE', 'HEAD'];
 const ExponentialBackoffCeiling = 10;
 const ExponentialBackoffTimeSlice = 5;
 class HttpClientError extends Error {
@@ -28641,7 +28730,7 @@ function isHttps(requestUrl) {
     const parsedUrl = new URL(requestUrl);
     return parsedUrl.protocol === 'https:';
 }
-class lib_HttpClient {
+class HttpClient {
     constructor(userAgent, handlers, requestOptions) {
         this._ignoreSslError = false;
         this._allowRedirects = true;
@@ -28944,7 +29033,7 @@ class lib_HttpClient {
     }
     getAgentDispatcher(serverUrl) {
         const parsedUrl = new URL(serverUrl);
-        const proxyUrl = pm.getProxyUrl(parsedUrl);
+        const proxyUrl = getProxyUrl(parsedUrl);
         const useProxy = proxyUrl && proxyUrl.hostname;
         if (!useProxy) {
             return;
@@ -28955,7 +29044,7 @@ class lib_HttpClient {
         const info = {};
         info.parsedUrl = requestUrl;
         const usingSsl = info.parsedUrl.protocol === 'https:';
-        info.httpModule = usingSsl ? https : http;
+        info.httpModule = usingSsl ? external_https_namespaceObject : external_http_namespaceObject;
         const defaultPort = usingSsl ? 443 : 80;
         info.options = {};
         info.options.host = info.parsedUrl.hostname;
@@ -29054,7 +29143,7 @@ class lib_HttpClient {
     }
     _getAgent(parsedUrl) {
         let agent;
-        const proxyUrl = pm.getProxyUrl(parsedUrl);
+        const proxyUrl = getProxyUrl(parsedUrl);
         const useProxy = proxyUrl && proxyUrl.hostname;
         if (this._keepAlive && useProxy) {
             agent = this._proxyAgent;
@@ -29069,7 +29158,7 @@ class lib_HttpClient {
         const usingSsl = parsedUrl.protocol === 'https:';
         let maxSockets = 100;
         if (this.requestOptions) {
-            maxSockets = this.requestOptions.maxSockets || http.globalAgent.maxSockets;
+            maxSockets = this.requestOptions.maxSockets || external_http_.globalAgent.maxSockets;
         }
         // This is `useProxy` again, but we need to check `proxyURl` directly for TypeScripts's flow analysis.
         if (proxyUrl && proxyUrl.hostname) {
@@ -29094,7 +29183,7 @@ class lib_HttpClient {
         // if tunneling agent isn't assigned create a new agent
         if (!agent) {
             const options = { keepAlive: this._keepAlive, maxSockets };
-            agent = usingSsl ? new https.Agent(options) : new http.Agent(options);
+            agent = usingSsl ? new external_https_.Agent(options) : new external_http_.Agent(options);
             this._agent = agent;
         }
         if (usingSsl && this._ignoreSslError) {
@@ -29117,7 +29206,7 @@ class lib_HttpClient {
             return proxyAgent;
         }
         const usingSsl = parsedUrl.protocol === 'https:';
-        proxyAgent = new ProxyAgent(Object.assign({ uri: proxyUrl.href, pipelining: !this._keepAlive ? 0 : 1 }, ((proxyUrl.username || proxyUrl.password) && {
+        proxyAgent = new undici/* ProxyAgent */.kT(Object.assign({ uri: proxyUrl.href, pipelining: !this._keepAlive ? 0 : 1 }, ((proxyUrl.username || proxyUrl.password) && {
             token: `Basic ${Buffer.from(`${proxyUrl.username}:${proxyUrl.password}`).toString('base64')}`
         })));
         this._proxyAgentDispatcher = proxyAgent;
@@ -29248,7 +29337,7 @@ class BasicCredentialHandler {
         });
     }
 }
-class auth_BearerCredentialHandler {
+class BearerCredentialHandler {
     constructor(token) {
         this.token = token;
     }
@@ -29306,13 +29395,13 @@ var oidc_utils_awaiter = (undefined && undefined.__awaiter) || function (thisArg
 
 
 
-class oidc_utils_OidcClient {
+class OidcClient {
     static createHttpClient(allowRetry = true, maxRetry = 10) {
         const requestOptions = {
             allowRetries: allowRetry,
             maxRetries: maxRetry
         };
-        return new HttpClient('actions/oidc-client', [new BearerCredentialHandler(oidc_utils_OidcClient.getRequestToken())], requestOptions);
+        return new HttpClient('actions/oidc-client', [new BearerCredentialHandler(OidcClient.getRequestToken())], requestOptions);
     }
     static getRequestToken() {
         const token = process.env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'];
@@ -29331,7 +29420,7 @@ class oidc_utils_OidcClient {
     static getCall(id_token_url) {
         return oidc_utils_awaiter(this, void 0, void 0, function* () {
             var _a;
-            const httpclient = oidc_utils_OidcClient.createHttpClient();
+            const httpclient = OidcClient.createHttpClient();
             const res = yield httpclient
                 .getJson(id_token_url)
                 .catch(error => {
@@ -29350,13 +29439,13 @@ class oidc_utils_OidcClient {
         return oidc_utils_awaiter(this, void 0, void 0, function* () {
             try {
                 // New ID Token is requested from action service
-                let id_token_url = oidc_utils_OidcClient.getIDTokenUrl();
+                let id_token_url = OidcClient.getIDTokenUrl();
                 if (audience) {
                     const encodedAudience = encodeURIComponent(audience);
                     id_token_url = `${id_token_url}&audience=${encodedAudience}`;
                 }
                 debug(`ID token url is ${id_token_url}`);
-                const id_token = yield oidc_utils_OidcClient.getCall(id_token_url);
+                const id_token = yield OidcClient.getCall(id_token_url);
                 setSecret(id_token);
                 return id_token;
             }
@@ -29645,8 +29734,8 @@ const _summary = new Summary();
 /**
  * @deprecated use `core.summary`
  */
-const markdownSummary = (/* unused pure expression or super */ null && (_summary));
-const summary = (/* unused pure expression or super */ null && (_summary));
+const markdownSummary = _summary;
+const summary = _summary;
 //# sourceMappingURL=summary.js.map
 ;// CONCATENATED MODULE: ./node_modules/@actions/core/lib/path-utils.js
 
@@ -29679,7 +29768,7 @@ function toWin32Path(pth) {
  * @return string The platform-specific path.
  */
 function toPlatformPath(pth) {
-    return pth.replace(/[/\\]/g, path.sep);
+    return pth.replace(/[/\\]/g, external_path_namespaceObject.sep);
 }
 //# sourceMappingURL=path-utils.js.map
 // EXTERNAL MODULE: external "string_decoder"
@@ -30754,16 +30843,16 @@ var exec_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
  * @param     options            optional exec options.  See ExecOptions
  * @returns   Promise<number>    exit code
  */
-function exec_exec(commandLine, args, options) {
+function exec(commandLine, args, options) {
     return exec_awaiter(this, void 0, void 0, function* () {
-        const commandArgs = tr.argStringToArray(commandLine);
+        const commandArgs = argStringToArray(commandLine);
         if (commandArgs.length === 0) {
             throw new Error(`Parameter 'commandLine' cannot be null or empty.`);
         }
         // Path to tool to execute should be first arg
         const toolPath = commandArgs[0];
         args = commandArgs.slice(1).concat(args || []);
-        const runner = new tr.ToolRunner(toolPath, args, options);
+        const runner = new ToolRunner(toolPath, args, options);
         return runner.exec();
     });
 }
@@ -30783,8 +30872,8 @@ function getExecOutput(commandLine, args, options) {
         let stdout = '';
         let stderr = '';
         //Using string decoder covers the case where a mult-byte character is split
-        const stdoutDecoder = new StringDecoder('utf8');
-        const stderrDecoder = new StringDecoder('utf8');
+        const stdoutDecoder = new external_string_decoder_.StringDecoder('utf8');
+        const stderrDecoder = new external_string_decoder_.StringDecoder('utf8');
         const originalStdoutListener = (_a = options === null || options === void 0 ? void 0 : options.listeners) === null || _a === void 0 ? void 0 : _a.stdout;
         const originalStdErrListener = (_b = options === null || options === void 0 ? void 0 : options.listeners) === null || _b === void 0 ? void 0 : _b.stderr;
         const stdErrListener = (data) => {
@@ -30800,7 +30889,7 @@ function getExecOutput(commandLine, args, options) {
             }
         };
         const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
-        const exitCode = yield exec_exec(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        const exitCode = yield exec(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
         //flush any remaining characters
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
@@ -30825,10 +30914,10 @@ var platform_awaiter = (undefined && undefined.__awaiter) || function (thisArg, 
 
 
 const getWindowsInfo = () => platform_awaiter(void 0, void 0, void 0, function* () {
-    const { stdout: version } = yield exec.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', undefined, {
+    const { stdout: version } = yield getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', undefined, {
         silent: true
     });
-    const { stdout: name } = yield exec.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', undefined, {
+    const { stdout: name } = yield getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', undefined, {
         silent: true
     });
     return {
@@ -30838,7 +30927,7 @@ const getWindowsInfo = () => platform_awaiter(void 0, void 0, void 0, function* 
 });
 const getMacOsInfo = () => platform_awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d;
-    const { stdout } = yield exec.getExecOutput('sw_vers', undefined, {
+    const { stdout } = yield getExecOutput('sw_vers', undefined, {
         silent: true
     });
     const version = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : '';
@@ -30849,7 +30938,7 @@ const getMacOsInfo = () => platform_awaiter(void 0, void 0, void 0, function* ()
     };
 });
 const getLinuxInfo = () => platform_awaiter(void 0, void 0, void 0, function* () {
-    const { stdout } = yield exec.getExecOutput('lsb_release', ['-i', '-r', '-s'], {
+    const { stdout } = yield getExecOutput('lsb_release', ['-i', '-r', '-s'], {
         silent: true
     });
     const [name, version] = stdout.trim().split('\n');
@@ -30954,7 +31043,7 @@ function exportVariable(name, val) {
  * console.log(`Using token: ${apiToken}`); // Outputs: "Using token: ***"
  * ```
  */
-function core_setSecret(secret) {
+function setSecret(secret) {
     issueCommand('add-mask', {}, secret);
 }
 /**
@@ -30969,7 +31058,7 @@ function addPath(inputPath) {
     else {
         issueCommand('add-path', {}, inputPath);
     }
-    process.env['PATH'] = `${inputPath}${path.delimiter}${process.env['PATH']}`;
+    process.env['PATH'] = `${inputPath}${external_path_namespaceObject.delimiter}${process.env['PATH']}`;
 }
 /**
  * Gets the value of an input.
@@ -31038,10 +31127,10 @@ function getBooleanInput(name, options) {
 function setOutput(name, value) {
     const filePath = process.env['GITHUB_OUTPUT'] || '';
     if (filePath) {
-        return file_command_issueFileCommand('OUTPUT', file_command_prepareKeyValueMessage(name, value));
+        return issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
     }
     process.stdout.write(external_os_namespaceObject.EOL);
-    command_issueCommand('set-output', { name }, utils_toCommandValue(value));
+    issueCommand('set-output', { name }, toCommandValue(value));
 }
 /**
  * Enables or disables the echoing of commands into stdout for the rest of the step.
@@ -31076,7 +31165,7 @@ function isDebug() {
  * Writes debug message to user log
  * @param message debug message
  */
-function core_debug(message) {
+function debug(message) {
     issueCommand('debug', {}, message);
 }
 /**
@@ -31085,7 +31174,7 @@ function core_debug(message) {
  * @param properties optional properties to add to the annotation.
  */
 function error(message, properties = {}) {
-    command_issueCommand('error', utils_toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    issueCommand('error', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
  * Adds a warning issue
@@ -35331,7 +35420,6 @@ class Version {
    */
   nextMilestone(generation) {
     if (this.snapshot) {
-      console.log(`returning null since version ${this} is a snapshot version`);
       return null;
     }
     if (this.ga) {
@@ -35479,6 +35567,13 @@ var umd = __nccwpck_require__(2026);
 
 
 
+const _noOpCore = {
+  debug: () => {},
+  info: () => {},
+  warning: () => {},
+  error: () => {},
+};
+
 /**
  * A class for interacting with GitHub milestones.
  * Specifically, the class checks for a milestone's existence
@@ -35491,14 +35586,16 @@ class Milestones {
   /**
    * @param token the GH token needed to query milestones
    * @param repo the GH repository, like {@code spring-projects/spring-security} to operate on
+   * @param core the {@code @actions/core} instance for logging (optional)
    */
-  constructor(token, repo) {
+  constructor(token, repo, core = _noOpCore) {
     const baseUrl = process.env.OCTOKIT_BASE_URL;
     this.gh = new dist_src_Octokit({ auth: token, ...(baseUrl && { baseUrl }) });
     [this.owner, this.repo] = repo.split("/");
     this.milestoneType = this.repo.endsWith("-commercial")
       ? "enterprise"
       : "oss";
+    this.core = core;
   }
 
   /**
@@ -35542,10 +35639,10 @@ class Milestones {
       },
     );
 
-    console.log(
+    this.core.info(
       `Looking for next milestone for generation ${generation.major}.${generation.minor}`,
     );
-    console.log(`Found ${milestones.length} open milestones`);
+    this.core.debug(`Found ${milestones.length} open milestones`);
 
     const filtered = milestones
       .filter((m) => {
@@ -35561,7 +35658,7 @@ class Milestones {
         return dateDiff !== 0 ? dateDiff : (0,umd.compareVersions)(a.title, b.title);
       });
     if (filtered.length === 0) {
-      console.log("No upcoming open milestones");
+      this.core.info("No upcoming open milestones");
       return null;
     }
 
@@ -35582,12 +35679,16 @@ class Milestones {
   async closeMilestone(title) {
     const milestone = await this.findMilestoneByTitle(title);
     if (milestone) {
+      this.core.info(`Closing milestone ${title}`);
       await this.gh.rest.issues.updateMilestone({
         owner: this.owner,
         repo: this.repo,
         milestone_number: milestone.number,
         state: "closed",
       });
+      this.core.info(`Closed milestone ${title}`);
+    } else {
+      this.core.info(`Milestone ${title} not found; nothing to close`);
     }
   }
 
@@ -35602,6 +35703,7 @@ class Milestones {
     const milestone = await this.findMilestoneByTitle(title);
     const dueDate = new Date(date).toISOString();
     if (milestone) {
+      this.core.info(`Updating milestone ${title} to due ${date}`);
       await this.gh.rest.issues.updateMilestone({
         owner: this.owner,
         repo: this.repo,
@@ -35609,7 +35711,9 @@ class Milestones {
         due_on: dueDate,
         description: description,
       });
+      this.core.info(`Updated milestone ${title}`);
     } else {
+      this.core.info(`Creating milestone ${title} due ${date}`);
       await this.gh.rest.issues.createMilestone({
         owner: this.owner,
         repo: this.repo,
@@ -35617,6 +35721,7 @@ class Milestones {
         due_on: dueDate,
         description: description,
       });
+      this.core.info(`Created milestone ${title}`);
     }
   }
 }
@@ -35647,6 +35752,13 @@ const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.ur
 
 const PROJECTS_API_BASE = "https://api.spring.io";
 
+const website_noOpCore = {
+  debug: () => {},
+  info: () => {},
+  warning: () => {},
+  error: () => {},
+};
+
 /**
  * Class for interacting with Spring project metadata via the
  * <a href="https://api.spring.io/projects">Projects API</a>.
@@ -35654,9 +35766,10 @@ const PROJECTS_API_BASE = "https://api.spring.io";
  * @author Josh Cummings
  */
 class Website {
-  constructor(inputs) {
+  constructor(inputs, core = website_noOpCore) {
     this.projectSlug = inputs.projectSlug;
     this.apiBase = inputs.projectsApiBase || PROJECTS_API_BASE;
+    this.core = core;
   }
 
   /**
@@ -35666,12 +35779,16 @@ class Website {
    * @returns {Promise<{generation: {major: number, minor: number}, dayOfWeek: *, weekOfMonth: number, oss: {frequency: number, offset: number, end: {year: number, month: number}}, enterprise: {frequency: number, offset: number, end: {year: number, month: number}}}|null>}
    */
   async getGenerationByVersion(version) {
-    const generations = await _fetchGenerations(this.apiBase, this.projectSlug);
+    const generations = await _fetchGenerations(
+      this.apiBase,
+      this.projectSlug,
+      this.core,
+    );
     const { dayOfWeek, weekOfMonth } = getWeekOfMonthAndDayOfWeek(
       version.dueDate,
     );
     for (const generation of generations) {
-      console.log(
+      this.core.debug(
         `Checking generation ${generation.name} against ${version.major}.${version.minor}`,
       );
       const majorMinor = _generation(generation.name);
@@ -35698,17 +35815,17 @@ class Website {
   }
 }
 
-async function _fetchGenerations(apiBase, projectSlug) {
+async function _fetchGenerations(apiBase, projectSlug, core) {
   if (apiBase.startsWith("http://") || apiBase.startsWith("https://")) {
-    return _fetchGenerationsFromHttp(apiBase, projectSlug);
+    return _fetchGenerationsFromHttp(apiBase, projectSlug, core);
   }
-  return _fetchGenerationsFromFilesystem(apiBase, projectSlug);
+  return _fetchGenerationsFromFilesystem(apiBase, projectSlug, core);
 }
 
-async function _fetchGenerationsFromHttp(apiBase, projectSlug) {
+async function _fetchGenerationsFromHttp(apiBase, projectSlug, core) {
   const url = `${apiBase}/projects/${projectSlug}/generations`;
   try {
-    console.log(`Retrieving generations from ${url}`);
+    core.info(`Retrieving generations from ${url}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(
@@ -35724,14 +35841,14 @@ async function _fetchGenerationsFromHttp(apiBase, projectSlug) {
     }
     return generations;
   } catch (error) {
-    console.error("Error retrieving generations:", error);
+    core.error(`Error retrieving generations: ${error.message}`);
     throw error;
   }
 }
 
-async function _fetchGenerationsFromFilesystem(apiBase, projectSlug) {
+async function _fetchGenerationsFromFilesystem(apiBase, projectSlug, core) {
   const filePath = (0,external_path_namespaceObject.join)(apiBase, "projects", projectSlug, "generations.json");
-  console.log(`Reading generations from ${filePath}`);
+  core.info(`Reading generations from ${filePath}`);
   const content = await (0,promises_namespaceObject.readFile)(filePath, "utf-8");
   const { generations } = JSON.parse(content);
   return generations;
@@ -35758,8 +35875,8 @@ function _date(date) {
 
 
 async function run(inputs = new Inputs()) {
-  const milestones = new Milestones(inputs.token, inputs.repository);
-  const projects = new Website(inputs);
+  const milestones = new Milestones(inputs.token, inputs.repository, core_namespaceObject);
+  const projects = new Website(inputs, core_namespaceObject);
   const version = await _getVersion(milestones, inputs);
   if (!version) {
     setFailed(

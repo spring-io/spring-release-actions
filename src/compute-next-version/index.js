@@ -6,8 +6,8 @@ import { Website } from "../website.js";
 import { Version } from "../versions.js";
 
 async function run(inputs = new Inputs()) {
-  const milestones = new Milestones(inputs.token, inputs.repository);
-  const projects = new Website(inputs);
+  const milestones = new Milestones(inputs.token, inputs.repository, core);
+  const projects = new Website(inputs, core);
   const version = await _getVersion(milestones, inputs);
   if (!version) {
     core.setFailed(
