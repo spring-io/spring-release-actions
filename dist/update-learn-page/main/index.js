@@ -35360,7 +35360,6 @@ class Version {
    */
   nextMilestone(generation) {
     if (this.snapshot) {
-      console.log(`returning null since version ${this} is a snapshot version`);
       return null;
     }
     if (this.ga) {

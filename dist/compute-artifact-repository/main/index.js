@@ -30709,7 +30709,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -30842,6 +30842,7 @@ async function run(inputs = new Inputs()) {
     }
   }
 
+  info(`Artifact repository: ${name} at ${uri}`);
   setOutput("uri", uri);
   setOutput("name", name);
 }

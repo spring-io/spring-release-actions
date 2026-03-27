@@ -30709,7 +30709,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -30942,7 +30942,6 @@ class Version {
    */
   nextMilestone(generation) {
     if (this.snapshot) {
-      console.log(`returning null since version ${this} is a snapshot version`);
       return null;
     }
     if (this.ga) {
@@ -31092,6 +31091,7 @@ function _nextSnapshot(version) {
 async function run(inputs = new Inputs()) {
   const version = new Version(inputs.version);
   const next = version.nextSnapshot();
+  info(`Next snapshot version is ${next.version}`);
   setOutput("version", next.version);
 }
 

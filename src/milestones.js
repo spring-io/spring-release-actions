@@ -2,6 +2,13 @@ import { Octokit } from "@octokit/rest";
 import { Version } from "./versions.js";
 import { compareVersions } from "compare-versions";
 
+const _noOpCore = {
+  debug: () => {},
+  info: () => {},
+  warning: () => {},
+  error: () => {},
+};
+
 /**
  * A class for interacting with GitHub milestones.
  * Specifically, the class checks for a milestone's existence
@@ -14,14 +21,16 @@ class Milestones {
   /**
    * @param token the GH token needed to query milestones
    * @param repo the GH repository, like {@code spring-projects/spring-security} to operate on
+   * @param core the {@code @actions/core} instance for logging (optional)
    */
-  constructor(token, repo) {
+  constructor(token, repo, core = _noOpCore) {
     const baseUrl = process.env.OCTOKIT_BASE_URL;
     this.gh = new Octokit({ auth: token, ...(baseUrl && { baseUrl }) });
     [this.owner, this.repo] = repo.split("/");
     this.milestoneType = this.repo.endsWith("-commercial")
       ? "enterprise"
       : "oss";
+    this.core = core;
   }
 
   /**
@@ -65,10 +74,10 @@ class Milestones {
       },
     );
 
-    console.log(
+    this.core.info(
       `Looking for next milestone for generation ${generation.major}.${generation.minor}`,
     );
-    console.log(`Found ${milestones.length} open milestones`);
+    this.core.debug(`Found ${milestones.length} open milestones`);
 
     const filtered = milestones
       .filter((m) => {
@@ -84,7 +93,7 @@ class Milestones {
         return dateDiff !== 0 ? dateDiff : compareVersions(a.title, b.title);
       });
     if (filtered.length === 0) {
-      console.log("No upcoming open milestones");
+      this.core.info("No upcoming open milestones");
       return null;
     }
 
@@ -105,12 +114,16 @@ class Milestones {
   async closeMilestone(title) {
     const milestone = await this.findMilestoneByTitle(title);
     if (milestone) {
+      this.core.info(`Closing milestone ${title}`);
       await this.gh.rest.issues.updateMilestone({
         owner: this.owner,
         repo: this.repo,
         milestone_number: milestone.number,
         state: "closed",
       });
+      this.core.info(`Closed milestone ${title}`);
+    } else {
+      this.core.info(`Milestone ${title} not found; nothing to close`);
     }
   }
 
@@ -125,6 +138,7 @@ class Milestones {
     const milestone = await this.findMilestoneByTitle(title);
     const dueDate = new Date(date).toISOString();
     if (milestone) {
+      this.core.info(`Updating milestone ${title} to due ${date}`);
       await this.gh.rest.issues.updateMilestone({
         owner: this.owner,
         repo: this.repo,
@@ -132,7 +146,9 @@ class Milestones {
         due_on: dueDate,
         description: description,
       });
+      this.core.info(`Updated milestone ${title}`);
     } else {
+      this.core.info(`Creating milestone ${title} due ${date}`);
       await this.gh.rest.issues.createMilestone({
         owner: this.owner,
         repo: this.repo,
@@ -140,6 +156,7 @@ class Milestones {
         due_on: dueDate,
         description: description,
       });
+      this.core.info(`Created milestone ${title}`);
     }
   }
 }

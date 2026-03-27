@@ -3,7 +3,7 @@ import { Inputs } from "./inputs.js";
 import { Milestones } from "../milestones.js";
 
 async function run(inputs = new Inputs()) {
-  const milestones = new Milestones(inputs.token, inputs.repository);
+  const milestones = new Milestones(inputs.token, inputs.repository, core);
   try {
     await milestones.closeMilestone(inputs.version);
   } catch (error) {

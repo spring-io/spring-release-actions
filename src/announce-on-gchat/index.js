@@ -3,7 +3,11 @@ import { Inputs } from "./inputs.js";
 import { Announce } from "../gchat.js";
 
 async function run(inputs = new Inputs()) {
-  const announce = new Announce(inputs.gchatWebhookUrl, inputs.projectName);
+  const announce = new Announce(
+    inputs.gchatWebhookUrl,
+    inputs.projectName,
+    core,
+  );
   try {
     await announce.announceRelease(inputs.version);
   } catch (error) {

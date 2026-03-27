@@ -6,6 +6,7 @@ import { Version } from "../versions.js";
 async function run(inputs = new Inputs()) {
   const version = new Version(inputs.version);
   const next = version.nextSnapshot();
+  core.info(`Next snapshot version is ${next.version}`);
   core.setOutput("version", next.version);
 }
 

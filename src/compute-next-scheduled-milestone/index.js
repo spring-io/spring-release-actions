@@ -8,6 +8,7 @@ async function run(inputs = new Inputs()) {
   const milestones = new Milestones(
     inputs.milestoneToken,
     inputs.milestoneRepository,
+    core,
   );
   const version = new Version(inputs.version);
   if (!version.snapshot) {

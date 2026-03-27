@@ -4,6 +4,13 @@ import { getWeekOfMonthAndDayOfWeek } from "./lib.js";
 
 const PROJECTS_API_BASE = "https://api.spring.io";
 
+const _noOpCore = {
+  debug: () => {},
+  info: () => {},
+  warning: () => {},
+  error: () => {},
+};
+
 /**
  * Class for interacting with Spring project metadata via the
  * <a href="https://api.spring.io/projects">Projects API</a>.
@@ -11,9 +18,10 @@ const PROJECTS_API_BASE = "https://api.spring.io";
  * @author Josh Cummings
  */
 class Website {
-  constructor(inputs) {
+  constructor(inputs, core = _noOpCore) {
     this.projectSlug = inputs.projectSlug;
     this.apiBase = inputs.projectsApiBase || PROJECTS_API_BASE;
+    this.core = core;
   }
 
   /**
@@ -23,12 +31,16 @@ class Website {
    * @returns {Promise<{generation: {major: number, minor: number}, dayOfWeek: *, weekOfMonth: number, oss: {frequency: number, offset: number, end: {year: number, month: number}}, enterprise: {frequency: number, offset: number, end: {year: number, month: number}}}|null>}
    */
   async getGenerationByVersion(version) {
-    const generations = await _fetchGenerations(this.apiBase, this.projectSlug);
+    const generations = await _fetchGenerations(
+      this.apiBase,
+      this.projectSlug,
+      this.core,
+    );
     const { dayOfWeek, weekOfMonth } = getWeekOfMonthAndDayOfWeek(
       version.dueDate,
     );
     for (const generation of generations) {
-      console.log(
+      this.core.debug(
         `Checking generation ${generation.name} against ${version.major}.${version.minor}`,
       );
       const majorMinor = _generation(generation.name);
@@ -55,17 +67,17 @@ class Website {
   }
 }
 
-async function _fetchGenerations(apiBase, projectSlug) {
+async function _fetchGenerations(apiBase, projectSlug, core) {
   if (apiBase.startsWith("http://") || apiBase.startsWith("https://")) {
-    return _fetchGenerationsFromHttp(apiBase, projectSlug);
+    return _fetchGenerationsFromHttp(apiBase, projectSlug, core);
   }
-  return _fetchGenerationsFromFilesystem(apiBase, projectSlug);
+  return _fetchGenerationsFromFilesystem(apiBase, projectSlug, core);
 }
 
-async function _fetchGenerationsFromHttp(apiBase, projectSlug) {
+async function _fetchGenerationsFromHttp(apiBase, projectSlug, core) {
   const url = `${apiBase}/projects/${projectSlug}/generations`;
   try {
-    console.log(`Retrieving generations from ${url}`);
+    core.info(`Retrieving generations from ${url}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(
@@ -81,14 +93,14 @@ async function _fetchGenerationsFromHttp(apiBase, projectSlug) {
     }
     return generations;
   } catch (error) {
-    console.error("Error retrieving generations:", error);
+    core.error(`Error retrieving generations: ${error.message}`);
     throw error;
   }
 }
 
-async function _fetchGenerationsFromFilesystem(apiBase, projectSlug) {
+async function _fetchGenerationsFromFilesystem(apiBase, projectSlug, core) {
   const filePath = join(apiBase, "projects", projectSlug, "generations.json");
-  console.log(`Reading generations from ${filePath}`);
+  core.info(`Reading generations from ${filePath}`);
   const content = await readFile(filePath, "utf-8");
   const { generations } = JSON.parse(content);
   return generations;
