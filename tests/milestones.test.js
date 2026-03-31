@@ -9,7 +9,7 @@ const { mockListMilestones, mockUpdateMilestone, mockCreateMilestone, mockPagina
 		const response = await endpoint(params);
 		return response.data;
 	});
-	const mockOctokit = vi.fn(() => ({
+	const mockOctokit = vi.fn(function() { return {
 		rest: {
 			issues: {
 				listMilestones: mockListMilestones,
@@ -18,7 +18,7 @@ const { mockListMilestones, mockUpdateMilestone, mockCreateMilestone, mockPagina
 			}
 		},
 		paginate: mockPaginate
-	}));
+	}; });
 	return { mockListMilestones, mockUpdateMilestone, mockCreateMilestone, mockPaginate, mockOctokit };
 });
 

@@ -34,7 +34,7 @@ describe('Update Learn Page Action', () => {
 				createOrUpdateFileContents: vi.fn()
 			}
 		};
-		mockOctokit.mockImplementation(() => octokit);
+		mockOctokit.mockImplementation(function() { return octokit; });
 	});
 
 	it('should fail if the version is a SNAPSHOT', async () => {
@@ -148,7 +148,7 @@ describe('Update Learn Page Action Commercial', () => {
 				createOrUpdateFileContents: vi.fn()
 			}
 		};
-		mockOctokit.mockImplementation(() => octokit);
+		mockOctokit.mockImplementation(function() { return octokit; });
 	});
 
 	it('should fail if the version is a SNAPSHOT', async () => {
