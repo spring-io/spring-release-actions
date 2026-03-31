@@ -5,12 +5,12 @@ import { run, computeRunStatus, buildRunInfo, buildMessage } from '../../src/sta
 const { mockGetWorkflowRun, mockListJobsForWorkflowRun, mockOctokit, mockAxiosPost } = vi.hoisted(() => {
   const mockGetWorkflowRun = vi.fn();
   const mockListJobsForWorkflowRun = vi.fn();
-  const mockOctokit = vi.fn(() => ({
+  const mockOctokit = vi.fn(function() { return {
     actions: {
       getWorkflowRun: mockGetWorkflowRun,
       listJobsForWorkflowRun: mockListJobsForWorkflowRun,
     },
-  }));
+  }; });
   const mockAxiosPost = vi.fn();
   return { mockGetWorkflowRun, mockListJobsForWorkflowRun, mockOctokit, mockAxiosPost };
 });

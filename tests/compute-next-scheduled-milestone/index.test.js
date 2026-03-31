@@ -7,9 +7,9 @@ const mockFindNextOpenMilestoneForGeneration = vi.hoisted(() => vi.fn());
 vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 vi.mock('../../src/milestones.js', () => ({
-	Milestones: vi.fn().mockImplementation(() => ({
+	Milestones: vi.fn().mockImplementation(function() { return {
 		findNextOpenMilestoneForGeneration: mockFindNextOpenMilestoneForGeneration
-	}))
+	}; })
 }));
 
 describe('compute-next-scheduled-milestone', () => {
