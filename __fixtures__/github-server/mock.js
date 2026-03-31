@@ -46,15 +46,15 @@ function createMockGithubServer(initialMilestones = [], options = {}) {
 		});
 	});
 
-	app.get("/repos/:owner/:repo/contents/*", (req, res) => {
-		const filePath = decodeURIComponent(req.params[0]);
+	app.get("/repos/:owner/:repo/contents/*filePath", (req, res) => {
+		const filePath = decodeURIComponent(req.params.filePath);
 		const stored = contents.get(filePath);
 		if (!stored) return res.status(404).json({ message: "Not Found" });
 		res.json({ content: stored.content, sha: stored.sha, encoding: "base64" });
 	});
 
-	app.put("/repos/:owner/:repo/contents/*", (req, res) => {
-		const filePath = decodeURIComponent(req.params[0]);
+	app.put("/repos/:owner/:repo/contents/*filePath", (req, res) => {
+		const filePath = decodeURIComponent(req.params.filePath);
 		const sha = req.body.sha || `sha-${Date.now()}`;
 		contents.set(filePath, { content: req.body.content, sha });
 		res.status(200).json({ content: { path: filePath, sha } });
