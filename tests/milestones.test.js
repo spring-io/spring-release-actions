@@ -5,11 +5,11 @@ const { mockListMilestones, mockUpdateMilestone, mockCreateMilestone, mockPagina
 	const mockListMilestones = vi.fn();
 	const mockUpdateMilestone = vi.fn();
 	const mockCreateMilestone = vi.fn();
-	const mockPaginate = vi.fn(async (endpoint, params) => {
+	const mockPaginate = vi.fn(async function(endpoint, params) {
 		const response = await endpoint(params);
 		return response.data;
 	});
-	const mockOctokit = vi.fn(() => ({
+	const mockOctokit = vi.fn(function() { return {
 		rest: {
 			issues: {
 				listMilestones: mockListMilestones,
@@ -18,7 +18,7 @@ const { mockListMilestones, mockUpdateMilestone, mockCreateMilestone, mockPagina
 			}
 		},
 		paginate: mockPaginate
-	}));
+	}; });
 	return { mockListMilestones, mockUpdateMilestone, mockCreateMilestone, mockPaginate, mockOctokit };
 });
 
