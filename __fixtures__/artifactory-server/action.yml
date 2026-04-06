@@ -17,8 +17,11 @@ runs:
     - name: Start server
       id: start
       shell: bash
+      env:
+        PORT: ${{ inputs.port }}
+        ACTION_PATH: ${{ github.action_path }}
       run: |
-        PORT='${{ inputs.port }}' node ${{ github.action_path }}/mock.js &
+        node "$ACTION_PATH/mock.js" &
         for i in $(seq 1 25); do
           [ -f /tmp/artifactory-server.port ] && break
           sleep 0.2
