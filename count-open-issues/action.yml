@@ -21,4 +21,6 @@ runs:
         GH_TOKEN: ${{ github.token }}
         MILESTONE: ${{ inputs.milestone }}
       run: |
-        echo count=`gh issue list --milestone "${MILESTONE}" | wc -l` >> $GITHUB_OUTPUT
+        ISSUE_COUNT=$(gh issue list --milestone "${MILESTONE}" | wc -l)
+        PR_COUNT=$(gh pr list --search "milestone:${MILESTONE}" | wc -l)
+        echo count=$((ISSUE_COUNT + PR_COUNT)) >> $GITHUB_OUTPUT
