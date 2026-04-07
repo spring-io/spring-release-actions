@@ -22,24 +22,24 @@ describe('MavenArtifact', () => {
 	});
 
 	describe('url', () => {
-		it('constructs the version directory url', () => {
+		it('constructs the artifact jar url', () => {
 			const artifact = new MavenArtifact(repositoryUrl, artifactPath, version);
 			expect(artifact.url).toBe(
-				'https://repo1.maven.org/maven2/org/springframework/spring-core/6.1.0/'
+				'https://repo1.maven.org/maven2/org/springframework/spring-core/6.1.0/spring-core-6.1.0.jar'
 			);
 		});
 
 		it('strips a trailing slash from the repository url', () => {
 			const artifact = new MavenArtifact(repositoryUrl + '/', artifactPath, version);
 			expect(artifact.url).toBe(
-				'https://repo1.maven.org/maven2/org/springframework/spring-core/6.1.0/'
+				'https://repo1.maven.org/maven2/org/springframework/spring-core/6.1.0/spring-core-6.1.0.jar'
 			);
 		});
 
 		it('strips a leading slash from the artifact path', () => {
 			const artifact = new MavenArtifact(repositoryUrl, '/' + artifactPath, version);
 			expect(artifact.url).toBe(
-				'https://repo1.maven.org/maven2/org/springframework/spring-core/6.1.0/'
+				'https://repo1.maven.org/maven2/org/springframework/spring-core/6.1.0/spring-core-6.1.0.jar'
 			);
 		});
 	});

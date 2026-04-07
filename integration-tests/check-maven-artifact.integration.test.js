@@ -9,10 +9,10 @@ vi.mock("@actions/core", async () => await import("../__fixtures__/core.js"));
 const REPO_URL = "http://test.maven/repo";
 
 const server = setupServer(
-  http.head(`${REPO_URL}/org/springframework/spring-core/6.1.0/`, () => {
+  http.head(`${REPO_URL}/org/springframework/spring-core/6.1.0/spring-core-6.1.0.jar`, () => {
     return new HttpResponse(null, { status: 200 });
   }),
-  http.head(`${REPO_URL}/org/springframework/spring-core/9.9.9/`, () => {
+  http.head(`${REPO_URL}/org/springframework/spring-core/9.9.9/spring-core-9.9.9.jar`, () => {
     return new HttpResponse(null, { status: 404 });
   }),
 );

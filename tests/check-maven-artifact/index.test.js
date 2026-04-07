@@ -80,7 +80,7 @@ describe('check-maven-artifact', () => {
 		expect(existsSpy).toHaveBeenCalled();
 		const artifact = existsSpy.mock.instances[0];
 		expect(artifact.url).toBe(
-			'https://my.repo.example.com/maven2/com/example/my-artifact/1.2.3/'
+			'https://my.repo.example.com/maven2/com/example/my-artifact/1.2.3/my-artifact-1.2.3.jar'
 		);
 	});
 });
