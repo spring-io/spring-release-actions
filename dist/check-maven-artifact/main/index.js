@@ -41520,11 +41520,12 @@ class MavenArtifact {
   }
 
   get url() {
-    return `${this.repositoryUrl}/${this.artifactPath}/${this.version}/`;
+    const artifactName = this.artifactPath.split("/").pop();
+    return `${this.repositoryUrl}/${this.artifactPath}/${this.version}/${artifactName}-${this.version}.jar`;
   }
 
   /**
-   * Check whether the artifact version directory exists in the repository.
+   * Check whether the artifact jar exists in the repository.
    * @returns {Promise<boolean>} true if found, false if not found (404)
    * @throws if the server returns an unexpected error
    */
