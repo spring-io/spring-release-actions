@@ -1,0 +1,18 @@
+name: "compute-build-name"
+description: "Compute the Artifactory build name and build number"
+author: "jzheaux"
+inputs:
+  repository:
+    description: "The project's repository; uses the current repository by default"
+    required: false
+  version:
+    description: "The project version; snapshots derive MAJOR.MINOR.x, releases use the version directly"
+    required: true
+
+outputs:
+  build-name:
+    description: "The Artifactory build name"
+
+runs:
+  using: "node24"
+  main: "../dist/compute-build-name/main/index.js"
