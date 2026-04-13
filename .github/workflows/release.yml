@@ -13,15 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release-version: ${{ steps.release-version.outputs.release-version }}
-      should-release: ${{ steps.release-version.outputs.release-version != '' && steps.count-issues.outputs.count == 0 }}
+      should-release: ${{ steps.release-version.outputs.release-version != '' && steps.release-version.outputs.days-til-release == '0' && steps.count-issues.outputs.count == '0' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: release-version
-        uses: ./get-todays-release-version
+        uses: ./compute-next-scheduled-milestone
         with:
           milestone-token: ${{ github.token }}
           snapshot-version: ${{ github.ref_name }}
-      - if: ${{ steps.release-version.outputs.release-version != '' }}
+      - if: ${{ steps.release-version.outputs.release-version != '' && steps.release-version.outputs.days-til-release == '0' }}
         id: count-issues
         uses: ./count-open-issues
         with:
@@ -87,4 +87,5 @@ jobs:
         if: ${{ steps.next-release-milestone.outputs.version-type  == 'oss' }}
         with:
           version: ${{ steps.next-release-milestone.outputs.version }}
+          version-date: ${{ steps.next-release-milestone.outputs.version-date }}
           gchat-webhook-url: ${{ secrets.SPRING_RELEASE_GCHAT_WEBHOOK_URL }}
