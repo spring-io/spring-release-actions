@@ -55,6 +55,24 @@ describe('version', () => {
         expect(v.snapshot).toBe(true);
     });
 
+    it('should parse a v-prefixed GA version', () => {
+        const v = new Version('v1.2.3');
+        expect(v.major).toBe(1);
+        expect(v.minor).toBe(2);
+        expect(v.patch).toBe(3);
+        expect(v.classifier).toBe('');
+        expect(v.ga).toBe(true);
+    });
+
+    it('should parse a v-prefixed snapshot version', () => {
+        const v = new Version('v1.2.3-SNAPSHOT');
+        expect(v.major).toBe(1);
+        expect(v.minor).toBe(2);
+        expect(v.patch).toBe(3);
+        expect(v.classifier).toBe('SNAPSHOT');
+        expect(v.snapshot).toBe(true);
+    });
+
     it('should parse a .x version', () => {
         const v = new Version('1.2.x');
         expect(v.major).toBe(1);
