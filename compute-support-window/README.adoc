@@ -1,0 +1,59 @@
+= Compute Support Window Action
+
+This GitHub action determines whether a Spring project branch (or version) is currently within its OSS or commercial support window, based on the generation end dates published by the https://api.spring.io[Spring Projects API].
+
+It accepts either a `version` (such as `6.4.16-SNAPSHOT`) or a `ref-name` (such as `6.4.x`), making it usable in CI arrangements where there is no GitHub milestone to look up.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `version`
+| The current project version (for example, `6.4.16-SNAPSHOT`).
+| `false`, takes precedence over `ref-name`
+
+| `ref-name`
+| The branch or tag name (for example, `6.4.x`)
+| `false`, takes precedence over $GITHUB_REF_NAME
+
+| `repository`
+| The repository to use for `project-slug` derivation. Defaults to `$GITHUB_REPOSITORY`.
+| `false`
+
+| `project-slug`
+| The project slug for the Projects API. Defaults to the repository name with `-commercial` stripped.
+| `false`
+
+| `projects-api-base`
+| The base URL or filesystem path for the Projects API. Defaults to `https://api.spring.io`. Use `.` to read generation metadata from the local `projects/` directory.
+| `false`
+|===
+
+== Outputs
+
+|===
+| Output | Description
+
+| `support-type`
+| The current support window for the generation: `oss`, `commercial`, or `eol`.
+
+| `oss-end`
+| The OSS support end date for the generation, in `YYYY-MM` format.
+
+| `commercial-end`
+| The commercial support end date for the generation, in `YYYY-MM` format.
+|===
+
+== Example Usage
+
+Gate a step on whether the current branch is in its commercial-only support window. Inside a workflow, no inputs are needed because `GITHUB_REF_NAME` is set automatically:
+
+[source,yaml]
+----
+- id: support-window
+  uses: spring-io/spring-release-actions/compute-support-window@main
+- name: Perform Commercial-Specific Step
+  if: ${{ steps.support-window.outputs.support-type == 'commercial' }}
+  // ...
+----
