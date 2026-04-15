@@ -40,6 +40,7 @@
     "compile-close-milestone-main": "ncc build src/close-milestone/index.js --out dist/close-milestone/main --source-map --no-source-map-register",
     "compile-compute-next-snapshot-main": "ncc build src/compute-next-snapshot/index.js --out dist/compute-next-snapshot/main --source-map --no-source-map-register",
     "compile-compute-next-version-main": "ncc build src/compute-next-version/index.js --out dist/compute-next-version/main --source-map --no-source-map-register",
+    "compile-compute-support-window-main": "ncc build src/compute-support-window/index.js --out dist/compute-support-window/main --source-map --no-source-map-register",
     "compile-compute-next-scheduled-milestone-main": "ncc build src/compute-next-scheduled-milestone/index.js --out dist/compute-next-scheduled-milestone/main --source-map --no-source-map-register",
     "compile-plan-on-gchat-main": "ncc build src/plan-on-gchat/index.js --out dist/plan-on-gchat/main --source-map --no-source-map-register",
     "compile-schedule-milestone-main": "ncc build src/schedule-milestone/index.js --out dist/schedule-milestone/main --source-map --no-source-map-register",

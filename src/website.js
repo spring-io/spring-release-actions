@@ -3,6 +3,7 @@ import { join } from "path";
 import { getWeekOfMonthAndDayOfWeek } from "./lib.js";
 
 const PROJECTS_API_BASE = "https://api.spring.io";
+const PROJECT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 const _noOpCore = {
   debug: () => {},
@@ -19,6 +20,11 @@ const _noOpCore = {
  */
 class Website {
   constructor(inputs, core = _noOpCore) {
+    if (!PROJECT_SLUG_PATTERN.test(inputs.projectSlug)) {
+      throw new Error(
+        `'project-slug' must match ${PROJECT_SLUG_PATTERN}, got '${inputs.projectSlug}'.`,
+      );
+    }
     this.projectSlug = inputs.projectSlug;
     this.apiBase = inputs.projectsApiBase || PROJECTS_API_BASE;
     this.core = core;
@@ -28,7 +34,7 @@ class Website {
    * Look up generate data using the major and minor version numbers in
    * the supplied {@linkcode Version}.
    * @param version
-   * @returns {Promise<{generation: {major: number, minor: number}, dayOfWeek: *, weekOfMonth: number, oss: {frequency: number, offset: number, end: {year: number, month: number}}, enterprise: {frequency: number, offset: number, end: {year: number, month: number}}}|null>}
+   * @returns {Promise<{generation: {major: number, minor: number}, dayOfWeek: *, weekOfMonth: number, oss: {frequency: number, offset: number, end: {year: number, month: number, day: number}}, enterprise: {frequency: number, offset: number, end: {year: number, month: number, day: number}}}|null>}
    */
   async getGenerationByVersion(version) {
     const generations = await _fetchGenerations(
@@ -113,7 +119,14 @@ function _generation(generation) {
 
 function _date(date) {
   const parts = date.split(/[.-]/);
-  return { year: parseInt(parts[0]), month: parseInt(parts[1]) };
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  const day = parts[2] ? parseInt(parts[2]) : _lastDayOfMonth(year, month);
+  return { year, month, day };
+}
+
+function _lastDayOfMonth(year, month) {
+  return new Date(year, month, 0).getDate();
 }
 
 export { Website };

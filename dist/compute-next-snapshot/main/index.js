@@ -30861,7 +30861,7 @@ class Version {
     this._version = version;
     this._dueDate = dueDate;
     this._type = type;
-    const parts = version.split(/[.-]/);
+    const parts = version.replace(/^v/, "").split(/[.-]/);
     this._major = parseInt(parts[0], 10);
     this._minor = parseInt(parts[1], 10);
     this._patch = parseInt(parts[2], 10);
