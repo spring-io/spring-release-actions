@@ -16,7 +16,7 @@
     "patch-package": "8.0.1",
     "prettier": "3.8.1",
     "test": "^3.3.0",
-    "undici": ">=8.0.2"
+    "undici": ">=8.1.0"
   },
   "devDependencies": {
     "@github/local-action": "^7.0.1",
@@ -29,7 +29,7 @@
     "husky": "^9.1.7",
     "jest": "^30.3.0",
     "msw": "^2.13.2",
-    "undici": ">=8.0.2",
+    "undici": ">=8.1.0",
     "vitest": "^4.1.4"
   },
   "scripts": {
