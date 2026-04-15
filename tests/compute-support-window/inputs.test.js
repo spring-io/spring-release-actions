@@ -12,79 +12,83 @@ function setupGetInput(map) {
 }
 
 describe("compute-support-window Inputs constructor", () => {
-  const originalEnv = { ...process.env };
-
-  beforeEach(() => {
-    delete process.env.GITHUB_REF_NAME;
-  });
-
   afterEach(() => {
-    process.env = { ...originalEnv };
     vi.restoreAllMocks();
   });
 
-  it("accepts a version", () => {
-    process.env.GITHUB_REPOSITORY = "spring-projects/spring-security";
-    setupGetInput({ version: "6.4.16-SNAPSHOT" });
+  it("reads version and repository", () => {
+    setupGetInput({
+      version: "6.4.16-SNAPSHOT",
+      repository: "spring-projects/spring-security",
+    });
 
     const inputs = new Inputs();
 
     expect(inputs.version).toBe("6.4.16-SNAPSHOT");
-    expect(inputs.refName).toBe("");
     expect(inputs.repository).toBe("spring-projects/spring-security");
     expect(inputs.projectSlug).toBe("spring-security");
     expect(Object.isFrozen(inputs)).toBe(true);
   });
 
-  it("accepts a ref-name", () => {
-    process.env.GITHUB_REPOSITORY = "spring-projects/spring-security";
-    setupGetInput({ "ref-name": "6.4.x" });
-
-    const inputs = new Inputs();
-
-    expect(inputs.version).toBe("");
-    expect(inputs.refName).toBe("6.4.x");
-  });
-
   it("strips -commercial from repository name for projectSlug", () => {
-    process.env.GITHUB_REPOSITORY =
-      "spring-projects/spring-security-commercial";
-    setupGetInput({ "ref-name": "6.4.x" });
+    setupGetInput({
+      version: "6.4.x",
+      repository: "spring-projects/spring-security-commercial",
+    });
 
     const inputs = new Inputs();
 
     expect(inputs.projectSlug).toBe("spring-security");
   });
 
-  it("falls back to GITHUB_REF_NAME when ref-name input is empty", () => {
-    process.env.GITHUB_REPOSITORY = "spring-projects/spring-security";
-    process.env.GITHUB_REF_NAME = "6.4.x";
-    setupGetInput({});
+  it("derives projectSlug from the repository input, not the env var", () => {
+    setupGetInput({
+      version: "6.4.x",
+      repository: "custom/override-repo",
+    });
 
     const inputs = new Inputs();
 
-    expect(inputs.refName).toBe("6.4.x");
+    expect(inputs.projectSlug).toBe("override-repo");
   });
 
-  it("prefers an explicit ref-name input over GITHUB_REF_NAME", () => {
-    process.env.GITHUB_REPOSITORY = "spring-projects/spring-security";
-    process.env.GITHUB_REF_NAME = "main";
-    setupGetInput({ "ref-name": "6.4.x" });
+  it("rejects a repository that is not in owner/repo format", () => {
+    setupGetInput({
+      version: "6.4.x",
+      repository: "spring-security",
+    });
+
+    expect(() => new Inputs()).toThrow(/owner\/repo/);
+  });
+
+  it("rejects an empty owner or repo segment", () => {
+    setupGetInput({
+      version: "6.4.x",
+      repository: "spring-projects/",
+    });
+
+    expect(() => new Inputs()).toThrow(/owner\/repo/);
+  });
+
+  it("does not validate repository when project-slug is given", () => {
+    setupGetInput({
+      version: "6.4.x",
+      repository: "",
+      "project-slug": "spring-security",
+    });
 
     const inputs = new Inputs();
 
-    expect(inputs.refName).toBe("6.4.x");
+    expect(inputs.projectSlug).toBe("spring-security");
   });
 
-  it("requires either version, ref-name, or GITHUB_REF_NAME", () => {
-    process.env.GITHUB_REPOSITORY = "spring-projects/spring-security";
-    setupGetInput({});
+  it("requires a version", () => {
+    setupGetInput({ repository: "spring-projects/spring-security" });
 
-    expect(() => new Inputs()).toThrow(/version.*ref-name/);
+    expect(() => new Inputs()).toThrow(/version/);
   });
 
   it("respects explicit overrides", () => {
-    process.env.GITHUB_REPOSITORY = "org/repo";
     setupGetInput({
       version: "6.4.0",
       repository: "custom/override-repo",

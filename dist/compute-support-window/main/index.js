@@ -30890,22 +30890,26 @@ function getIDToken(aud) {
 
 class Inputs {
   constructor() {
-    const repository = process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "";
-    this.version = getInput("version") || "";
-    this.refName =
-      getInput("ref-name") || process.env.GITHUB_REF_NAME || "";
-    if (!this.version && !this.refName) {
-      throw new Error(
-        "Either 'version' or 'ref-name' must be provided (or GITHUB_REF_NAME must be set).",
-      );
+    this.version = getInput("version");
+    if (!this.version) {
+      throw new Error("'version' must be provided.");
     }
-    this.repository =
-      getInput("repository") || process.env.GITHUB_REPOSITORY;
+    this.repository = getInput("repository");
     this.projectSlug =
-      getInput("project-slug") || repository.replace("-commercial", "");
-    this.projectsApiBase = getInput("projects-api-base") || undefined;
+      getInput("project-slug") || _slugFromRepository(this.repository);
+    this.projectsApiBase = getInput("projects-api-base");
     Object.freeze(this);
   }
+}
+
+function _slugFromRepository(repository) {
+  const parts = repository.split("/");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new Error(
+      `'repository' must be in 'owner/repo' format, got '${repository}'.`,
+    );
+  }
+  return parts[1].replace("-commercial", "");
 }
 
 
@@ -30975,7 +30979,7 @@ class Website {
    * Look up generate data using the major and minor version numbers in
    * the supplied {@linkcode Version}.
    * @param version
-   * @returns {Promise<{generation: {major: number, minor: number}, dayOfWeek: *, weekOfMonth: number, oss: {frequency: number, offset: number, end: {year: number, month: number}}, enterprise: {frequency: number, offset: number, end: {year: number, month: number}}}|null>}
+   * @returns {Promise<{generation: {major: number, minor: number}, dayOfWeek: *, weekOfMonth: number, oss: {frequency: number, offset: number, end: {year: number, month: number, day: number}}, enterprise: {frequency: number, offset: number, end: {year: number, month: number, day: number}}}|null>}
    */
   async getGenerationByVersion(version) {
     const generations = await _fetchGenerations(
@@ -31060,7 +31064,14 @@ function _generation(generation) {
 
 function _date(date) {
   const parts = date.split(/[.-]/);
-  return { year: parseInt(parts[0]), month: parseInt(parts[1]) };
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  const day = parts[2] ? parseInt(parts[2]) : _lastDayOfMonth(year, month);
+  return { year, month, day };
+}
+
+function _lastDayOfMonth(year, month) {
+  return new Date(year, month, 0).getDate();
 }
 
 
@@ -31315,22 +31326,32 @@ function _nextSnapshot(version) {
 
 
 async function run(inputs = new Inputs(), now = new Date()) {
-  const version = _resolveVersion(inputs);
+  const version = _resolveVersion(inputs.version);
   if (!version) {
     setFailed(
-      `Could not derive a major.minor from version='${inputs.version}' or ref-name='${inputs.refName}'.`,
+      `Could not derive a major.minor from '${inputs.version}'.`,
     );
     return;
   }
   const projects = new Website(inputs, core_namespaceObject);
-  const generation = await _getGeneration(projects, version);
+  let generation;
+  try {
+    generation = await projects.getGenerationByVersion(version);
+  } catch (error) {
+    setFailed(error.message);
+    return;
+  }
   if (!generation) {
     setFailed(
       `Could not find generation for ${version.major}.${version.minor}.`,
     );
     return;
   }
-  const today = { year: now.getFullYear(), month: now.getMonth() + 1 };
+  const today = {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+  };
   const ossEnd = generation.oss.end;
   const commercialEnd = generation.enterprise.end;
   const supportType = _classify(today, ossEnd, commercialEnd);
@@ -31344,24 +31365,13 @@ async function run(inputs = new Inputs(), now = new Date()) {
   setOutput("commercial-end", commercialEndStr);
 }
 
-function _resolveVersion(inputs) {
-  if (inputs.version) {
-    const v = new Version(inputs.version);
-    if (Number.isNaN(v.major) || Number.isNaN(v.minor)) {
-      return null;
-    }
-    return v;
-  }
-  return _versionFromRefName(inputs.refName);
-}
-
-function _versionFromRefName(refName) {
-  const stripped = refName.replace(/^refs\/(heads|tags)\//, "");
-  const match = stripped.match(/^(\d+)\.(\d+)(?:\.|$|-)/);
-  if (!match) {
+function _resolveVersion(input) {
+  const stripped = input.replace(/^refs\/(heads|tags)\//, "");
+  const v = new Version(stripped);
+  if (Number.isNaN(v.major) || Number.isNaN(v.minor)) {
     return null;
   }
-  return new Version(`${match[1]}.${match[2]}.0`);
+  return v;
 }
 
 function _classify(today, ossEnd, commercialEnd) {
@@ -31378,23 +31388,18 @@ function _onOrBefore(today, end) {
   if (today.year !== end.year) {
     return today.year < end.year;
   }
-  return today.month <= end.month;
+  if (today.month !== end.month) {
+    return today.month < end.month;
+  }
+  return today.day <= end.day;
 }
 
 function _formatYearMonth({ year, month }) {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-async function _getGeneration(projects, version) {
-  try {
-    return await projects.getGenerationByVersion(version);
-  } catch (error) {
-    setFailed(error.message);
-  }
-}
-
 if (import.meta.url === `file://${process.argv[1]}`) {
-  run();
+  run().catch((error) => setFailed(error.message));
 }
 
 

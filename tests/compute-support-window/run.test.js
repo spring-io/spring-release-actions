@@ -28,10 +28,9 @@ const generation = ({ ossEnd, commercialEnd }) => ({
   enterprise: { frequency: 3, offset: 1, end: commercialEnd },
 });
 
-function inputs({ version = "", refName = "" } = {}) {
+function inputs({ version }) {
   return {
     version,
-    refName,
     repository: "spring-projects/spring-security",
     projectSlug: "spring-security",
     projectsApiBase: undefined,
@@ -50,11 +49,11 @@ describe("compute-support-window run", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns oss when today is on or before the OSS end month", async () => {
+  it("returns oss when today is on or before the OSS end date", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
-        ossEnd: { year: 2026, month: 11 },
-        commercialEnd: { year: 2027, month: 2 },
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
       }),
     );
 
@@ -69,12 +68,12 @@ describe("compute-support-window run", () => {
   it("returns commercial when OSS has ended but commercial has not", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
-        ossEnd: { year: 2026, month: 11 },
-        commercialEnd: { year: 2027, month: 2 },
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
       }),
     );
 
-    await run(inputs({ refName: "6.4.x" }), new Date(2026, 11, 15));
+    await run(inputs({ version: "6.4.x" }), new Date(2026, 11, 15));
 
     expect(core.setOutput).toHaveBeenCalledWith("support-type", "commercial");
   });
@@ -82,38 +81,51 @@ describe("compute-support-window run", () => {
   it("returns eol when both windows have ended", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
-        ossEnd: { year: 2026, month: 11 },
-        commercialEnd: { year: 2027, month: 2 },
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
       }),
     );
 
-    await run(inputs({ refName: "6.4.x" }), new Date(2027, 5, 1));
+    await run(inputs({ version: "6.4.x" }), new Date(2027, 5, 1));
 
     expect(core.setOutput).toHaveBeenCalledWith("support-type", "eol");
   });
 
-  it("treats the OSS end month itself as still in the OSS window", async () => {
+  it("treats the OSS end day itself as still in the OSS window", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
-        ossEnd: { year: 2026, month: 11 },
-        commercialEnd: { year: 2027, month: 2 },
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
       }),
     );
 
-    await run(inputs({ refName: "6.4.x" }), new Date(2026, 10, 30));
+    await run(inputs({ version: "6.4.x" }), new Date(2026, 10, 24));
 
     expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
   });
 
-  it("parses major.minor from a refs/heads ref-name", async () => {
+  it("transitions to commercial the day after the OSS end date", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
-        ossEnd: { year: 2026, month: 11 },
-        commercialEnd: { year: 2027, month: 2 },
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
       }),
     );
 
-    await run(inputs({ refName: "refs/heads/6.4.x" }), new Date(2026, 5, 1));
+    await run(inputs({ version: "6.4.x" }), new Date(2026, 10, 25));
+
+    expect(core.setOutput).toHaveBeenCalledWith("support-type", "commercial");
+  });
+
+  it("parses major.minor from a refs/heads ref", async () => {
+    websiteModule.__getMock.mockResolvedValue(
+      generation({
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
+      }),
+    );
+
+    await run(inputs({ version: "refs/heads/6.4.x" }), new Date(2026, 5, 1));
 
     const passed = websiteModule.__getMock.mock.calls[0][0];
     expect(passed.major).toBe(6);
@@ -121,8 +133,27 @@ describe("compute-support-window run", () => {
     expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
   });
 
-  it("fails when the ref-name has no parseable major.minor", async () => {
-    await run(inputs({ refName: "main" }));
+  it("parses major.minor from a v-prefixed tag", async () => {
+    websiteModule.__getMock.mockResolvedValue(
+      generation({
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
+      }),
+    );
+
+    await run(
+      inputs({ version: "refs/tags/v6.4.16" }),
+      new Date(2026, 5, 1),
+    );
+
+    const passed = websiteModule.__getMock.mock.calls[0][0];
+    expect(passed.major).toBe(6);
+    expect(passed.minor).toBe(4);
+    expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
+  });
+
+  it("fails when the version has no parseable major.minor", async () => {
+    await run(inputs({ version: "main" }));
 
     expect(core.setFailed).toHaveBeenCalled();
     expect(websiteModule.__getMock).not.toHaveBeenCalled();
@@ -131,10 +162,22 @@ describe("compute-support-window run", () => {
   it("fails when the generation lookup returns null", async () => {
     websiteModule.__getMock.mockResolvedValue(null);
 
-    await run(inputs({ refName: "6.4.x" }));
+    await run(inputs({ version: "6.4.x" }));
 
     expect(core.setFailed).toHaveBeenCalledWith(
       expect.stringContaining("Could not find generation"),
     );
+  });
+
+  it("fails once with the underlying error message when the API throws", async () => {
+    websiteModule.__getMock.mockRejectedValue(
+      new Error("Projects API returned 503"),
+    );
+
+    await run(inputs({ version: "6.4.x" }));
+
+    expect(core.setFailed).toHaveBeenCalledTimes(1);
+    expect(core.setFailed).toHaveBeenCalledWith("Projects API returned 503");
+    expect(core.setOutput).not.toHaveBeenCalled();
   });
 });
