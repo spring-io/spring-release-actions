@@ -3,6 +3,7 @@ import { join } from "path";
 import { getWeekOfMonthAndDayOfWeek } from "./lib.js";
 
 const PROJECTS_API_BASE = "https://api.spring.io";
+const PROJECT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 const _noOpCore = {
   debug: () => {},
@@ -19,6 +20,11 @@ const _noOpCore = {
  */
 class Website {
   constructor(inputs, core = _noOpCore) {
+    if (!PROJECT_SLUG_PATTERN.test(inputs.projectSlug)) {
+      throw new Error(
+        `'project-slug' must match ${PROJECT_SLUG_PATTERN}, got '${inputs.projectSlug}'.`,
+      );
+    }
     this.projectSlug = inputs.projectSlug;
     this.apiBase = inputs.projectsApiBase || PROJECTS_API_BASE;
     this.core = core;

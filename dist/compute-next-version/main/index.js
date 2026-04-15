@@ -35751,6 +35751,7 @@ const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.ur
 
 
 const PROJECTS_API_BASE = "https://api.spring.io";
+const PROJECT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 const website_noOpCore = {
   debug: () => {},
@@ -35767,6 +35768,11 @@ const website_noOpCore = {
  */
 class Website {
   constructor(inputs, core = website_noOpCore) {
+    if (!PROJECT_SLUG_PATTERN.test(inputs.projectSlug)) {
+      throw new Error(
+        `'project-slug' must match ${PROJECT_SLUG_PATTERN}, got '${inputs.projectSlug}'.`,
+      );
+    }
     this.projectSlug = inputs.projectSlug;
     this.apiBase = inputs.projectsApiBase || PROJECTS_API_BASE;
     this.core = core;

@@ -7,9 +7,7 @@ import { Version } from "../versions.js";
 async function run(inputs = new Inputs(), now = new Date()) {
   const version = _resolveVersion(inputs.version);
   if (!version) {
-    core.setFailed(
-      `Could not derive a major.minor from '${inputs.version}'.`,
-    );
+    core.setFailed(`Could not derive a major.minor from '${inputs.version}'.`);
     return;
   }
   const projects = new Website(inputs, core);

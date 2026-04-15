@@ -30954,6 +30954,7 @@ const mod = (a, n) => ((a % n) + n) % n;
 
 
 const PROJECTS_API_BASE = "https://api.spring.io";
+const PROJECT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 const _noOpCore = {
   debug: () => {},
@@ -30970,6 +30971,11 @@ const _noOpCore = {
  */
 class Website {
   constructor(inputs, core = _noOpCore) {
+    if (!PROJECT_SLUG_PATTERN.test(inputs.projectSlug)) {
+      throw new Error(
+        `'project-slug' must match ${PROJECT_SLUG_PATTERN}, got '${inputs.projectSlug}'.`,
+      );
+    }
     this.projectSlug = inputs.projectSlug;
     this.apiBase = inputs.projectsApiBase || PROJECTS_API_BASE;
     this.core = core;
@@ -31328,9 +31334,7 @@ function _nextSnapshot(version) {
 async function run(inputs = new Inputs(), now = new Date()) {
   const version = _resolveVersion(inputs.version);
   if (!version) {
-    setFailed(
-      `Could not derive a major.minor from '${inputs.version}'.`,
-    );
+    setFailed(`Could not derive a major.minor from '${inputs.version}'.`);
     return;
   }
   const projects = new Website(inputs, core_namespaceObject);
