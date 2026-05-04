@@ -48,6 +48,7 @@
     "compile-compute-artifact-repository-main": "ncc build src/compute-artifact-repository/index.js --out dist/compute-artifact-repository/main --source-map --no-source-map-register",
     "compile-check-maven-artifact-main": "ncc build src/check-maven-artifact/index.js --out dist/check-maven-artifact/main --source-map --no-source-map-register",
     "compile-status-on-gchat-main": "ncc build src/status-on-gchat/index.js --out dist/status-on-gchat/main --source-map --no-source-map-register",
+    "compile-compute-build-name-main": "ncc build src/compute-build-name/index.js --out dist/compute-build-name/main --source-map --no-source-map-register",
     "compile-distribute-release-bundle-main": "ncc build src/distribute-release-bundle/index.js --out dist/distribute-release-bundle/main --source-map --no-source-map-register",
     "compile": "npm-run-all --parallel compile-*",
     "check": "npm-run-all --parallel prettier-check",
