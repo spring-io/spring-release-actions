@@ -22,7 +22,12 @@ class Version {
     this._major = parseInt(parts[0], 10);
     this._minor = parseInt(parts[1], 10);
     this._patch = parseInt(parts[2], 10);
-    this._classifier = parts.length === 3 ? "" : parts[3];
+    const fourthAsInt = parseInt(parts[3], 10);
+    const hasBuild = parts.length >= 4 && !Number.isNaN(fourthAsInt);
+    this._build = hasBuild ? fourthAsInt : NaN;
+    const classifierIndex = hasBuild ? 4 : 3;
+    this._classifier =
+      parts.length <= classifierIndex ? "" : parts[classifierIndex];
     this._snapshot =
       this._classifier === "SNAPSHOT" || Number.isNaN(this._patch);
   }
@@ -52,6 +57,10 @@ class Version {
 
   get patch() {
     return this._patch;
+  }
+
+  get build() {
+    return this._build;
   }
 
   get classifier() {

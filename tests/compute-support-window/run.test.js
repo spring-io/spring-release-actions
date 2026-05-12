@@ -152,6 +152,40 @@ describe("compute-support-window run", () => {
     expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
   });
 
+  it("resolves four-digit GA version to correct major.minor generation", async () => {
+    websiteModule.__getMock.mockResolvedValue(
+      generation({
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
+      }),
+    );
+
+    await run(inputs({ version: "6.4.3.1" }), new Date(2026, 5, 15));
+
+    const passed = websiteModule.__getMock.mock.calls[0][0];
+    expect(passed.major).toBe(6);
+    expect(passed.minor).toBe(4);
+    expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("resolves four-digit snapshot version to correct major.minor generation", async () => {
+    websiteModule.__getMock.mockResolvedValue(
+      generation({
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
+      }),
+    );
+
+    await run(inputs({ version: "6.4.3.1-SNAPSHOT" }), new Date(2026, 5, 15));
+
+    const passed = websiteModule.__getMock.mock.calls[0][0];
+    expect(passed.major).toBe(6);
+    expect(passed.minor).toBe(4);
+    expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it("fails when the version has no parseable major.minor", async () => {
     await run(inputs({ version: "main" }));
 

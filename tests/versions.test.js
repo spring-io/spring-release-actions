@@ -84,6 +84,41 @@ describe('version', () => {
         expect(v.snapshot).toBe(true);
     });
 
+    it('should parse a four-digit GA version', () => {
+        const v = new Version('1.2.3.4');
+        expect(v.major).toBe(1);
+        expect(v.minor).toBe(2);
+        expect(v.patch).toBe(3);
+        expect(v.build).toBe(4);
+        expect(v.classifier).toBe('');
+        expect(v.ga).toBe(true);
+        expect(v.prerelease).toBe(false);
+        expect(v.snapshot).toBe(false);
+    });
+
+    it('should parse a four-digit snapshot version', () => {
+        const v = new Version('1.2.3.4-SNAPSHOT');
+        expect(v.major).toBe(1);
+        expect(v.minor).toBe(2);
+        expect(v.patch).toBe(3);
+        expect(v.build).toBe(4);
+        expect(v.classifier).toBe('SNAPSHOT');
+        expect(v.ga).toBe(false);
+        expect(v.prerelease).toBe(false);
+        expect(v.snapshot).toBe(true);
+    });
+
+    it('should parse a v-prefixed four-digit GA version', () => {
+        const v = new Version('v1.2.3.4');
+        expect(v.major).toBe(1);
+        expect(v.minor).toBe(2);
+        expect(v.patch).toBe(3);
+        expect(v.build).toBe(4);
+        expect(v.classifier).toBe('');
+        expect(v.ga).toBe(true);
+        expect(v.snapshot).toBe(false);
+    });
+
     it('should calculate the next GA release', () => {
         let v = new Version('1.2.3', new Date(2025, 10, 24));
         let next = v.nextMilestone(generation);
