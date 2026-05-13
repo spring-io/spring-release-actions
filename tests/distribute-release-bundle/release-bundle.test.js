@@ -5,7 +5,34 @@ import { ReleaseBundle } from '../../src/distribute-release-bundle/release-bundl
 vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
 const mockAxiosPost = vi.hoisted(() => vi.fn());
-vi.mock('axios', () => ({ default: { post: mockAxiosPost } }));
+const mockAxiosGet = vi.hoisted(() => vi.fn());
+vi.mock('axios', () => ({ default: { post: mockAxiosPost, get: mockAxiosGet } }));
+
+function conflictError() {
+	const error = new Error('Conflict');
+	error.response = { status: 409 };
+	return error;
+}
+
+const matchingArtifacts = [
+	{
+		path: 'com/example/artifact-1.0.jar',
+		properties: [
+			{ key: 'build.name', values: ['spring-ldap-3.5.x'] },
+			{ key: 'build.number', values: ['42'] },
+		],
+	},
+];
+
+const mismatchArtifacts = [
+	{
+		path: 'com/example/artifact-1.0.jar',
+		properties: [
+			{ key: 'build.name', values: ['spring-ldap-3.5.x'] },
+			{ key: 'build.number', values: ['41'] },
+		],
+	},
+];
 
 const defaultInputs = {
 	artifactoryUrl: 'https://usw1.packages.broadcom.com',
@@ -46,6 +73,15 @@ describe('ReleaseBundle', () => {
 			const bundle = new ReleaseBundle(defaultInputs);
 			expect(bundle.distributeUrl).toBe(
 				'https://usw1.packages.broadcom.com/lifecycle/api/v2/distribution/distribute/TNZ-spring-ldap/3.5.0?project=spring',
+			);
+		});
+	});
+
+	describe('recordUrl', () => {
+		it('constructs the record URL', () => {
+			const bundle = new ReleaseBundle(defaultInputs);
+			expect(bundle.recordUrl).toBe(
+				'https://usw1.packages.broadcom.com/lifecycle/api/v2/release_bundle/records/TNZ-spring-ldap/3.5.0?project=spring',
 			);
 		});
 	});
@@ -93,6 +129,45 @@ describe('ReleaseBundle', () => {
 				expect.stringContaining(bundle.createUrl),
 			);
 		});
+
+		it('logs a warning and does not throw when a 409 occurs and build info matches', async () => {
+			mockAxiosPost.mockRejectedValue(conflictError());
+			mockAxiosGet.mockResolvedValue({ data: { artifacts: matchingArtifacts } });
+			const bundle = new ReleaseBundle(defaultInputs);
+
+			await bundle.create();
+
+			expect(mockAxiosGet).toHaveBeenCalledWith(bundle.recordUrl, { auth: { username: 'user', password: 'pass' } });
+			expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('already exists'));
+			expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('spring-ldap-3.5.x#42'));
+		});
+
+		it('propagates the error when a 409 occurs and build info does not match', async () => {
+			const error = conflictError();
+			mockAxiosPost.mockRejectedValue(error);
+			mockAxiosGet.mockResolvedValue({ data: { artifacts: mismatchArtifacts } });
+			const bundle = new ReleaseBundle(defaultInputs);
+
+			await expect(bundle.create()).rejects.toThrow(error);
+		});
+
+		it('propagates the error when a 409 occurs and build info cannot be determined', async () => {
+			const error = conflictError();
+			mockAxiosPost.mockRejectedValue(error);
+			mockAxiosGet.mockResolvedValue({ data: { artifacts: [{ path: 'com/example/artifact-1.0.jar', properties: [] }] } });
+			const bundle = new ReleaseBundle(defaultInputs);
+
+			await expect(bundle.create()).rejects.toThrow(error);
+		});
+
+		it('propagates non-409 errors', async () => {
+			const error = new Error('Server Error');
+			error.response = { status: 500 };
+			mockAxiosPost.mockRejectedValue(error);
+			const bundle = new ReleaseBundle(defaultInputs);
+
+			await expect(bundle.create()).rejects.toThrow(error);
+		});
 	});
 
 	describe('distribute', () => {
@@ -129,6 +204,23 @@ describe('ReleaseBundle', () => {
 			expect(core.info).toHaveBeenCalledWith(
 				expect.stringContaining(bundle.distributeUrl),
 			);
+		});
+
+		it('logs a warning and does not throw when a 409 occurs', async () => {
+			mockAxiosPost.mockRejectedValue(conflictError());
+			const bundle = new ReleaseBundle(defaultInputs);
+
+			await expect(bundle.distribute()).resolves.not.toThrow();
+			expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('already been distributed'));
+		});
+
+		it('propagates non-409 errors', async () => {
+			const error = new Error('Server Error');
+			error.response = { status: 500 };
+			mockAxiosPost.mockRejectedValue(error);
+			const bundle = new ReleaseBundle(defaultInputs);
+
+			await expect(bundle.distribute()).rejects.toThrow(error);
 		});
 	});
 });
