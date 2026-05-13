@@ -35219,7 +35219,7 @@ function error(message, properties = {}) {
  * @param properties optional properties to add to the annotation.
  */
 function warning(message, properties = {}) {
-    command_issueCommand('warning', utils_toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    issueCommand('warning', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
  * Adds a notice issue
@@ -35321,7 +35321,7 @@ function getIDToken(aud) {
  */
 
 //# sourceMappingURL=core.js.map
-;// CONCATENATED MODULE: ./src/distribute-release-bundle/inputs.js
+;// CONCATENATED MODULE: ./src/create-release-bundle/inputs.js
 
 
 class Inputs {
@@ -36840,7 +36840,7 @@ var external_url_ = __nccwpck_require__(7016);
 
 
 
-/* harmony default export */ const distribute_release_bundle_URLSearchParams = (external_url_.URLSearchParams);
+/* harmony default export */ const create_release_bundle_URLSearchParams = (external_url_.URLSearchParams);
 
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/platform/node/index.js
 
@@ -36872,7 +36872,7 @@ const generateString = (size = 16, alphabet = ALPHABET.ALPHA_DIGIT) => {
 /* harmony default export */ const node = ({
   isNode: true,
   classes: {
-    URLSearchParams: distribute_release_bundle_URLSearchParams,
+    URLSearchParams: create_release_bundle_URLSearchParams,
     FormData: classes_FormData,
     Blob: (typeof Blob !== 'undefined' && Blob) || null,
   },
@@ -41409,18 +41409,15 @@ axios.default = axios;
 // this module should only have a default export
 /* harmony default export */ const lib_axios = (axios);
 
-;// CONCATENATED MODULE: ./src/distribute-release-bundle/release-bundle.js
+;// CONCATENATED MODULE: ./src/create-release-bundle/release-bundle.js
 
 
 
 const PROJECT_KEY = "spring";
 const BUILD_REPOSITORY = "spring-build-info";
-const SOURCE_REPO = "spring-enterprise-maven-prod-local";
-const DIST_REPO = "spring-enterprise";
-const DIST_SITE = "JP-SaaS";
 
 /**
- * A class for creating and distributing a JFrog release bundle
+ * A class for creating a JFrog release bundle
  */
 class ReleaseBundle {
   constructor(inputs) {
@@ -41434,14 +41431,6 @@ class ReleaseBundle {
 
   get createUrl() {
     return `${this.baseUrl}/lifecycle/api/v2/release_bundle?project=${PROJECT_KEY}&async=false`;
-  }
-
-  get recordUrl() {
-    return `${this.baseUrl}/lifecycle/api/v2/release_bundle/records/${this.bundleName}/${this.version}?project=${PROJECT_KEY}`;
-  }
-
-  get distributeUrl() {
-    return `${this.baseUrl}/lifecycle/api/v2/distribution/distribute/${this.bundleName}/${this.version}?project=${PROJECT_KEY}`;
   }
 
   async create() {
@@ -41463,76 +41452,18 @@ class ReleaseBundle {
         ],
       },
     };
-    try {
-      const response = await lib_axios.post(url, body, {
-        auth: this.auth,
-        headers: { "X-JFrog-Signing-Key-Name": "packagesKey" },
-      });
-      info(`Release bundle created`);
-      return response.data;
-    } catch (error) {
-      if (error.response?.status !== 409) {
-        throw error;
-      }
-      const existing = await lib_axios.get(this.recordUrl, { auth: this.auth });
-      const artifacts = existing.data.artifacts ?? [];
-      if (this.#matchesBuild(artifacts)) {
-        warning(
-          `Release bundle ${this.bundleName}@${this.version} already exists from build ${this.buildName}#${this.buildNumber}; did not replace`,
-        );
-        return existing.data;
-      }
-      throw error;
-    }
-  }
-
-  async distribute() {
-    const url = this.distributeUrl;
-    info(`Distributing release bundle at ${url}`);
-    const body = {
-      auto_create_missing_repositories: false,
-      distribution_rules: [{ site_name: DIST_SITE }],
-      modifications: {
-        mappings: [{ input: `${SOURCE_REPO}/(.*)`, output: `${DIST_REPO}/$1` }],
-      },
-    };
-    try {
-      const response = await lib_axios.post(url, body, { auth: this.auth });
-      info(`Release bundle distributed successfully`);
-      return response.data;
-    } catch (error) {
-      if (error.response?.status !== 409) {
-        throw error;
-      }
-      warning(
-        `Release bundle ${this.bundleName}@${this.version} has already been distributed; did not redistribute`,
-      );
-    }
-  }
-
-  #matchesBuild(artifacts) {
-    const buildNames = new Set();
-    const buildNumbers = new Set();
-    for (const artifact of artifacts) {
-      for (const prop of artifact.properties ?? []) {
-        if (prop.key === "build.name")
-          prop.values.forEach((v) => buildNames.add(v));
-        if (prop.key === "build.number")
-          prop.values.forEach((v) => buildNumbers.add(v));
-      }
-    }
-    return (
-      buildNames.size === 1 &&
-      buildNames.has(this.buildName) &&
-      buildNumbers.size === 1 &&
-      buildNumbers.has(this.buildNumber)
-    );
+    const response = await lib_axios.post(url, body, {
+      auth: this.auth,
+      headers: { "X-JFrog-Signing-Key-Name": "packagesKey" },
+    });
+    info(`Release bundle created`);
+    return response.data;
   }
 }
 
 
 
-;// CONCATENATED MODULE: ./src/distribute-release-bundle/index.js
+;// CONCATENATED MODULE: ./src/create-release-bundle/index.js
 
 
 
@@ -41542,10 +41473,6 @@ async function run(inputs = new Inputs()) {
   try {
     info(`Creating release bundle ${inputs.bundleName}@${inputs.version}`);
     await bundle.create();
-    info(
-      `Distributing release bundle ${inputs.bundleName}@${inputs.version}`,
-    );
-    await bundle.distribute();
   } catch (error) {
     setFailed(error.message);
   }
