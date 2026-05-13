@@ -1,5 +1,5 @@
 name: "compute-version"
-description: "An action that determines the project version"
+description: "An action that determines the project version from Maven or Gradle. For Maven projects, requires actions/setup-java."
 author: "jzheaux"
 outputs:
   version:
@@ -11,7 +11,7 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Find Scheduled Milestone for Current Version in Branch
+    - name: Get version from the project
       id: compute-version
       shell: bash
       run: |

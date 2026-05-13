@@ -16,8 +16,9 @@ This GitHub action computes the project version.
 
 == Prerequisites
 
-In Maven projects, this action uses the `mvn` CLI to determine the project version.
-It must run after https://github.com/actions/setup-java[`actions/setup-java`].
+In Maven projects, this action uses the `mvn` CLI to determine the project version, and must run after https://github.com/actions/setup-java[`actions/setup-java`].
+
+In Gradle projects, this action reads the version from `gradle.properties`.
 
 == Example Usage
 
