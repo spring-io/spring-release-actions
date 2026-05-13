@@ -15,6 +15,7 @@ describe("compute-artifact-repository", () => {
 
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://repo1.maven.org");
       expect(core.setOutput).toHaveBeenCalledWith("name", "maven2");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "");
     });
 
     it("outputs repo.spring.io and libs-snapshot-local for a SNAPSHOT", async () => {
@@ -22,6 +23,7 @@ describe("compute-artifact-repository", () => {
 
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://repo.spring.io");
       expect(core.setOutput).toHaveBeenCalledWith("name", "libs-snapshot-local");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "");
     });
   });
 
@@ -31,6 +33,7 @@ describe("compute-artifact-repository", () => {
 
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://usw1.packages.broadcom.com");
       expect(core.setOutput).toHaveBeenCalledWith("name", "spring-enterprise-maven-prod-local");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "spring");
     });
 
     it("outputs broadcom URI and dev-local for a SNAPSHOT", async () => {
@@ -38,6 +41,7 @@ describe("compute-artifact-repository", () => {
 
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://usw1.packages.broadcom.com");
       expect(core.setOutput).toHaveBeenCalledWith("name", "spring-enterprise-maven-dev-local");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "spring");
     });
 
     it("outputs broadcom URI and stage-local for a release candidate", async () => {
@@ -45,6 +49,7 @@ describe("compute-artifact-repository", () => {
 
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://usw1.packages.broadcom.com");
       expect(core.setOutput).toHaveBeenCalledWith("name", "spring-enterprise-maven-stage-local");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "spring");
     });
 
     it("outputs broadcom URI and stage-local for a milestone", async () => {
@@ -52,6 +57,7 @@ describe("compute-artifact-repository", () => {
 
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://usw1.packages.broadcom.com");
       expect(core.setOutput).toHaveBeenCalledWith("name", "spring-enterprise-maven-stage-local");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "spring");
     });
   });
 });
