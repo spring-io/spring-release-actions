@@ -49,7 +49,7 @@ This GitHub action creates a JFrog release bundle for a Spring Enterprise commer
 [source,yaml]
 ----
 - name: Create Release Bundle
-  uses: spring-io/spring-release-actions/create-release-bundle@main
+  uses: spring-io/spring-release-actions/create-release-bundle@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
   with:
     version: ${{ inputs.project-version }}
     username: ${{ secrets.COMMERCIAL_ARTIFACTORY_USERNAME }}

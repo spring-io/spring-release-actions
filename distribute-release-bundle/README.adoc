@@ -49,7 +49,7 @@ This GitHub action creates and distributes a JFrog release bundle for a Spring E
 [source,yaml]
 ----
 - name: Distribute Release Bundle
-  uses: spring-io/spring-release-actions/distribute-release-bundle@main
+  uses: spring-io/spring-release-actions/distribute-release-bundle@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
   with:
     version: ${{ inputs.project-version }}
     username: ${{ secrets.COMMERCIAL_ARTIFACTORY_USERNAME }}

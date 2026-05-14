@@ -21,7 +21,7 @@ This GitHub action publishes release notes.
 [source,yaml]
 ----
 - name: Publish Release Notes
-  uses: spring-io/spring-release-actions/publish-release-notes@main
+  uses: spring-io/spring-release-actions/publish-release-notes@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
   with:
     tag: '1.2.3'
 ----
