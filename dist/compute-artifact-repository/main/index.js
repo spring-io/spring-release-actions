@@ -30819,9 +30819,11 @@ async function run(inputs = new Inputs()) {
 
   let uri;
   let name;
+  let project = "";
 
   if (isCommercial) {
     uri = "https://usw1.packages.broadcom.com";
+    project = "spring";
     if (inputs.version.includes("-SNAPSHOT")) {
       name = "spring-enterprise-maven-dev-local";
     } else if (
@@ -30845,6 +30847,7 @@ async function run(inputs = new Inputs()) {
   info(`Artifact repository: ${name} at ${uri}`);
   setOutput("uri", uri);
   setOutput("name", name);
+  setOutput("project", project);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

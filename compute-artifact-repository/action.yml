@@ -14,6 +14,8 @@ outputs:
     description: "The artifact repository URI"
   name:
     description: "The artifact repository name"
+  project:
+    description: "The project key associated with the artifact repository, or empty if none applies"
 
 runs:
   using: "node24"
