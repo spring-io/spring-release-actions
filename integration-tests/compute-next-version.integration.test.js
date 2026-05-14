@@ -52,6 +52,36 @@ describe("compute-next-version integration", () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it("computes the next four-digit version from a four-digit milestone", async () => {
+    server.use(
+      http.get("https://api.github.com/repos/owner/repo/milestones", () => {
+        return HttpResponse.json([
+          { number: 2, title: "6.5.0.1", state: "open", due_on: "2025-05-21T00:00:00Z" },
+        ]);
+      }),
+      http.get(`${PROJECTS_API}/projects/spring-boot/generations`, () => {
+        return HttpResponse.json({
+          _embedded: {
+            generations: [
+              { name: "6.5", ossSupportEndDate: "2028-01", commercialSupportEndDate: "2031-01" },
+            ],
+          },
+        });
+      }),
+    );
+
+    await run({
+      version: "6.5.0.1",
+      token: "test-token",
+      repository: "owner/repo",
+      projectSlug: "spring-boot",
+      projectsApiBase: PROJECTS_API,
+    });
+
+    expect(core.setOutput).toHaveBeenCalledWith("version", "6.5.0.2");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
   it("reads generations from the filesystem when projectsApiBase is a path", async () => {
     const dir = await mkdir(join(tmpdir(), "spring-test"), { recursive: true });
     const apiBase = join(tmpdir(), "spring-test");

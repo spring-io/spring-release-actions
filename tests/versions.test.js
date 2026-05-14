@@ -176,4 +176,21 @@ describe('version', () => {
         const next = v.nextSnapshot();
         expect(next.version).toBe('1.2.3-SNAPSHOT');
     });
+
+    it('should calculate the next GA release for a four-digit version', () => {
+        const v = new Version('6.5.0.1', new Date(2025, 10, 24));
+        const next = v.nextMilestone(generation);
+        expect(next.version).toBe('6.5.0.2');
+    });
+
+    it('should calculate the next snapshot for a four-digit GA release', () => {
+        const v = new Version('6.5.0.1');
+        const next = v.nextSnapshot();
+        expect(next.version).toBe('6.5.0.2-SNAPSHOT');
+    });
+
+    it('should fail to advance a four-digit pre-release version', () => {
+        const v = new Version('6.5.0.1-M1', new Date(2025, 10, 24));
+        expect(() => v.nextMilestone(generation)).toThrow(/four-digit/);
+    });
 });

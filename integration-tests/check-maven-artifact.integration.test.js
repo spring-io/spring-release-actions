@@ -15,6 +15,9 @@ const server = setupServer(
   http.head(`${REPO_URL}/org/springframework/spring-core/9.9.9/spring-core-9.9.9.jar`, () => {
     return new HttpResponse(null, { status: 404 });
   }),
+  http.head(`${REPO_URL}/org/springframework/spring-core/6.5.0.1/spring-core-6.5.0.1.jar`, () => {
+    return new HttpResponse(null, { status: 200 });
+  }),
 );
 
 describe("check-maven-artifact integration", () => {
@@ -34,5 +37,12 @@ describe("check-maven-artifact integration", () => {
 
     expect(core.setOutput).toHaveBeenCalledWith("found", false);
     expect(core.setFailed).toHaveBeenCalled();
+  });
+
+  it("succeeds and sets found=true for a four-digit version", async () => {
+    await run({ repositoryUrl: REPO_URL, artifactPath: "org/springframework/spring-core", version: "6.5.0.1", timeout: 0 });
+
+    expect(core.setOutput).toHaveBeenCalledWith("found", true);
+    expect(core.setFailed).not.toHaveBeenCalled();
   });
 });

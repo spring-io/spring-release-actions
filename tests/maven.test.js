@@ -42,6 +42,13 @@ describe('MavenArtifact', () => {
 				'https://repo1.maven.org/maven2/org/springframework/spring-core/6.1.0/spring-core-6.1.0.jar'
 			);
 		});
+
+		it('constructs the artifact jar url for a four-digit version', () => {
+			const artifact = new MavenArtifact(repositoryUrl, artifactPath, '6.5.0.1');
+			expect(artifact.url).toBe(
+				'https://repo1.maven.org/maven2/org/springframework/spring-core/6.5.0.1/spring-core-6.5.0.1.jar'
+			);
+		});
 	});
 
 	describe('exists', () => {

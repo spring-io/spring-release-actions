@@ -83,5 +83,24 @@ describe('compute-next-scheduled-milestone', () => {
 			expect(core.setOutput).toHaveBeenCalledWith('release-version', '');
 			expect(core.setOutput).toHaveBeenCalledWith('days-til-release', '');
 		});
+
+		it('returns empty for a four-digit GA version', async () => {
+			await run({ ...defaultInputs, version: '6.2.0.1' });
+			expect(mockFindNextOpenMilestoneForGeneration).not.toHaveBeenCalled();
+			expect(core.setOutput).toHaveBeenCalledWith('release-version', '');
+			expect(core.setOutput).toHaveBeenCalledWith('days-til-release', '');
+		});
+	});
+
+	describe('when version is a four-digit snapshot', () => {
+		it('finds the next scheduled milestone for the generation', async () => {
+			const tomorrow = new Date();
+			tomorrow.setDate(tomorrow.getDate() + 3);
+			mockFindNextOpenMilestoneForGeneration.mockReturnValue({ name: '6.2.0.2', dueDate: tomorrow });
+			await run({ ...defaultInputs, version: '6.2.0.2-SNAPSHOT' });
+			expect(mockFindNextOpenMilestoneForGeneration).toHaveBeenCalledWith({ major: 6, minor: 2 });
+			expect(core.setOutput).toHaveBeenCalledWith('release-version', '6.2.0.2');
+			expect(core.setOutput).toHaveBeenCalledWith('days-til-release', 3);
+		});
 	});
 });

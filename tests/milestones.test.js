@@ -154,5 +154,29 @@ describe('Milestones', () => {
 			const milestone = await milestones.findNextOpenMilestoneForGeneration({ major: 1, minor: 2});
 			expect(milestone).toBe(null);
 		});
+
+		it('orders four-digit milestones correctly when due on the same date', async() => {
+			const today = new Date();
+			mockListMilestones.mockResolvedValue({
+				data: [
+					{
+						title: '6.5.0.2',
+						number: 2,
+						due_on: today.toISOString()
+					},
+					{
+						title: '6.5.0.1',
+						number: 1,
+						due_on: today.toISOString()
+					},
+					{
+						title: '6.5.0.10',
+						number: 10,
+						due_on: today.toISOString()
+					},
+				]});
+			const milestone = await milestones.findNextOpenMilestoneForGeneration({ major: 6, minor: 5});
+			expect(milestone.name).toBe("6.5.0.1");
+		});
 	})
 });
