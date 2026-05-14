@@ -31,6 +31,9 @@
     "undici": ">=8.2.0",
     "vitest": "^4.1.6"
   },
+  "overrides": {
+    "tar": ">=7.5.15"
+  },
   "scripts": {
     "postinstall": "patch-package",
     "prettier-write": "prettier --write 'src/**/*.js'",
