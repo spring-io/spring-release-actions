@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always()  # Run even when build fails
     steps:
-      - uses: spring-io/spring-release-actions/status-on-gchat@main
+      - uses: spring-io/spring-release-actions/status-on-gchat@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
         with:
           gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
 ----
@@ -47,7 +47,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: spring-io/spring-release-actions/status-on-gchat@main
+      - uses: spring-io/spring-release-actions/status-on-gchat@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
         with:
           gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
           notify-on: success
@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ !success() }}
     steps:
-      - uses: spring-io/spring-release-actions/status-on-gchat@main
+      - uses: spring-io/spring-release-actions/status-on-gchat@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
         with:
           gchat-webhook-url: ${{ secrets.GCHAT_WEBHOOK_URL }}
 ----

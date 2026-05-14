@@ -48,7 +48,7 @@ Gate a step on whether the current branch is in its commercial-only support wind
 [source,yaml]
 ----
 - id: support-window
-  uses: spring-io/spring-release-actions/compute-support-window@main
+  uses: spring-io/spring-release-actions/compute-support-window@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
 - name: Perform Commercial-Specific Step
   if: ${{ steps.support-window.outputs.support-type == 'commercial' }}
   // ...

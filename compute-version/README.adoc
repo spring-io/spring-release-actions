@@ -26,7 +26,7 @@ In Gradle projects, this action reads the version from `gradle.properties`.
 ----
 - name: Compute Version
   id: project-version
-  uses: spring-io/spring-release-actions/compute-version@main
+  uses: spring-io/spring-release-actions/compute-version@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
 
 # Use the output from the `project-version` step
 - name: Echo version

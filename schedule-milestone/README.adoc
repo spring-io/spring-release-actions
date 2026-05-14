@@ -33,7 +33,7 @@ This GitHub action schedules a milestone, updating it if it already exists.
 [source,yaml]
 ----
 - name: Schedule Milestone
-  uses: spring-io/spring-release-actions/schedule-milestone@main
+  uses: spring-io/spring-release-actions/schedule-milestone@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
   with:
     version-date: '2023-01-01'
     version: '1.2.3'

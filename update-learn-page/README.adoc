@@ -41,7 +41,7 @@ This GitHub action updates the #learn page on Spring OSS and Commercial Websites
 [source,yaml]
 ----
 - name: Update Learn Page
-  uses: spring-io/spring-release-actions/update-learn-page@main
+  uses: spring-io/spring-release-actions/update-learn-page@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
   with:
     version: '1.2.3'
     website-token: ${{ secrets.WEBSITE_TOKEN }}
