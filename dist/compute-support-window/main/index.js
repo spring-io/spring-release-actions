@@ -31377,6 +31377,9 @@ function _nextGa(v, generation) {
 }
 
 function _nextGaVersion(version) {
+  if (!Number.isNaN(version.build)) {
+    return `${version.major}.${version.minor}.${version.patch}.${version.build + 1}`;
+  }
   return `${version.major}.${version.minor}.${version.patch + 1}`;
 }
 
@@ -31437,6 +31440,11 @@ function _nextMilestone(v, generation) {
 }
 
 function _nextMilestoneVersion(version) {
+  if (!Number.isNaN(version.build)) {
+    throw new Error(
+      `Cannot advance pre-release for four-digit version ${version.version}; only GA four-digit versions are supported`,
+    );
+  }
   if (version.classifier === "M1") {
     return `${version.major}.${version.minor}.${version.patch}-M2`;
   }
@@ -31469,6 +31477,11 @@ function _nextMilestoneDate(version, generation) {
 
 function _nextSnapshot(version) {
   if (version.ga) {
+    if (!Number.isNaN(version.build)) {
+      return new Version(
+        `${version.major}.${version.minor}.${version.patch}.${version.build + 1}-SNAPSHOT`,
+      );
+    }
     return new Version(
       `${version.major}.${version.minor}.${version.patch + 1}-SNAPSHOT`,
     );

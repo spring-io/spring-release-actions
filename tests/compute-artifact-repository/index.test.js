@@ -25,6 +25,22 @@ describe("compute-artifact-repository", () => {
       expect(core.setOutput).toHaveBeenCalledWith("name", "libs-snapshot-local");
       expect(core.setOutput).toHaveBeenCalledWith("project", "");
     });
+
+    it("outputs repo1.maven.org and maven2 for a four-digit GA release", async () => {
+      await run({ version: "6.5.0.1", repository: "spring-projects/spring-security" });
+
+      expect(core.setOutput).toHaveBeenCalledWith("uri", "https://repo1.maven.org");
+      expect(core.setOutput).toHaveBeenCalledWith("name", "maven2");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "");
+    });
+
+    it("outputs repo.spring.io and libs-snapshot-local for a four-digit SNAPSHOT", async () => {
+      await run({ version: "6.5.0.2-SNAPSHOT", repository: "spring-projects/spring-security" });
+
+      expect(core.setOutput).toHaveBeenCalledWith("uri", "https://repo.spring.io");
+      expect(core.setOutput).toHaveBeenCalledWith("name", "libs-snapshot-local");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "");
+    });
   });
 
   describe("commercial repository", () => {
@@ -57,6 +73,22 @@ describe("compute-artifact-repository", () => {
 
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://usw1.packages.broadcom.com");
       expect(core.setOutput).toHaveBeenCalledWith("name", "spring-enterprise-maven-stage-local");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "spring");
+    });
+
+    it("outputs broadcom URI and prod-local for a four-digit GA release", async () => {
+      await run({ version: "6.5.0.1", repository: "spring-projects/spring-security-commercial" });
+
+      expect(core.setOutput).toHaveBeenCalledWith("uri", "https://usw1.packages.broadcom.com");
+      expect(core.setOutput).toHaveBeenCalledWith("name", "spring-enterprise-maven-prod-local");
+      expect(core.setOutput).toHaveBeenCalledWith("project", "spring");
+    });
+
+    it("outputs broadcom URI and dev-local for a four-digit SNAPSHOT", async () => {
+      await run({ version: "6.5.0.2-SNAPSHOT", repository: "spring-projects/spring-security-commercial" });
+
+      expect(core.setOutput).toHaveBeenCalledWith("uri", "https://usw1.packages.broadcom.com");
+      expect(core.setOutput).toHaveBeenCalledWith("name", "spring-enterprise-maven-dev-local");
       expect(core.setOutput).toHaveBeenCalledWith("project", "spring");
     });
   });

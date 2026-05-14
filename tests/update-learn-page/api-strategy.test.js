@@ -118,4 +118,13 @@ describe('api-strategy', () => {
 
     await expect(updateViaApi(defaultInputs)).rejects.toThrow('422');
   });
+
+  it('creates GA and four-digit snapshot releases for a four-digit GA version', async () => {
+    await updateViaApi({ ...defaultInputs, version: '6.5.0.1' });
+
+    expect(deletedVersions).toHaveLength(0);
+    expect(createdReleases).toHaveLength(2);
+    expect(createdReleases[0].version).toBe('6.5.0.1');
+    expect(createdReleases[1].version).toBe('6.5.0.2-SNAPSHOT');
+  });
 });

@@ -101,6 +101,14 @@ describe('buildUpdatedPage', () => {
 			expect(result[1].version).toBe('1.2.3');
 			expect(result[2].version).toBe('1.1.0');
 		});
+
+		it('creates four-digit snapshot and GA entries for a four-digit version', () => {
+			const fourDigit = new Version('6.5.0.1');
+			const result = JSON.parse(buildUpdatedPage(null, fourDigit, true, refDocUrl, apiDocUrl, false));
+			expect(result).toHaveLength(2);
+			expect(result[0].version).toBe('6.5.0.2-SNAPSHOT');
+			expect(result[1].version).toBe('6.5.0.1');
+		});
 	});
 
 	describe('commercial', () => {
