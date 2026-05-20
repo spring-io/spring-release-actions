@@ -16,7 +16,7 @@
     "patch-package": "8.0.1",
     "prettier": "3.8.3",
     "test": "^3.3.0",
-    "undici": ">=8.2.0"
+    "undici": ">=8.3.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.4.1",
@@ -28,7 +28,7 @@
     "husky": "^9.1.7",
     "jest": "^30.4.2",
     "msw": "^2.14.6",
-    "undici": ">=8.2.0",
+    "undici": ">=8.3.0",
     "vitest": "^4.1.6"
   },
   "overrides": {
