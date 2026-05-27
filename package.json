@@ -21,7 +21,7 @@
   "devDependencies": {
     "@jest/globals": "^30.4.1",
     "@kie/act-js": "^2.6.2",
-    "@kie/mock-github": "^2.0.1",
+    "@kie/mock-github": "^2.0.2",
     "@vercel/ncc": "0.38.4",
     "@vitest/coverage-v8": "^4.1.6",
     "express": "^5.2.1",
