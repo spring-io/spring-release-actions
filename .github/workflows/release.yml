@@ -15,7 +15,7 @@ jobs:
       release-version: ${{ steps.release-version.outputs.release-version }}
       should-release: ${{ steps.release-version.outputs.release-version != '' && steps.release-version.outputs.days-til-release == '0' && steps.count-issues.outputs.count == '0' }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - id: release-version
         uses: ./compute-next-scheduled-milestone
         with:
@@ -32,7 +32,7 @@ jobs:
     if: ${{ needs.planner.outputs.should-release == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Generate Changelog
         uses: spring-io/github-changelog-generator@f7d7a87a3e7c627ecb8c26cf086c38ac5a939721 # v0.0.14
         with:
