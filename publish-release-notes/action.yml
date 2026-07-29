@@ -26,6 +26,6 @@ runs:
         git config user.name 'github-actions[bot]'
         git config user.email 'github-actions[bot]@users.noreply.github.com'
         set +e
-        gh release delete $TAG -y --cleanup-tag
+        gh release delete $TAG -y
         RELEASE_URL=$(gh release create $TAG -F $RELEASE_NOTES_LOCATION $PRERELEASE --target $GITHUB_SHA)
         echo "::notice title=Release Page::$RELEASE_URL"
