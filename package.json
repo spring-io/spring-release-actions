@@ -32,7 +32,13 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
-    "tar": ">=7.5.15"
+    "tar": ">=7.5.18",
+    "js-yaml": ">=3.15.1",
+    "adm-zip": ">=0.6.0",
+    "@babel/core": ">=7.29.6",
+    "@actions/http-client": {
+      "undici": ">=6.28.0"
+    }
   },
   "scripts": {
     "postinstall": "patch-package",
