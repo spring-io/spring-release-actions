@@ -31552,6 +31552,7 @@ async function run(inputs = new Inputs(), now = new Date()) {
       `${version.version} is a four-digit version; treating as commercial without a generation lookup.`,
     );
     setOutput("support-type", "commercial");
+    _setRepositoryMatch(inputs, "commercial");
     return;
   }
   const projects = new Website(inputs, core_namespaceObject);
@@ -31584,6 +31585,15 @@ async function run(inputs = new Inputs(), now = new Date()) {
   setOutput("support-type", supportType);
   setOutput("oss-end", ossEndStr);
   setOutput("commercial-end", commercialEndStr);
+  _setRepositoryMatch(inputs, supportType);
+}
+
+function _setRepositoryMatch(inputs, supportType) {
+  const isCommercialRepo = inputs.repository.endsWith("-commercial");
+  const matches =
+    (supportType === "commercial" && isCommercialRepo) ||
+    (supportType === "oss" && !isCommercialRepo);
+  setOutput("repository-matches-support-window", matches);
 }
 
 function _resolveVersion(input) {

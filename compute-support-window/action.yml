@@ -26,6 +26,8 @@ outputs:
     description: "The OSS support end date for the generation, in YYYY-MM format."
   commercial-end:
     description: "The commercial support end date for the generation, in YYYY-MM format."
+  repository-matches-support-window:
+    description: "Whether the current repository matches the computed support window: 'true' if support-type is 'commercial' and the repository name ends with '-commercial', or if support-type is 'oss' and it doesn't; 'false' otherwise."
 
 runs:
   using: "node24"
