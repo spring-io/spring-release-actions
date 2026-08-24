@@ -4,6 +4,8 @@ This GitHub action determines whether a Spring project branch (or version) is cu
 
 By default it uses the workflow's ref name (`$GITHUB_REF_NAME`), so inside a typical release workflow no inputs are required. Callers can also pass an explicit project version (such as `6.4.16-SNAPSHOT`) when the relevant version isn't the running ref.
 
+A four-digit version or branch (`major.minor.patch.build`, for example `6.4.3.1`) is always reported as `commercial`, without a Projects API lookup, since that numbering scheme is only ever used for commercial-only hotfix lines.
+
 == Inputs
 
 |===

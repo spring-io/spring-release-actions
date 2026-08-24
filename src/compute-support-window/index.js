@@ -10,6 +10,13 @@ async function run(inputs = new Inputs(), now = new Date()) {
     core.setFailed(`Could not derive a major.minor from '${inputs.version}'.`);
     return;
   }
+  if (!Number.isNaN(version.build)) {
+    core.info(
+      `${version.version} is a four-digit version; treating as commercial without a generation lookup.`,
+    );
+    core.setOutput("support-type", "commercial");
+    return;
+  }
   const projects = new Website(inputs, core);
   let generation;
   try {
