@@ -13,8 +13,11 @@ inputs:
   description:
     description: "The version description"
     required: false
+  version-type:
+    description: "The type of the version being scheduled (for example, 'oss', 'enterprise'); if 'oss', the milestone is scheduled in this project's OSS repository, otherwise in its commercial repository; uses the current repository by default"
+    required: false
   repository:
-    description: "The repository to publish the milestone to; uses the current repository by default"
+    description: "The repository to publish the milestone to; takes precedence over version-type and uses the current repository by default"
     required: false
   token:
     description: "The GitHub token for the repository; uses the current repository's token by default"
