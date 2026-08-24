@@ -31439,11 +31439,30 @@ class Inputs {
     this.version = getInput("version");
     this.versionDate = getInput("version-date");
     this.description = getInput("description");
+    this.versionType = getInput("version-type");
     this.repository =
-      getInput("repository") || process.env.GITHUB_REPOSITORY;
+      getInput("repository") ||
+      _repositoryForVersionType(
+        this.versionType,
+        process.env.GITHUB_REPOSITORY,
+      );
     this.token = getInput("token") || process.env.GITHUB_TOKEN;
     Object.freeze(this);
   }
+}
+
+function _repositoryForVersionType(versionType, repository) {
+  if (!versionType || !repository) {
+    return repository;
+  }
+  const [owner, name] = repository.split("/");
+  const isCommercial = name.endsWith("-commercial");
+  if (versionType === "oss") {
+    return isCommercial
+      ? `${owner}/${name.substring(0, name.length - "-commercial".length)}`
+      : repository;
+  }
+  return isCommercial ? repository : `${owner}/${name}-commercial`;
 }
 
 

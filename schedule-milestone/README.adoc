@@ -19,8 +19,12 @@ This GitHub action schedules a milestone, updating it if it already exists.
 | The version description.
 | `false`
 
+| `version-type`
+| The type of the version being scheduled (for example, `oss`, `enterprise`); if `oss`, the milestone is scheduled in this project's OSS repository, otherwise in its commercial repository; uses the current repository by default.
+| `false`
+
 | `repository`
-| The repository to publish the milestone to; uses the current repository by default.
+| The repository to publish the milestone to; takes precedence over `version-type` and uses the current repository by default.
 | `false`
 
 | `token`
