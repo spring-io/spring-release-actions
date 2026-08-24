@@ -31547,6 +31547,14 @@ async function run(inputs = new Inputs(), now = new Date()) {
     setFailed(`Could not derive a major.minor from '${inputs.version}'.`);
     return;
   }
+  if (!Number.isNaN(version.build)) {
+    info(
+      `${version.version} is a four-digit version; treating as commercial without a generation lookup.`,
+    );
+    setOutput("support-type", "commercial");
+    _setRepositoryMatch(inputs, "commercial");
+    return;
+  }
   const projects = new Website(inputs, core_namespaceObject);
   let generation;
   try {
@@ -31577,6 +31585,15 @@ async function run(inputs = new Inputs(), now = new Date()) {
   setOutput("support-type", supportType);
   setOutput("oss-end", ossEndStr);
   setOutput("commercial-end", commercialEndStr);
+  _setRepositoryMatch(inputs, supportType);
+}
+
+function _setRepositoryMatch(inputs, supportType) {
+  const isCommercialRepo = inputs.repository.endsWith("-commercial");
+  const matches =
+    (supportType === "commercial" && isCommercialRepo) ||
+    (supportType === "oss" && !isCommercialRepo);
+  setOutput("repository-matches-support-window", matches);
 }
 
 function _resolveVersion(input) {

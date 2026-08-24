@@ -4,6 +4,8 @@ This GitHub action determines whether a Spring project branch (or version) is cu
 
 By default it uses the workflow's ref name (`$GITHUB_REF_NAME`), so inside a typical release workflow no inputs are required. Callers can also pass an explicit project version (such as `6.4.16-SNAPSHOT`) when the relevant version isn't the running ref.
 
+A four-digit version or branch (`major.minor.patch.build`, for example `6.4.3.1`) is always reported as `commercial`, without a Projects API lookup, since that numbering scheme is only ever used for commercial-only hotfix lines.
+
 == Inputs
 
 |===
@@ -39,6 +41,9 @@ By default it uses the workflow's ref name (`$GITHUB_REF_NAME`), so inside a typ
 
 | `commercial-end`
 | The commercial support end date for the generation, in `YYYY-MM` format.
+
+| `repository-matches-support-window`
+| Whether the current repository matches the computed support window: `true` if `support-type` is `commercial` and the repository name ends with `-commercial`, or if `support-type` is `oss` and it doesn't; `false` otherwise.
 |===
 
 == Example Usage

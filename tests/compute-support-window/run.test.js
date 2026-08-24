@@ -28,10 +28,13 @@ const generation = ({ ossEnd, commercialEnd }) => ({
   enterprise: { frequency: 3, offset: 1, end: commercialEnd },
 });
 
-function inputs({ version }) {
+function inputs({
+  version,
+  repository = "spring-projects/spring-security",
+}) {
   return {
     version,
-    repository: "spring-projects/spring-security",
+    repository,
     projectSlug: "spring-security",
     projectsApiBase: undefined,
   };
@@ -152,7 +155,31 @@ describe("compute-support-window run", () => {
     expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
   });
 
-  it("resolves four-digit GA version to correct major.minor generation", async () => {
+  it("treats a four-digit GA version as commercial without a generation lookup", async () => {
+    await run(inputs({ version: "6.4.3.1" }), new Date(2026, 5, 15));
+
+    expect(websiteModule.__getMock).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith("support-type", "commercial");
+    expect(core.setOutput).not.toHaveBeenCalledWith(
+      "oss-end",
+      expect.anything(),
+    );
+    expect(core.setOutput).not.toHaveBeenCalledWith(
+      "commercial-end",
+      expect.anything(),
+    );
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("treats a four-digit snapshot version as commercial without a generation lookup", async () => {
+    await run(inputs({ version: "6.4.3.1-SNAPSHOT" }), new Date(2026, 5, 15));
+
+    expect(websiteModule.__getMock).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith("support-type", "commercial");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("treats a four-digit version as commercial even within its generation's real OSS window", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
         ossEnd: { year: 2026, month: 11, day: 24 },
@@ -162,28 +189,8 @@ describe("compute-support-window run", () => {
 
     await run(inputs({ version: "6.4.3.1" }), new Date(2026, 5, 15));
 
-    const passed = websiteModule.__getMock.mock.calls[0][0];
-    expect(passed.major).toBe(6);
-    expect(passed.minor).toBe(4);
-    expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
-    expect(core.setFailed).not.toHaveBeenCalled();
-  });
-
-  it("resolves four-digit snapshot version to correct major.minor generation", async () => {
-    websiteModule.__getMock.mockResolvedValue(
-      generation({
-        ossEnd: { year: 2026, month: 11, day: 24 },
-        commercialEnd: { year: 2027, month: 2, day: 24 },
-      }),
-    );
-
-    await run(inputs({ version: "6.4.3.1-SNAPSHOT" }), new Date(2026, 5, 15));
-
-    const passed = websiteModule.__getMock.mock.calls[0][0];
-    expect(passed.major).toBe(6);
-    expect(passed.minor).toBe(4);
-    expect(core.setOutput).toHaveBeenCalledWith("support-type", "oss");
-    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(websiteModule.__getMock).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith("support-type", "commercial");
   });
 
   it("fails when the version has no parseable major.minor", async () => {
@@ -213,5 +220,145 @@ describe("compute-support-window run", () => {
     expect(core.setFailed).toHaveBeenCalledTimes(1);
     expect(core.setFailed).toHaveBeenCalledWith("Projects API returned 503");
     expect(core.setOutput).not.toHaveBeenCalled();
+  });
+
+  describe("repository-matches-support-window", () => {
+    it("is true for oss support-type in a non-commercial repository", async () => {
+      websiteModule.__getMock.mockResolvedValue(
+        generation({
+          ossEnd: { year: 2026, month: 11, day: 24 },
+          commercialEnd: { year: 2027, month: 2, day: 24 },
+        }),
+      );
+
+      await run(
+        inputs({
+          version: "6.4.x",
+          repository: "spring-projects/spring-security",
+        }),
+        new Date(2026, 5, 15),
+      );
+
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "repository-matches-support-window",
+        true,
+      );
+    });
+
+    it("is true for commercial support-type in a commercial repository", async () => {
+      websiteModule.__getMock.mockResolvedValue(
+        generation({
+          ossEnd: { year: 2026, month: 11, day: 24 },
+          commercialEnd: { year: 2027, month: 2, day: 24 },
+        }),
+      );
+
+      await run(
+        inputs({
+          version: "6.4.x",
+          repository: "spring-projects/spring-security-commercial",
+        }),
+        new Date(2026, 11, 15),
+      );
+
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "repository-matches-support-window",
+        true,
+      );
+    });
+
+    it("is false for oss support-type in a commercial repository", async () => {
+      websiteModule.__getMock.mockResolvedValue(
+        generation({
+          ossEnd: { year: 2026, month: 11, day: 24 },
+          commercialEnd: { year: 2027, month: 2, day: 24 },
+        }),
+      );
+
+      await run(
+        inputs({
+          version: "6.4.x",
+          repository: "spring-projects/spring-security-commercial",
+        }),
+        new Date(2026, 5, 15),
+      );
+
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "repository-matches-support-window",
+        false,
+      );
+    });
+
+    it("is false for commercial support-type in a non-commercial repository", async () => {
+      websiteModule.__getMock.mockResolvedValue(
+        generation({
+          ossEnd: { year: 2026, month: 11, day: 24 },
+          commercialEnd: { year: 2027, month: 2, day: 24 },
+        }),
+      );
+
+      await run(
+        inputs({
+          version: "6.4.x",
+          repository: "spring-projects/spring-security",
+        }),
+        new Date(2026, 11, 15),
+      );
+
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "repository-matches-support-window",
+        false,
+      );
+    });
+
+    it("is false for eol support-type regardless of repository", async () => {
+      websiteModule.__getMock.mockResolvedValue(
+        generation({
+          ossEnd: { year: 2026, month: 11, day: 24 },
+          commercialEnd: { year: 2027, month: 2, day: 24 },
+        }),
+      );
+
+      await run(
+        inputs({
+          version: "6.4.x",
+          repository: "spring-projects/spring-security-commercial",
+        }),
+        new Date(2027, 5, 1),
+      );
+
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "repository-matches-support-window",
+        false,
+      );
+    });
+
+    it("is true for a four-digit (commercial) version in a commercial repository", async () => {
+      await run(
+        inputs({
+          version: "6.4.3.1",
+          repository: "spring-projects/spring-security-commercial",
+        }),
+      );
+
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "repository-matches-support-window",
+        true,
+      );
+    });
+
+    it("is false for a four-digit (commercial) version in a non-commercial repository", async () => {
+      await run(
+        inputs({
+          version: "6.4.3.1",
+          repository: "spring-projects/spring-security",
+        }),
+      );
+
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "repository-matches-support-window",
+        false,
+      );
+    });
   });
 });
