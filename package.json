@@ -22,7 +22,7 @@
     "@jest/globals": "^30.4.1",
     "@kie/act-js": "^2.6.2",
     "@kie/mock-github": "^2.0.2",
-    "@vercel/ncc": "0.38.4",
+    "@vercel/ncc": "0.45.0",
     "@vitest/coverage-v8": "^4.1.8",
     "express": "^5.2.1",
     "husky": "^9.1.7",
