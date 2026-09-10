@@ -136,24 +136,28 @@ class Milestones {
    */
   async scheduleMilestone(title, date, description) {
     const milestone = await this.findMilestoneByTitle(title);
-    const dueDate = new Date(date).toISOString();
+    const dueDate = date ? new Date(date).toISOString() : undefined;
     if (milestone) {
-      this.core.info(`Updating milestone ${title} to due ${date}`);
+      this.core.info(
+        `Updating milestone ${title}` + (dueDate ? ` to due ${date}` : ""),
+      );
       await this.gh.rest.issues.updateMilestone({
         owner: this.owner,
         repo: this.repo,
         milestone_number: milestone.number,
-        due_on: dueDate,
+        ...(dueDate && { due_on: dueDate }),
         description: description,
       });
       this.core.info(`Updated milestone ${title}`);
     } else {
-      this.core.info(`Creating milestone ${title} due ${date}`);
+      this.core.info(
+        `Creating milestone ${title}` + (dueDate ? ` due ${date}` : ""),
+      );
       await this.gh.rest.issues.createMilestone({
         owner: this.owner,
         repo: this.repo,
         title: title,
-        due_on: dueDate,
+        ...(dueDate && { due_on: dueDate }),
         description: description,
       });
       this.core.info(`Created milestone ${title}`);

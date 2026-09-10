@@ -85,6 +85,22 @@ describe('schedule-milestone integration', () => {
 		expect(updated.description).toBe('updated description');
 	});
 
+	it('creates a new milestone without a due date when version-date is omitted', async () => {
+		await run({
+			version: '4.0.0',
+			versionDate: '',
+			description: 'no due date',
+			repository: 'owner/repo',
+			token: 'test-token',
+		});
+
+		const created = milestones.find((m) => m.title === '4.0.0');
+		expect(created).toBeDefined();
+		expect(created.due_on).toBeUndefined();
+		expect(created.description).toBe('no due date');
+		expect(created.state).toBe('open');
+	});
+
 	it('does not affect other milestones when creating a new one', async () => {
 		await run({
 			version: '3.0.0',
