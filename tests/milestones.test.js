@@ -76,6 +76,28 @@ describe('Milestones', () => {
 				description: 'description'
 			});
 		});
+
+		it('updates an existing milestone without a due date when none is given', async () => {
+			milestones.findMilestoneByTitle = vi.fn().mockResolvedValue({number: 1});
+			await milestones.scheduleMilestone('title', undefined, 'description');
+			expect(mockUpdateMilestone).toHaveBeenCalledWith({
+				owner: 'owner',
+				repo: 'repo',
+				milestone_number: 1,
+				description: 'description'
+			});
+		});
+
+		it('creates a new milestone without a due date when none is given', async () => {
+			milestones.findMilestoneByTitle = vi.fn().mockResolvedValue(null);
+			await milestones.scheduleMilestone('title', undefined, 'description');
+			expect(mockCreateMilestone).toHaveBeenCalledWith({
+				owner: 'owner',
+				repo: 'repo',
+				title: 'title',
+				description: 'description'
+			});
+		});
 	});
 
 	describe('findNextOpenMilestoneForGeneration', () => {

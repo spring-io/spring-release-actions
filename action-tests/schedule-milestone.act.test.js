@@ -20,6 +20,7 @@ describe("schedule-milestone", () => {
 
       expect(steps.some((s) => s.name === "Main Create new milestone")).toBe(true);
       expect(steps.some((s) => s.name === "Main Update existing milestone")).toBe(true);
+      expect(steps.some((s) => s.name === "Main Create milestone without a due date")).toBe(true);
       expect(steps.filter((s) => s.status === 1)).toHaveLength(0);
     },
     120_000,

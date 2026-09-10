@@ -28,3 +28,10 @@ jobs:
           description: "Updated"
           repository: owner/repo
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create milestone without a due date
+        uses: ./schedule-milestone
+        with:
+          version: "3.0.0"
+          repository: owner/repo
+          token: ${{ secrets.GITHUB_TOKEN }}

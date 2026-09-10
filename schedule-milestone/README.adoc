@@ -8,8 +8,8 @@ This GitHub action schedules a milestone, updating it if it already exists.
 | Input | Description | Required
 
 | `version-date`
-| The version date.
-| `true`
+| The version date; if omitted, the milestone is scheduled without a due date.
+| `false`
 
 | `version`
 | The version to schedule.

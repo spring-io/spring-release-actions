@@ -4,8 +4,8 @@ author: "jzheaux"
 
 inputs:
   version-date:
-    description: "The version date"
-    required: true
+    description: "The version date; if omitted, the milestone is scheduled without a due date"
+    required: false
   version:
     description: "The version to schedule"
     required: true
