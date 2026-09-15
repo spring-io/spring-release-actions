@@ -16,6 +16,9 @@ changelog:
     - title: ":nut_and_bolt: Build Updates"
       labels: ["type: task", "in: build"]
       sort: "title"
+    - title: ":broom: Clean-up"
+      labels: ["type: polish"]
+      sort: "title"
   issues:
     exclude:
       labels: ["status: duplicate"]
