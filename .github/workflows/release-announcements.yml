@@ -1,0 +1,46 @@
+name: "Release - Announcements"
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version that was just released (for example, 6.3.1)"
+        required: true
+  workflow_call:
+    inputs:
+      version:
+        description: "The version that was just released (for example, 6.3.1)"
+        required: true
+        type: string
+    secrets:
+      SPRING_RELEASE_GCHAT_WEBHOOK_URL:
+        required: true
+
+jobs:
+  announce:
+    name: "Announce Release"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Announce Release on GChat
+        uses: ./announce-on-gchat
+        with:
+          version: ${{ inputs.version }}
+          gchat-webhook-url: ${{ secrets.SPRING_RELEASE_GCHAT_WEBHOOK_URL }}
+      - id: next-release-milestone
+        name: "Compute Milestone After ${{ inputs.version }}"
+        uses: ./compute-next-version
+        with:
+          version: ${{ inputs.version }}
+          token: ${{ github.token }}
+          projects-api-base: '.'
+      - name: Plan Release on GChat
+        uses: ./plan-on-gchat
+        if: ${{ steps.next-release-milestone.outputs.version-type == 'oss' }}
+        with:
+          version: ${{ steps.next-release-milestone.outputs.version }}
+          version-date: ${{ steps.next-release-milestone.outputs.version-date }}
+          gchat-webhook-url: ${{ secrets.SPRING_RELEASE_GCHAT_WEBHOOK_URL }}

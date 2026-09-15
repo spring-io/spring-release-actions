@@ -1,0 +1,35 @@
+name: "Release - Publish Release Notes"
+
+permissions:
+  contents: write
+  issues: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The milestone/tag to generate and publish release notes for (for example, 6.3.1)"
+        required: true
+  workflow_call:
+    inputs:
+      version:
+        description: "The milestone/tag to generate and publish release notes for (for example, 6.3.1)"
+        required: true
+        type: string
+
+jobs:
+  publish-release-notes:
+    name: "Publish Release Notes"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Generate Changelog
+        uses: spring-io/github-changelog-generator@f7d7a87a3e7c627ecb8c26cf086c38ac5a939721 # v0.0.14
+        with:
+          milestone: ${{ inputs.version }}
+          token: ${{ github.token }}
+          config-file: etc/release-notes-sections.yml
+      - name: Publish Changelog
+        uses: ./publish-release-notes
+        with:
+          tag: ${{ inputs.version }}
