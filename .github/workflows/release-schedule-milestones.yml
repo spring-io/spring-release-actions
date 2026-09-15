@@ -1,0 +1,59 @@
+name: "Release - Schedule Milestones"
+
+permissions:
+  contents: write
+  issues: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version that was just released (for example, 6.3.1); its milestone is closed and the next milestone(s) are scheduled"
+        required: true
+  workflow_call:
+    inputs:
+      version:
+        description: "The version that was just released (for example, 6.3.1); its milestone is closed and the next milestone(s) are scheduled"
+        required: true
+        type: string
+
+jobs:
+  schedule-milestones:
+    name: "Schedule Milestones"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Close Release Milestone
+        uses: ./close-milestone
+        with:
+          version: ${{ inputs.version }}
+          token: ${{ github.token }}
+      - id: next-release-milestone
+        name: "Compute Milestone After ${{ inputs.version }}"
+        uses: ./compute-next-version
+        with:
+          version: ${{ inputs.version }}
+          token: ${{ github.token }}
+          projects-api-base: '.'
+      - name: "Ensure ${{ steps.next-release-milestone.outputs.version }} Scheduled"
+        uses: ./schedule-milestone
+        if: ${{ steps.next-release-milestone.outputs.version-type == 'oss' }}
+        with:
+          version: ${{ steps.next-release-milestone.outputs.version }}
+          version-date: ${{ steps.next-release-milestone.outputs.version-date }}
+          token: ${{ github.token }}
+      - id: next-next-release-milestone
+        name: "Compute Milestone After ${{ steps.next-release-milestone.outputs.version }}"
+        uses: ./compute-next-version
+        if: ${{ steps.next-release-milestone.outputs.version-type == 'oss' }}
+        with:
+          version: ${{ steps.next-release-milestone.outputs.version }}
+          token: ${{ github.token }}
+          projects-api-base: '.'
+      - name: "Ensure ${{ steps.next-next-release-milestone.outputs.version }} Scheduled"
+        uses: ./schedule-milestone
+        if: ${{ steps.next-next-release-milestone.outputs.version-type == 'oss' }}
+        with:
+          version: ${{ steps.next-next-release-milestone.outputs.version }}
+          version-date: ${{ steps.next-next-release-milestone.outputs.version-date }}
+          token: ${{ github.token }}
