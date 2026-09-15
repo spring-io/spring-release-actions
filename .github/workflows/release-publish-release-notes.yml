@@ -3,6 +3,7 @@ name: "Release - Publish Release Notes"
 permissions:
   contents: write
   issues: write
+  pull-requests: read
 
 on:
   workflow_dispatch:
