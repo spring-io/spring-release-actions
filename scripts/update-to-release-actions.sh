@@ -75,7 +75,7 @@ while IFS= read -r -d '' file; do
     UPDATED_FILES+=("${file}")
   fi
   rm -f "${backup}"
-done < <(find "${TARGET_DIR}" \( -name '*.yml' -o -name '*.yaml' \) -type f -not -path '*/.git/*' -print0)
+done < <(find "${TARGET_DIR}" \( -name '*.yml' -o -name '*.yaml' -o -name '*.yml.template' -o -name '*.yaml.template' \) -type f -not -path '*/.git/*' -print0)
 
 if [[ "${#UPDATED_FILES[@]}" -eq 0 ]]; then
   echo "No outdated references found; nothing to do."
