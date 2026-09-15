@@ -40423,6 +40423,9 @@ __webpack_unused_export__ = defaultContentType
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/asset-relocator-loader */
+/******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = decodeURIComponent(new URL('.', import.meta.url).pathname).slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
+/******/ 
 /******/ /* webpack/runtime/create fake namespace object */
 /******/ (() => {
 /******/ 	var getProto = Object.getPrototypeOf ? (obj) => (Object.getPrototypeOf(obj)) : (obj) => (obj.__proto__);
@@ -40489,10 +40492,6 @@ __webpack_unused_export__ = defaultContentType
 /******/ 		return module;
 /******/ 	};
 /******/ })();
-/******/ 
-/******/ /* webpack/runtime/compat */
-/******/ 
-/******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
 /******/ 
 /************************************************************************/
 var __webpack_exports__ = {};
