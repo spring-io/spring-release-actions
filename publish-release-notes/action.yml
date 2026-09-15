@@ -28,8 +28,6 @@ runs:
         RELEASE_NOTES_LOCATION: ${{ inputs.release-notes-location }}
         PRERELEASE: ${{ (contains(inputs.tag, '-M') || contains(inputs.tag, '-RC')) && '--prerelease' || '' }}
       run: |
-        git config user.name 'github-actions[bot]'
-        git config user.email 'github-actions[bot]@users.noreply.github.com'
         set +e
         gh release delete $TAG -y
         RELEASE_URL=$(gh release create $TAG -F $RELEASE_NOTES_LOCATION $PRERELEASE --target $GITHUB_SHA)
