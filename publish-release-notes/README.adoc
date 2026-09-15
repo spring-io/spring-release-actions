@@ -14,6 +14,10 @@ This GitHub action publishes release notes.
 | `release-notes-location`
 | The location of the release notes file; defaults to changelog.md.
 | `false`
+
+| `token`
+| The token with permissions to create and delete releases; defaults to `github.token`.
+| `false`
 |===
 
 == Example Usage

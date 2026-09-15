@@ -12,13 +12,18 @@ inputs:
     required: false
     default: "changelog.md"
 
+  token:
+    description: "The token with permissions to create and delete releases"
+    required: false
+    default: ${{ github.token }}
+
 runs:
   using: "composite"
   steps:
     - name: Publish Release Notes
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ inputs.token }}
         TAG: ${{ inputs.tag }}
         RELEASE_NOTES_LOCATION: ${{ inputs.release-notes-location }}
         PRERELEASE: ${{ (contains(inputs.tag, '-M') || contains(inputs.tag, '-RC')) && '--prerelease' || '' }}
