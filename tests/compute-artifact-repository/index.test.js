@@ -16,6 +16,7 @@ describe("compute-artifact-repository", () => {
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://repo1.maven.org");
       expect(core.setOutput).toHaveBeenCalledWith("name", "maven2");
       expect(core.setOutput).toHaveBeenCalledWith("project", "");
+      expect(core.setOutput).toHaveBeenCalledWith("public", true);
     });
 
     it("outputs repo.spring.io and libs-snapshot-local for a SNAPSHOT", async () => {
@@ -50,6 +51,7 @@ describe("compute-artifact-repository", () => {
       expect(core.setOutput).toHaveBeenCalledWith("uri", "https://usw1.packages.broadcom.com");
       expect(core.setOutput).toHaveBeenCalledWith("name", "spring-enterprise-maven-prod-local");
       expect(core.setOutput).toHaveBeenCalledWith("project", "spring");
+      expect(core.setOutput).toHaveBeenCalledWith("public", false);
     });
 
     it("outputs broadcom URI and dev-local for a SNAPSHOT", async () => {

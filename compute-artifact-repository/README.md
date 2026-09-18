@@ -18,6 +18,7 @@ Determines the deployment repository **URI** and **name** for publishing artifac
 |--------|-------------|
 | `uri`  | The artifact repository base URI (e.g. `https://repo.spring.io`, `central`, or `https://usw1.packages.broadcom.com`). |
 | `name` | The artifact repository name (e.g. `libs-snapshot-local`, `central`, or a commercial repo name). |
+| `public` | Whether the artifact repository is public or private. |
 
 ## Example usage
 

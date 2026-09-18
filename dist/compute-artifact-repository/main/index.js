@@ -43672,6 +43672,7 @@ async function run(inputs = new Inputs()) {
   setOutput("uri", uri);
   setOutput("name", name);
   setOutput("project", project);
+  setOutput("public", !isCommercial);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
