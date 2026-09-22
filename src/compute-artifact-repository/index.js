@@ -35,7 +35,6 @@ async function run(inputs = new Inputs()) {
   core.setOutput("uri", uri);
   core.setOutput("name", name);
   core.setOutput("project", project);
-  core.setOutput("public", !isCommercial);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
