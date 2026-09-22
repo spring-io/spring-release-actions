@@ -1,0 +1,35 @@
+name: "compute-release-channel"
+description: "An action that determines which release channel is underway on the current branch: 'lts', 'hotfix', 'internal', or 'oss'"
+author: "jzheaux"
+
+inputs:
+  ref:
+    description: "The branch or tag name to classify (for example, '5.7.x', 'release/4.1.1.1', or 'main'). Defaults to the workflow's ref name."
+    required: false
+    default: ${{ github.ref_name }}
+  version:
+    description: "A fallback project version (for example, '6.4.16-SNAPSHOT'), used only when 'ref' isn't a recognizable version-shaped branch name (such as 'main'). Typically sourced from the compute-version action."
+    required: false
+  private:
+    description: "Whether the current repository is private. Defaults to the repository's actual visibility, so that private forks are classified correctly."
+    required: false
+    default: ${{ github.event.repository.private || false }}
+  repository:
+    description: "The repository to use for project-slug derivation"
+    required: false
+    default: ${{ github.repository }}
+  project-slug:
+    description: "The project slug for the Projects API (https://api.spring.io/projects). Defaults to the repository name with `-commercial` stripped."
+    required: false
+  projects-api-base:
+    description: "The base URL or filesystem path for the Projects API. Defaults to 'https://api.spring.io'. Use '.' to read generation metadata from the local 'projects/' directory."
+    required: false
+    default: "https://api.spring.io"
+
+outputs:
+  channel:
+    description: "The release channel underway on this branch: 'lts', 'hotfix', 'internal', or 'oss'."
+
+runs:
+  using: "node24"
+  main: '../dist/compute-release-channel/main/index.js'

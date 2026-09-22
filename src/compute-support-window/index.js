@@ -3,6 +3,7 @@ import * as core from "@actions/core";
 import { Inputs } from "./inputs.js";
 import { Website } from "../website.js";
 import { Version } from "../versions.js";
+import { classifySupportPhase } from "../support-phase.js";
 
 async function run(inputs = new Inputs(), now = new Date()) {
   const version = _resolveVersion(inputs.version);
@@ -39,7 +40,7 @@ async function run(inputs = new Inputs(), now = new Date()) {
   };
   const ossEnd = generation.oss.end;
   const commercialEnd = generation.enterprise.end;
-  const supportType = _classify(today, ossEnd, commercialEnd);
+  const supportType = classifySupportPhase(today, ossEnd, commercialEnd);
   const ossEndStr = _formatYearMonth(ossEnd);
   const commercialEndStr = _formatYearMonth(commercialEnd);
   core.info(
@@ -66,26 +67,6 @@ function _resolveVersion(input) {
     return null;
   }
   return v;
-}
-
-function _classify(today, ossEnd, commercialEnd) {
-  if (_onOrBefore(today, ossEnd)) {
-    return "oss";
-  }
-  if (_onOrBefore(today, commercialEnd)) {
-    return "commercial";
-  }
-  return "eol";
-}
-
-function _onOrBefore(today, end) {
-  if (today.year !== end.year) {
-    return today.year < end.year;
-  }
-  if (today.month !== end.month) {
-    return today.month < end.month;
-  }
-  return today.day <= end.day;
 }
 
 function _formatYearMonth({ year, month }) {
