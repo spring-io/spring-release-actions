@@ -1,0 +1,26 @@
+name: compute-release-channel
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Start Spring Projects server
+        uses: ./__fixtures__/spring-projects-server
+        with:
+          generations: '[{"name":"5.7","ossSupportEndDate":"2020-06","commercialSupportEndDate":"2031-01"}]'
+
+      - name: Compute release channel
+        id: release-channel
+        uses: ./compute-release-channel
+        with:
+          ref: "5.7.x"
+          private: "true"
+          repository: owner/repo
+          project-slug: spring-security
+          projects-api-base: ${{ env.PROJECTS_API_BASE }}
+
+      - name: Assert release channel is lts
+        run: |
+          test "${{ steps.release-channel.outputs.channel }}" = "lts"

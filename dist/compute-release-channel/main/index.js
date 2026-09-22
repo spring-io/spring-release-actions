@@ -3369,7 +3369,7 @@ module.exports = {
 
 
 const diagnosticsChannel = __nccwpck_require__(3053)
-const util = __nccwpck_require__(7975)
+const util = __nccwpck_require__(356)
 
 const undiciDebugLog = util.debuglog('undici')
 const fetchDebuglog = util.debuglog('fetch')
@@ -4662,7 +4662,7 @@ module.exports = Request
 const { EventEmitter } = __nccwpck_require__(8474)
 const { Buffer } = __nccwpck_require__(4573)
 const { InvalidArgumentError, Socks5ProxyError } = __nccwpck_require__(8707)
-const { debuglog } = __nccwpck_require__(7975)
+const { debuglog } = __nccwpck_require__(356)
 const { parseAddress } = __nccwpck_require__(1732)
 
 const debug = debuglog('undici:socks5')
@@ -13148,7 +13148,7 @@ const { kBusy, kConnected, kDispatch, kClose, kDestroy } = __nccwpck_require__(6
 const Pool = __nccwpck_require__(628)
 const buildConnector = __nccwpck_require__(9136)
 const { setupConnectTimeout } = __nccwpck_require__(3440)
-const { debuglog } = __nccwpck_require__(7975)
+const { debuglog } = __nccwpck_require__(356)
 
 const debug = debuglog('undici:socks5-proxy')
 
@@ -19152,7 +19152,7 @@ module.exports.MockCallHistoryLog = MockCallHistoryLog
 
 
 
-const { promisify } = __nccwpck_require__(7975)
+const { promisify } = __nccwpck_require__(356)
 const Client = __nccwpck_require__(3701)
 const { buildMockDispatch } = __nccwpck_require__(3397)
 const {
@@ -19279,7 +19279,7 @@ const {
   types: {
     isPromise
   }
-} = __nccwpck_require__(7975)
+} = __nccwpck_require__(356)
 
 /**
  * Defines the scope API for an interceptor reply
@@ -19497,7 +19497,7 @@ module.exports.MockScope = MockScope
 
 
 
-const { promisify } = __nccwpck_require__(7975)
+const { promisify } = __nccwpck_require__(356)
 const Pool = __nccwpck_require__(628)
 const { buildMockDispatch } = __nccwpck_require__(3397)
 const {
@@ -19626,7 +19626,7 @@ const {
   types: {
     isPromise
   }
-} = __nccwpck_require__(7975)
+} = __nccwpck_require__(356)
 const { InvalidArgumentError } = __nccwpck_require__(8707)
 const requestAborted = Symbol('request aborted')
 
@@ -28556,7 +28556,7 @@ module.exports = {
 const { iteratorMixin } = __nccwpck_require__(3168)
 const { kEnumerableProperty } = __nccwpck_require__(3440)
 const { webidl } = __nccwpck_require__(7879)
-const nodeUtil = __nccwpck_require__(7975)
+const nodeUtil = __nccwpck_require__(356)
 const { runtimeFeatures } = __nccwpck_require__(313)
 
 const random = runtimeFeatures.has('crypto')
@@ -28896,7 +28896,7 @@ const {
 } = __nccwpck_require__(3168)
 const { webidl } = __nccwpck_require__(7879)
 const assert = __nccwpck_require__(4589)
-const util = __nccwpck_require__(7975)
+const util = __nccwpck_require__(356)
 
 /**
  * @param {number} code
@@ -32055,7 +32055,7 @@ module.exports = {
 const { extractBody, mixinBody, cloneBody, bodyUnusable } = __nccwpck_require__(4492)
 const { Headers, fill: fillHeaders, HeadersList, setHeadersGuard, getHeadersGuard, setHeadersList, getHeadersList } = __nccwpck_require__(660)
 const util = __nccwpck_require__(3440)
-const nodeUtil = __nccwpck_require__(7975)
+const nodeUtil = __nccwpck_require__(356)
 const {
   isValidHTTPToken,
   sameOrigin,
@@ -33204,7 +33204,7 @@ module.exports = {
 const { Headers, HeadersList, fill, getHeadersGuard, setHeadersGuard, setHeadersList } = __nccwpck_require__(660)
 const { extractBody, cloneBody, mixinBody, streamRegistry, bodyUnusable } = __nccwpck_require__(4492)
 const util = __nccwpck_require__(3440)
-const nodeUtil = __nccwpck_require__(7975)
+const nodeUtil = __nccwpck_require__(356)
 const { kEnumerableProperty } = util
 const {
   isValidReasonPhrase,
@@ -35935,7 +35935,7 @@ module.exports = {
 
 
 const assert = __nccwpck_require__(4589)
-const { types, inspect } = __nccwpck_require__(7975)
+const { types, inspect } = __nccwpck_require__(356)
 const { markAsUncloneable } = __nccwpck_require__(5919)
 
 const UNDEFINED = 1
@@ -40560,7 +40560,7 @@ module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:url");
 
 /***/ }),
 
-/***/ 7975:
+/***/ 356:
 /***/ ((module) => {
 
 module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:util");
@@ -43709,19 +43709,19 @@ function getIDToken(aud) {
  */
 
 //# sourceMappingURL=core.js.map
-;// CONCATENATED MODULE: ./src/compute-support-window/inputs.js
+;// CONCATENATED MODULE: ./src/compute-release-channel/inputs.js
 
 
 class Inputs {
   constructor() {
-    this.version = getInput("version");
-    if (!this.version) {
-      throw new Error("'version' must be provided.");
-    }
-    this.repository = getInput("repository");
+    this.ref = getInput("ref") || process.env.GITHUB_REF_NAME;
+    this.version = getInput("version") || undefined;
+    this.private = getBooleanInput("private");
+    this.repository =
+      getInput("repository") || process.env.GITHUB_REPOSITORY;
     this.projectSlug =
       getInput("project-slug") || _slugFromRepository(this.repository);
-    this.projectsApiBase = getInput("projects-api-base");
+    this.projectsApiBase = getInput("projects-api-base") || undefined;
     Object.freeze(this);
   }
 }
@@ -44211,6 +44211,72 @@ function _nextSnapshot(version) {
 
 
 
+;// CONCATENATED MODULE: ./src/compute-release-channel/resolve-version.js
+
+
+const REF_PREFIX = /^refs\/(heads|tags)\//;
+const HOTFIX_LINE = /^(\d+)\.(\d+)\.(\d+)\.x$/;
+const GENERATION = /^(\d+)\.(\d+)\.x(?:-internal)?$/;
+const RELEASE = /^release\/(.+)$/;
+
+/**
+ * Resolve a major/minor version (and whether it's a four-digit hotfix
+ * version) from a branch/tag ref, falling back to an explicit version
+ * string when the ref isn't a recognizable version-shaped branch (for
+ * example, 'main' or a feature branch).
+ *
+ * @param ref a branch or tag name, e.g. '5.7.x', 'release/4.1.1.1', 'main'
+ * @param version a fallback version string, e.g. '6.4.16-SNAPSHOT'
+ * @returns {{version: Version, fourDigit: boolean, unpublished: boolean}|null}
+ *   null when neither the ref nor the fallback version yields a parseable
+ *   major.minor. `unpublished` is true for a milestone/RC or a first-GA
+ *   ('z.y.0') release, where the support-calendar generation may not exist
+ *   or may not yet be accurate, and so should not be consulted.
+ */
+function resolveVersion({ ref, version }) {
+  const bareRef = (ref || "").replace(REF_PREFIX, "");
+
+  const hotfixLine = HOTFIX_LINE.exec(bareRef);
+  if (hotfixLine) {
+    return _fromString(
+      `${hotfixLine[1]}.${hotfixLine[2]}.${hotfixLine[3]}.0`,
+      false,
+    );
+  }
+
+  const generation = GENERATION.exec(bareRef);
+  if (generation) {
+    return _fromString(`${generation[1]}.${generation[2]}.0`, false);
+  }
+
+  const release = RELEASE.exec(bareRef);
+  if (release) {
+    const resolved = _fromString(release[1], true);
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  if (version) {
+    return _fromString(version, true);
+  }
+
+  return null;
+}
+
+function _fromString(value, canBeUnpublished) {
+  const v = new Version(value);
+  if (Number.isNaN(v.major) || Number.isNaN(v.minor)) {
+    return null;
+  }
+  const fourDigit = !Number.isNaN(v.build);
+  const unpublished =
+    canBeUnpublished && !fourDigit && (v.prerelease || v.patch === 0);
+  return { version: v, fourDigit, unpublished };
+}
+
+
+
 ;// CONCATENATED MODULE: ./src/support-phase.js
 /**
  * Classify where {@code today} falls relative to a generation's OSS and
@@ -44247,7 +44313,7 @@ function _onOrBefore(today, end) {
 
 
 
-;// CONCATENATED MODULE: ./src/compute-support-window/index.js
+;// CONCATENATED MODULE: ./src/compute-release-channel/index.js
 
 
 
@@ -44256,71 +44322,81 @@ function _onOrBefore(today, end) {
 
 
 async function run(inputs = new Inputs(), now = new Date()) {
-  const version = _resolveVersion(inputs.version);
-  if (!version) {
-    setFailed(`Could not derive a major.minor from '${inputs.version}'.`);
-    return;
-  }
-  if (!Number.isNaN(version.build)) {
+  const resolved = resolveVersion({ ref: inputs.ref, version: inputs.version });
+
+  if (!resolved) {
+    const channel = inputs.private ? "internal" : "oss";
     info(
-      `${version.version} is a four-digit version; treating as commercial without a generation lookup.`,
+      `Could not derive a version from ref '${inputs.ref}'; classifying as '${channel}' based on repository visibility alone.`,
     );
-    setOutput("support-type", "commercial");
-    _setRepositoryMatch(inputs, "commercial");
+    setOutput("channel", channel);
     return;
   }
+
+  if (resolved.fourDigit) {
+    info(
+      `${resolved.version.version} is a four-digit version; classifying as 'hotfix'.`,
+    );
+    setOutput("channel", "hotfix");
+    return;
+  }
+
+  if (resolved.unpublished) {
+    const channel = inputs.private ? "internal" : "oss";
+    info(
+      `${resolved.version.version} is a milestone/RC or first-GA release; classifying as '${channel}' based on repository visibility alone, since the support calendar may not yet reflect this generation.`,
+    );
+    setOutput("channel", channel);
+    return;
+  }
+
   const projects = new Website(inputs, core_namespaceObject);
   let generation;
   try {
-    generation = await projects.getGenerationByVersion(version);
+    generation = await projects.getGenerationByVersion(resolved.version);
   } catch (error) {
     setFailed(error.message);
     return;
   }
   if (!generation) {
     setFailed(
-      `Could not find generation for ${version.major}.${version.minor}.`,
+      `Could not find generation for ${resolved.version.major}.${resolved.version.minor}.`,
     );
     return;
   }
+
   const today = {
     year: now.getFullYear(),
     month: now.getMonth() + 1,
     day: now.getDate(),
   };
-  const ossEnd = generation.oss.end;
-  const commercialEnd = generation.enterprise.end;
-  const supportType = classifySupportPhase(today, ossEnd, commercialEnd);
-  const ossEndStr = _formatYearMonth(ossEnd);
-  const commercialEndStr = _formatYearMonth(commercialEnd);
-  info(
-    `Support window for ${version.major}.${version.minor}: oss ends ${ossEndStr}, commercial ends ${commercialEndStr} -> ${supportType}`,
+  const phase = classifySupportPhase(
+    today,
+    generation.oss.end,
+    generation.enterprise.end,
   );
-  setOutput("support-type", supportType);
-  setOutput("oss-end", ossEndStr);
-  setOutput("commercial-end", commercialEndStr);
-  _setRepositoryMatch(inputs, supportType);
-}
-
-function _setRepositoryMatch(inputs, supportType) {
-  const isCommercialRepo = inputs.repository.endsWith("-commercial");
-  const matches =
-    (supportType === "commercial" && isCommercialRepo) ||
-    (supportType === "oss" && !isCommercialRepo);
-  setOutput("repository-matches-support-window", matches);
-}
-
-function _resolveVersion(input) {
-  const stripped = input.replace(/^refs\/(heads|tags)\//, "");
-  const v = new Version(stripped);
-  if (Number.isNaN(v.major) || Number.isNaN(v.minor)) {
-    return null;
+  const channel = _decide(phase, inputs.private);
+  if (!channel) {
+    setFailed(
+      `Could not determine a release channel for generation ${resolved.version.major}.${resolved.version.minor} (support phase '${phase}', private=${inputs.private}).`,
+    );
+    return;
   }
-  return v;
+
+  info(
+    `Resolved release channel '${channel}' for generation ${resolved.version.major}.${resolved.version.minor} (support phase '${phase}', private=${inputs.private}).`,
+  );
+  setOutput("channel", channel);
 }
 
-function _formatYearMonth({ year, month }) {
-  return `${year}-${String(month).padStart(2, "0")}`;
+function _decide(phase, isPrivate) {
+  if (phase === "oss") {
+    return isPrivate ? "internal" : "oss";
+  }
+  if (phase === "commercial") {
+    return isPrivate ? "lts" : null;
+  }
+  return null;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
