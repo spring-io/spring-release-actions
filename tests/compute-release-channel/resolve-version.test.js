@@ -42,6 +42,7 @@ describe("resolveVersion", () => {
     expect(resolved.version.minor).toBe(2);
     expect(resolved.fourDigit).toBe(false);
     expect(resolved.unpublished).toBe(false);
+    expect(resolved.internalBranch).toBe(true);
   });
 
   it("resolves a bare generation branch with no -internal suffix the same way", () => {
@@ -51,6 +52,7 @@ describe("resolveVersion", () => {
     expect(resolved.version.minor).toBe(2);
     expect(resolved.fourDigit).toBe(false);
     expect(resolved.unpublished).toBe(false);
+    expect(resolved.internalBranch).toBe(false);
   });
 
   it("resolves a plain GA release branch", () => {

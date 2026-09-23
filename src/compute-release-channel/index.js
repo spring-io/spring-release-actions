@@ -9,11 +9,14 @@ async function run(inputs = new Inputs(), now = new Date()) {
   const resolved = resolveVersion({ ref: inputs.ref, version: inputs.version });
 
   if (!resolved) {
-    const channel = inputs.private ? "internal" : "oss";
-    core.info(
-      `Could not derive a version from ref '${inputs.ref}'; classifying as '${channel}' based on repository visibility alone.`,
+    _fallback(inputs, `Could not derive a version from ref '${inputs.ref}'`);
+    return;
+  }
+
+  if (resolved.internalBranch && !inputs.private) {
+    core.setFailed(
+      `'${inputs.ref}' is an '-internal' branch, but the repository isn't private; an internal branch in a public repository is a configuration error.`,
     );
-    core.setOutput("channel", channel);
     return;
   }
 
@@ -26,11 +29,10 @@ async function run(inputs = new Inputs(), now = new Date()) {
   }
 
   if (resolved.unpublished) {
-    const channel = inputs.private ? "internal" : "oss";
-    core.info(
-      `${resolved.version.version} is a milestone/RC or first-GA release; classifying as '${channel}' based on repository visibility alone, since the support calendar may not yet reflect this generation.`,
+    _fallback(
+      inputs,
+      `${resolved.version.version} is a milestone/RC or first-GA release, so the support calendar may not yet reflect this generation`,
     );
-    core.setOutput("channel", channel);
     return;
   }
 
@@ -43,8 +45,9 @@ async function run(inputs = new Inputs(), now = new Date()) {
     return;
   }
   if (!generation) {
-    core.setFailed(
-      `Could not find generation for ${resolved.version.major}.${resolved.version.minor}.`,
+    _fallback(
+      inputs,
+      `Could not find generation data for ${resolved.version.major}.${resolved.version.minor}`,
     );
     return;
   }
@@ -69,6 +72,14 @@ async function run(inputs = new Inputs(), now = new Date()) {
 
   core.info(
     `Resolved release channel '${channel}' for generation ${resolved.version.major}.${resolved.version.minor} (support phase '${phase}', private=${inputs.private}).`,
+  );
+  core.setOutput("channel", channel);
+}
+
+function _fallback(inputs, reason) {
+  const channel = inputs.private ? "internal" : "oss";
+  core.info(
+    `${reason}; classifying as '${channel}' based on repository visibility alone.`,
   );
   core.setOutput("channel", channel);
 }
