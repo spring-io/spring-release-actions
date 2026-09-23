@@ -3,13 +3,9 @@ description: "An action that determines which release channel is underway on the
 author: "jzheaux"
 
 inputs:
-  ref:
-    description: "The branch or tag name to classify (for example, '5.7.x', 'release/4.1.1.1', or 'main'). Defaults to the workflow's ref name."
-    required: false
-    default: ${{ github.ref_name }}
   version:
-    description: "A fallback project version (for example, '6.4.16-SNAPSHOT'), used only when 'ref' isn't a recognizable version-shaped branch name (such as 'main'). Typically sourced from the compute-version action."
-    required: false
+    description: "The project version to classify (for example, '6.4.16-SNAPSHOT', '4.1.1.1', or '7.2.0-M1'). Typically sourced from the compute-version action."
+    required: true
   private:
     description: "Whether the current repository is private. Defaults to the repository's actual visibility, so that private forks are classified correctly."
     required: false

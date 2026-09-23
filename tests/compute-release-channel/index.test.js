@@ -29,13 +29,11 @@ const generation = ({ ossEnd, commercialEnd }) => ({
 });
 
 function inputs({
-  ref,
   version,
   private: isPrivate,
   repository = "spring-projects/spring-security",
 }) {
   return {
-    ref,
     version,
     private: isPrivate,
     repository,
@@ -56,22 +54,58 @@ describe("compute-release-channel run", () => {
     vi.restoreAllMocks();
   });
 
-  it("classifies a hotfix-line branch as hotfix without a generation lookup", async () => {
-    await run(inputs({ ref: "4.1.1.x", private: true }));
+  it("classifies a four-digit version in a private repository as hotfix without a generation lookup", async () => {
+    await run(inputs({ version: "4.1.1.1", private: true }));
 
     expect(websiteModule.__getMock).not.toHaveBeenCalled();
     expect(core.setOutput).toHaveBeenCalledWith("channel", "hotfix");
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
-  it("classifies a four-digit release branch as hotfix", async () => {
-    await run(inputs({ ref: "release/4.1.1.1", private: true }));
+  it("fails for a four-digit version in a public repository, since that's a configuration error", async () => {
+    await run(inputs({ version: "4.1.1.1", private: false }));
+
+    expect(websiteModule.__getMock).not.toHaveBeenCalled();
+    expect(core.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining("configuration error"),
+    );
+    expect(core.setOutput).not.toHaveBeenCalledWith(
+      "channel",
+      expect.anything(),
+    );
+  });
+
+  it("classifies an -INTERNAL-SNAPSHOT version in a private repository as internal without a generation lookup", async () => {
+    await run(inputs({ version: "7.2.1-INTERNAL-SNAPSHOT", private: true }));
+
+    expect(websiteModule.__getMock).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("fails for an -INTERNAL-SNAPSHOT version in a public repository, since that's a configuration error", async () => {
+    await run(inputs({ version: "7.2.1-INTERNAL-SNAPSHOT", private: false }));
+
+    expect(websiteModule.__getMock).not.toHaveBeenCalled();
+    expect(core.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining("configuration error"),
+    );
+    expect(core.setOutput).not.toHaveBeenCalledWith(
+      "channel",
+      expect.anything(),
+    );
+  });
+
+  it("classifies a four-digit -INTERNAL-SNAPSHOT version in a private repository as hotfix, since four-digit takes priority", async () => {
+    await run(
+      inputs({ version: "7.2.1.5-INTERNAL-SNAPSHOT", private: true }),
+    );
 
     expect(websiteModule.__getMock).not.toHaveBeenCalled();
     expect(core.setOutput).toHaveBeenCalledWith("channel", "hotfix");
   });
 
-  it("classifies an oss-phase private generation branch as internal", async () => {
+  it("classifies an oss-phase private version as internal", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
         ossEnd: { year: 2026, month: 11, day: 24 },
@@ -79,12 +113,15 @@ describe("compute-release-channel run", () => {
       }),
     );
 
-    await run(inputs({ ref: "7.2.x", private: true }), new Date(2026, 5, 15));
+    await run(
+      inputs({ version: "7.2.3", private: true }),
+      new Date(2026, 5, 15),
+    );
 
     expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
   });
 
-  it("classifies an oss-phase public generation branch as oss", async () => {
+  it("classifies an oss-phase public version as oss", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
         ossEnd: { year: 2026, month: 11, day: 24 },
@@ -92,12 +129,15 @@ describe("compute-release-channel run", () => {
       }),
     );
 
-    await run(inputs({ ref: "7.1.x", private: false }), new Date(2026, 5, 15));
+    await run(
+      inputs({ version: "7.1.3", private: false }),
+      new Date(2026, 5, 15),
+    );
 
     expect(core.setOutput).toHaveBeenCalledWith("channel", "oss");
   });
 
-  it("classifies a commercial-phase private generation branch as lts", async () => {
+  it("classifies a commercial-phase private version as lts", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
         ossEnd: { year: 2026, month: 11, day: 24 },
@@ -105,12 +145,15 @@ describe("compute-release-channel run", () => {
       }),
     );
 
-    await run(inputs({ ref: "5.7.x", private: true }), new Date(2026, 11, 15));
+    await run(
+      inputs({ version: "5.7.29", private: true }),
+      new Date(2026, 11, 15),
+    );
 
     expect(core.setOutput).toHaveBeenCalledWith("channel", "lts");
   });
 
-  it("errors on a commercial-phase generation in a public repository", async () => {
+  it("errors on a commercial-phase version in a public repository", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
         ossEnd: { year: 2026, month: 11, day: 24 },
@@ -118,7 +161,10 @@ describe("compute-release-channel run", () => {
       }),
     );
 
-    await run(inputs({ ref: "5.7.x", private: false }), new Date(2026, 11, 15));
+    await run(
+      inputs({ version: "5.7.29", private: false }),
+      new Date(2026, 11, 15),
+    );
 
     expect(core.setFailed).toHaveBeenCalled();
     expect(core.setOutput).not.toHaveBeenCalledWith(
@@ -135,7 +181,10 @@ describe("compute-release-channel run", () => {
       }),
     );
 
-    await run(inputs({ ref: "5.7.x", private: true }), new Date(2027, 5, 1));
+    await run(
+      inputs({ version: "5.7.29", private: true }),
+      new Date(2027, 5, 1),
+    );
 
     expect(core.setFailed).toHaveBeenCalled();
     expect(core.setOutput).not.toHaveBeenCalledWith(
@@ -144,94 +193,10 @@ describe("compute-release-channel run", () => {
     );
   });
 
-  it("classifies an unresolved private ref as internal without a generation lookup", async () => {
-    await run(inputs({ ref: "main", private: true }));
-
-    expect(websiteModule.__getMock).not.toHaveBeenCalled();
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
-    expect(core.setFailed).not.toHaveBeenCalled();
-  });
-
-  it("classifies an unresolved public ref as oss without a generation lookup", async () => {
-    await run(inputs({ ref: "main", private: false }));
-
-    expect(websiteModule.__getMock).not.toHaveBeenCalled();
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "oss");
-  });
-
-  it("falls back to the version input when the ref doesn't resolve", async () => {
-    websiteModule.__getMock.mockResolvedValue(
-      generation({
-        ossEnd: { year: 2026, month: 11, day: 24 },
-        commercialEnd: { year: 2027, month: 2, day: 24 },
-      }),
-    );
-
-    await run(
-      inputs({ ref: "main", version: "6.4.16-SNAPSHOT", private: true }),
-      new Date(2026, 5, 15),
-    );
-
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
-  });
-
-  it("classifies a milestone release branch as internal without a generation lookup, even if the calendar would say otherwise", async () => {
-    websiteModule.__getMock.mockResolvedValue(
-      generation({
-        ossEnd: { year: 2020, month: 1, day: 1 },
-        commercialEnd: { year: 2021, month: 1, day: 1 },
-      }),
-    );
-
-    await run(inputs({ ref: "release/7.2.0-M1", private: true }));
-
-    expect(websiteModule.__getMock).not.toHaveBeenCalled();
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
-    expect(core.setFailed).not.toHaveBeenCalled();
-  });
-
-  it("classifies an RC release branch as oss without a generation lookup", async () => {
-    await run(inputs({ ref: "release/7.3.0-RC1", private: false }));
-
-    expect(websiteModule.__getMock).not.toHaveBeenCalled();
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "oss");
-  });
-
-  it("classifies a first-GA release branch (patch 0) as internal without a generation lookup", async () => {
-    await run(inputs({ ref: "release/7.0.0", private: true }));
-
-    expect(websiteModule.__getMock).not.toHaveBeenCalled();
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
-  });
-
-  it("classifies a first-GA release branch (patch 0) as oss when public", async () => {
-    await run(inputs({ ref: "release/7.0.0", private: false }));
-
-    expect(websiteModule.__getMock).not.toHaveBeenCalled();
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "oss");
-  });
-
-  it("still performs a real generation lookup for a non-zero patch GA release", async () => {
-    websiteModule.__getMock.mockResolvedValue(
-      generation({
-        ossEnd: { year: 2026, month: 11, day: 24 },
-        commercialEnd: { year: 2027, month: 2, day: 24 },
-      }),
-    );
-
-    await run(
-      inputs({ ref: "release/7.2.3", private: true }),
-      new Date(2026, 5, 15),
-    );
-
-    expect(websiteModule.__getMock).toHaveBeenCalled();
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
-  });
-
   it("falls back to internal when the generation lookup returns null for a private repository", async () => {
     websiteModule.__getMock.mockResolvedValue(null);
 
-    await run(inputs({ ref: "5.7.x", private: true }));
+    await run(inputs({ version: "5.7.29", private: true }));
 
     expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
     expect(core.setFailed).not.toHaveBeenCalled();
@@ -240,51 +205,35 @@ describe("compute-release-channel run", () => {
   it("falls back to oss when the generation lookup returns null for a public repository", async () => {
     websiteModule.__getMock.mockResolvedValue(null);
 
-    await run(inputs({ ref: "7.1.x", private: false }));
+    await run(inputs({ version: "7.1.3", private: false }));
 
     expect(core.setOutput).toHaveBeenCalledWith("channel", "oss");
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
-  it("falls back to internal for a private -internal branch when the generation can't be found", async () => {
-    websiteModule.__getMock.mockResolvedValue(null);
-
-    await run(inputs({ ref: "4.2.x-internal", private: true }));
-
-    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
-    expect(core.setFailed).not.toHaveBeenCalled();
-  });
-
-  it("fails for a public -internal branch without a generation lookup, since that's a configuration error", async () => {
-    await run(inputs({ ref: "4.2.x-internal", private: false }));
-
-    expect(websiteModule.__getMock).not.toHaveBeenCalled();
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("configuration error"),
-    );
-    expect(core.setOutput).not.toHaveBeenCalledWith(
-      "channel",
-      expect.anything(),
-    );
-  });
-
-  it("fails for a public -internal branch even when the generation would otherwise resolve", async () => {
+  it("still performs a real generation lookup for a milestone version, unlike branch-name-only classification", async () => {
     websiteModule.__getMock.mockResolvedValue(
       generation({
-        ossEnd: { year: 2026, month: 11, day: 24 },
-        commercialEnd: { year: 2027, month: 2, day: 24 },
+        ossEnd: { year: 2020, month: 1, day: 1 },
+        commercialEnd: { year: 2021, month: 1, day: 1 },
       }),
     );
 
     await run(
-      inputs({ ref: "6.4.x-internal", private: false }),
+      inputs({ version: "7.2.0-M1", private: true }),
       new Date(2026, 5, 15),
     );
 
+    expect(websiteModule.__getMock).toHaveBeenCalled();
+    expect(core.setFailed).toHaveBeenCalled();
+  });
+
+  it("fails when the version can't be parsed", async () => {
+    await run(inputs({ version: "not-a-version", private: true }));
+
     expect(websiteModule.__getMock).not.toHaveBeenCalled();
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("configuration error"),
-    );
+    expect(core.setFailed).toHaveBeenCalled();
+    expect(core.setOutput).not.toHaveBeenCalled();
   });
 
   it("fails once with the underlying error message when the API throws", async () => {
@@ -292,7 +241,7 @@ describe("compute-release-channel run", () => {
       new Error("Projects API returned 503"),
     );
 
-    await run(inputs({ ref: "5.7.x", private: true }));
+    await run(inputs({ version: "5.7.29", private: true }));
 
     expect(core.setFailed).toHaveBeenCalledTimes(1);
     expect(core.setFailed).toHaveBeenCalledWith("Projects API returned 503");

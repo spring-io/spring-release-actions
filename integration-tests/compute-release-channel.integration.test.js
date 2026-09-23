@@ -37,9 +37,9 @@ describe("compute-release-channel integration", () => {
     core.setFailed.mockReset();
   });
 
-  it("resolves lts for a commercial-phase generation branch in a private repository", async () => {
+  it("resolves lts for a commercial-phase version in a private repository", async () => {
     await run({
-      ref: "5.7.x",
+      version: "5.7.29",
       private: true,
       repository: "spring-projects/spring-security-commercial",
       projectSlug: "spring-security",
@@ -50,9 +50,9 @@ describe("compute-release-channel integration", () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
-  it("resolves oss for an oss-phase generation branch in a public repository", async () => {
+  it("resolves oss for an oss-phase version in a public repository", async () => {
     await run({
-      ref: "7.1.x",
+      version: "7.1.3",
       private: false,
       repository: "spring-projects/spring-security",
       projectSlug: "spring-security",

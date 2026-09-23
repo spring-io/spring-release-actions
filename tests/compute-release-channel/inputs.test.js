@@ -8,7 +8,13 @@ vi.mock(
 );
 
 function setupInputs(map, boolMap = {}) {
-  core.getInput.mockImplementation((name) => map[name] ?? "");
+  core.getInput.mockImplementation((name, options) => {
+    const value = map[name] ?? "";
+    if (options?.required && !value) {
+      throw new Error(`Input required and not supplied: ${name}`);
+    }
+    return value;
+  });
   core.getBooleanInput.mockImplementation((name) => {
     if (!(name in boolMap)) {
       throw new Error(`no boolean input stubbed for '${name}'`);
@@ -22,10 +28,9 @@ describe("compute-release-channel Inputs constructor", () => {
     vi.restoreAllMocks();
   });
 
-  it("reads ref, version, private, and repository", () => {
+  it("reads version, private, and repository", () => {
     setupInputs(
       {
-        ref: "5.7.x",
         version: "5.7.29",
         repository: "spring-projects/spring-security",
       },
@@ -34,7 +39,6 @@ describe("compute-release-channel Inputs constructor", () => {
 
     const inputs = new Inputs();
 
-    expect(inputs.ref).toBe("5.7.x");
     expect(inputs.version).toBe("5.7.29");
     expect(inputs.private).toBe(true);
     expect(inputs.repository).toBe("spring-projects/spring-security");
@@ -42,21 +46,19 @@ describe("compute-release-channel Inputs constructor", () => {
     expect(Object.isFrozen(inputs)).toBe(true);
   });
 
-  it("leaves version undefined when not provided", () => {
+  it("requires version", () => {
     setupInputs(
-      { ref: "main", repository: "spring-projects/spring-security" },
+      { repository: "spring-projects/spring-security" },
       { private: false },
     );
 
-    const inputs = new Inputs();
-
-    expect(inputs.version).toBeUndefined();
+    expect(() => new Inputs()).toThrow(/version/);
   });
 
   it("strips -commercial from repository name for projectSlug", () => {
     setupInputs(
       {
-        ref: "5.7.x",
+        version: "5.7.29",
         repository: "spring-projects/spring-security-commercial",
       },
       { private: true },
@@ -69,7 +71,7 @@ describe("compute-release-channel Inputs constructor", () => {
 
   it("does not validate repository when project-slug is given", () => {
     setupInputs(
-      { ref: "5.7.x", repository: "", "project-slug": "spring-security" },
+      { version: "5.7.29", repository: "", "project-slug": "spring-security" },
       { private: true },
     );
 
@@ -80,7 +82,7 @@ describe("compute-release-channel Inputs constructor", () => {
 
   it("rejects a repository that is not in owner/repo format", () => {
     setupInputs(
-      { ref: "5.7.x", repository: "spring-security" },
+      { version: "5.7.29", repository: "spring-security" },
       { private: true },
     );
 
@@ -90,7 +92,7 @@ describe("compute-release-channel Inputs constructor", () => {
   it("respects explicit overrides", () => {
     setupInputs(
       {
-        ref: "5.7.x",
+        version: "5.7.29",
         repository: "custom/override-repo",
         "project-slug": "override-slug",
         "projects-api-base": "http://localhost:9999",
