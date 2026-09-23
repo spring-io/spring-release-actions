@@ -15,7 +15,7 @@ jobs:
         id: release-channel
         uses: ./compute-release-channel
         with:
-          ref: "5.7.x"
+          version: "5.7.29"
           private: "true"
           repository: owner/repo
           project-slug: spring-security

@@ -2,8 +2,7 @@ import * as core from "@actions/core";
 
 class Inputs {
   constructor() {
-    this.ref = core.getInput("ref") || process.env.GITHUB_REF_NAME;
-    this.version = core.getInput("version") || undefined;
+    this.version = core.getInput("version", { required: true });
     this.private = core.getBooleanInput("private");
     this.repository =
       core.getInput("repository") || process.env.GITHUB_REPOSITORY;

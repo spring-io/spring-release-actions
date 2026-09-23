@@ -3369,7 +3369,7 @@ module.exports = {
 
 
 const diagnosticsChannel = __nccwpck_require__(3053)
-const util = __nccwpck_require__(356)
+const util = __nccwpck_require__(7975)
 
 const undiciDebugLog = util.debuglog('undici')
 const fetchDebuglog = util.debuglog('fetch')
@@ -4662,7 +4662,7 @@ module.exports = Request
 const { EventEmitter } = __nccwpck_require__(8474)
 const { Buffer } = __nccwpck_require__(4573)
 const { InvalidArgumentError, Socks5ProxyError } = __nccwpck_require__(8707)
-const { debuglog } = __nccwpck_require__(356)
+const { debuglog } = __nccwpck_require__(7975)
 const { parseAddress } = __nccwpck_require__(1732)
 
 const debug = debuglog('undici:socks5')
@@ -13148,7 +13148,7 @@ const { kBusy, kConnected, kDispatch, kClose, kDestroy } = __nccwpck_require__(6
 const Pool = __nccwpck_require__(628)
 const buildConnector = __nccwpck_require__(9136)
 const { setupConnectTimeout } = __nccwpck_require__(3440)
-const { debuglog } = __nccwpck_require__(356)
+const { debuglog } = __nccwpck_require__(7975)
 
 const debug = debuglog('undici:socks5-proxy')
 
@@ -19152,7 +19152,7 @@ module.exports.MockCallHistoryLog = MockCallHistoryLog
 
 
 
-const { promisify } = __nccwpck_require__(356)
+const { promisify } = __nccwpck_require__(7975)
 const Client = __nccwpck_require__(3701)
 const { buildMockDispatch } = __nccwpck_require__(3397)
 const {
@@ -19279,7 +19279,7 @@ const {
   types: {
     isPromise
   }
-} = __nccwpck_require__(356)
+} = __nccwpck_require__(7975)
 
 /**
  * Defines the scope API for an interceptor reply
@@ -19497,7 +19497,7 @@ module.exports.MockScope = MockScope
 
 
 
-const { promisify } = __nccwpck_require__(356)
+const { promisify } = __nccwpck_require__(7975)
 const Pool = __nccwpck_require__(628)
 const { buildMockDispatch } = __nccwpck_require__(3397)
 const {
@@ -19626,7 +19626,7 @@ const {
   types: {
     isPromise
   }
-} = __nccwpck_require__(356)
+} = __nccwpck_require__(7975)
 const { InvalidArgumentError } = __nccwpck_require__(8707)
 const requestAborted = Symbol('request aborted')
 
@@ -28556,7 +28556,7 @@ module.exports = {
 const { iteratorMixin } = __nccwpck_require__(3168)
 const { kEnumerableProperty } = __nccwpck_require__(3440)
 const { webidl } = __nccwpck_require__(7879)
-const nodeUtil = __nccwpck_require__(356)
+const nodeUtil = __nccwpck_require__(7975)
 const { runtimeFeatures } = __nccwpck_require__(313)
 
 const random = runtimeFeatures.has('crypto')
@@ -28896,7 +28896,7 @@ const {
 } = __nccwpck_require__(3168)
 const { webidl } = __nccwpck_require__(7879)
 const assert = __nccwpck_require__(4589)
-const util = __nccwpck_require__(356)
+const util = __nccwpck_require__(7975)
 
 /**
  * @param {number} code
@@ -32055,7 +32055,7 @@ module.exports = {
 const { extractBody, mixinBody, cloneBody, bodyUnusable } = __nccwpck_require__(4492)
 const { Headers, fill: fillHeaders, HeadersList, setHeadersGuard, getHeadersGuard, setHeadersList, getHeadersList } = __nccwpck_require__(660)
 const util = __nccwpck_require__(3440)
-const nodeUtil = __nccwpck_require__(356)
+const nodeUtil = __nccwpck_require__(7975)
 const {
   isValidHTTPToken,
   sameOrigin,
@@ -33204,7 +33204,7 @@ module.exports = {
 const { Headers, HeadersList, fill, getHeadersGuard, setHeadersGuard, setHeadersList } = __nccwpck_require__(660)
 const { extractBody, cloneBody, mixinBody, streamRegistry, bodyUnusable } = __nccwpck_require__(4492)
 const util = __nccwpck_require__(3440)
-const nodeUtil = __nccwpck_require__(356)
+const nodeUtil = __nccwpck_require__(7975)
 const { kEnumerableProperty } = util
 const {
   isValidReasonPhrase,
@@ -35935,7 +35935,7 @@ module.exports = {
 
 
 const assert = __nccwpck_require__(4589)
-const { types, inspect } = __nccwpck_require__(356)
+const { types, inspect } = __nccwpck_require__(7975)
 const { markAsUncloneable } = __nccwpck_require__(5919)
 
 const UNDEFINED = 1
@@ -40560,7 +40560,7 @@ module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:url");
 
 /***/ }),
 
-/***/ 356:
+/***/ 7975:
 /***/ ((module) => {
 
 module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:util");
@@ -43714,8 +43714,7 @@ function getIDToken(aud) {
 
 class Inputs {
   constructor() {
-    this.ref = getInput("ref") || process.env.GITHUB_REF_NAME;
-    this.version = getInput("version") || undefined;
+    this.version = getInput("version", { required: true });
     this.private = getBooleanInput("private");
     this.repository =
       getInput("repository") || process.env.GITHUB_REPOSITORY;
@@ -44211,79 +44210,6 @@ function _nextSnapshot(version) {
 
 
 
-;// CONCATENATED MODULE: ./src/compute-release-channel/resolve-version.js
-
-
-const REF_PREFIX = /^refs\/(heads|tags)\//;
-const HOTFIX_LINE = /^(\d+)\.(\d+)\.(\d+)\.x$/;
-const GENERATION = /^(\d+)\.(\d+)\.x(-internal)?$/;
-const RELEASE = /^release\/(.+)$/;
-
-/**
- * Resolve a major/minor version (and whether it's a four-digit hotfix
- * version) from a branch/tag ref, falling back to an explicit version
- * string when the ref isn't a recognizable version-shaped branch (for
- * example, 'main' or a feature branch).
- *
- * @param ref a branch or tag name, e.g. '5.7.x', 'release/4.1.1.1', 'main'
- * @param version a fallback version string, e.g. '6.4.16-SNAPSHOT'
- * @returns {{version: Version, fourDigit: boolean, unpublished: boolean, internalBranch: boolean}|null}
- *   null when neither the ref nor the fallback version yields a parseable
- *   major.minor. `unpublished` is true for a milestone/RC or a first-GA
- *   ('z.y.0') release, where the support-calendar generation may not exist
- *   or may not yet be accurate, and so should not be consulted. `internalBranch`
- *   is true when the ref is a generation branch with a '-internal' suffix,
- *   used as a fallback signal when the generation itself can't be found (for
- *   example, a brand-new generation with no support-calendar data yet).
- */
-function resolveVersion({ ref, version }) {
-  const bareRef = (ref || "").replace(REF_PREFIX, "");
-
-  const hotfixLine = HOTFIX_LINE.exec(bareRef);
-  if (hotfixLine) {
-    return _fromString(
-      `${hotfixLine[1]}.${hotfixLine[2]}.${hotfixLine[3]}.0`,
-      false,
-    );
-  }
-
-  const generation = GENERATION.exec(bareRef);
-  if (generation) {
-    const resolved = _fromString(`${generation[1]}.${generation[2]}.0`, false);
-    if (resolved) {
-      resolved.internalBranch = Boolean(generation[3]);
-    }
-    return resolved;
-  }
-
-  const release = RELEASE.exec(bareRef);
-  if (release) {
-    const resolved = _fromString(release[1], true);
-    if (resolved) {
-      return resolved;
-    }
-  }
-
-  if (version) {
-    return _fromString(version, true);
-  }
-
-  return null;
-}
-
-function _fromString(value, canBeUnpublished) {
-  const v = new Version(value);
-  if (Number.isNaN(v.major) || Number.isNaN(v.minor)) {
-    return null;
-  }
-  const fourDigit = !Number.isNaN(v.build);
-  const unpublished =
-    canBeUnpublished && !fourDigit && (v.prerelease || v.patch === 0);
-  return { version: v, fourDigit, unpublished, internalBranch: false };
-}
-
-
-
 ;// CONCATENATED MODULE: ./src/support-phase.js
 /**
  * Classify where {@code today} falls relative to a generation's OSS and
@@ -44329,32 +44255,36 @@ function _onOrBefore(today, end) {
 
 
 async function run(inputs = new Inputs(), now = new Date()) {
-  const resolved = resolveVersion({ ref: inputs.ref, version: inputs.version });
-
-  if (!resolved) {
-    _fallback(inputs, `Could not derive a version from ref '${inputs.ref}'`);
+  const version = new Version(inputs.version);
+  if (Number.isNaN(version.major) || Number.isNaN(version.minor)) {
+    setFailed(`Could not parse a version from '${inputs.version}'.`);
     return;
   }
 
-  if (resolved.internalBranch && !inputs.private) {
+  if (!Number.isNaN(version.build)) {
+    if (inputs.private) {
+      info(
+        `${version.version} is a four-digit version; classifying as 'hotfix'.`,
+      );
+      setOutput("channel", "hotfix");
+      return;
+    }
     setFailed(
-      `'${inputs.ref}' is an '-internal' branch, but the repository isn't private; an internal branch in a public repository is a configuration error.`,
+      `${version.version} is a four-digit version in a public repository; a hotfix line in a public repository is a configuration error.`,
     );
     return;
   }
 
-  if (resolved.fourDigit) {
-    info(
-      `${resolved.version.version} is a four-digit version; classifying as 'hotfix'.`,
-    );
-    setOutput("channel", "hotfix");
-    return;
-  }
-
-  if (resolved.unpublished) {
-    _fallback(
-      inputs,
-      `${resolved.version.version} is a milestone/RC or first-GA release, so the support calendar may not yet reflect this generation`,
+  if (version.classifier === "INTERNAL") {
+    if (inputs.private) {
+      info(
+        `${version.version} is an '-INTERNAL' version; classifying as 'internal'.`,
+      );
+      setOutput("channel", "internal");
+      return;
+    }
+    setFailed(
+      `${version.version} is an '-INTERNAL' version in a public repository; an internal version in a public repository is a configuration error.`,
     );
     return;
   }
@@ -44362,7 +44292,7 @@ async function run(inputs = new Inputs(), now = new Date()) {
   const projects = new Website(inputs, core_namespaceObject);
   let generation;
   try {
-    generation = await projects.getGenerationByVersion(resolved.version);
+    generation = await projects.getGenerationByVersion(version);
   } catch (error) {
     setFailed(error.message);
     return;
@@ -44370,7 +44300,7 @@ async function run(inputs = new Inputs(), now = new Date()) {
   if (!generation) {
     _fallback(
       inputs,
-      `Could not find generation data for ${resolved.version.major}.${resolved.version.minor}`,
+      `Could not find generation data for ${version.major}.${version.minor}`,
     );
     return;
   }
@@ -44388,13 +44318,13 @@ async function run(inputs = new Inputs(), now = new Date()) {
   const channel = _decide(phase, inputs.private);
   if (!channel) {
     setFailed(
-      `Could not determine a release channel for generation ${resolved.version.major}.${resolved.version.minor} (support phase '${phase}', private=${inputs.private}).`,
+      `Could not determine a release channel for generation ${version.major}.${version.minor} (support phase '${phase}', private=${inputs.private}).`,
     );
     return;
   }
 
   info(
-    `Resolved release channel '${channel}' for generation ${resolved.version.major}.${resolved.version.minor} (support phase '${phase}', private=${inputs.private}).`,
+    `Resolved release channel '${channel}' for generation ${version.major}.${version.minor} (support phase '${phase}', private=${inputs.private}).`,
   );
   setOutput("channel", channel);
 }
