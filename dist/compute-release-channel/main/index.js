@@ -44216,7 +44216,7 @@ function _nextSnapshot(version) {
 
 const REF_PREFIX = /^refs\/(heads|tags)\//;
 const HOTFIX_LINE = /^(\d+)\.(\d+)\.(\d+)\.x$/;
-const GENERATION = /^(\d+)\.(\d+)\.x(?:-internal)?$/;
+const GENERATION = /^(\d+)\.(\d+)\.x(-internal)?$/;
 const RELEASE = /^release\/(.+)$/;
 
 /**
@@ -44227,11 +44227,14 @@ const RELEASE = /^release\/(.+)$/;
  *
  * @param ref a branch or tag name, e.g. '5.7.x', 'release/4.1.1.1', 'main'
  * @param version a fallback version string, e.g. '6.4.16-SNAPSHOT'
- * @returns {{version: Version, fourDigit: boolean, unpublished: boolean}|null}
+ * @returns {{version: Version, fourDigit: boolean, unpublished: boolean, internalBranch: boolean}|null}
  *   null when neither the ref nor the fallback version yields a parseable
  *   major.minor. `unpublished` is true for a milestone/RC or a first-GA
  *   ('z.y.0') release, where the support-calendar generation may not exist
- *   or may not yet be accurate, and so should not be consulted.
+ *   or may not yet be accurate, and so should not be consulted. `internalBranch`
+ *   is true when the ref is a generation branch with a '-internal' suffix,
+ *   used as a fallback signal when the generation itself can't be found (for
+ *   example, a brand-new generation with no support-calendar data yet).
  */
 function resolveVersion({ ref, version }) {
   const bareRef = (ref || "").replace(REF_PREFIX, "");
@@ -44246,7 +44249,11 @@ function resolveVersion({ ref, version }) {
 
   const generation = GENERATION.exec(bareRef);
   if (generation) {
-    return _fromString(`${generation[1]}.${generation[2]}.0`, false);
+    const resolved = _fromString(`${generation[1]}.${generation[2]}.0`, false);
+    if (resolved) {
+      resolved.internalBranch = Boolean(generation[3]);
+    }
+    return resolved;
   }
 
   const release = RELEASE.exec(bareRef);
@@ -44272,7 +44279,7 @@ function _fromString(value, canBeUnpublished) {
   const fourDigit = !Number.isNaN(v.build);
   const unpublished =
     canBeUnpublished && !fourDigit && (v.prerelease || v.patch === 0);
-  return { version: v, fourDigit, unpublished };
+  return { version: v, fourDigit, unpublished, internalBranch: false };
 }
 
 
@@ -44325,11 +44332,14 @@ async function run(inputs = new Inputs(), now = new Date()) {
   const resolved = resolveVersion({ ref: inputs.ref, version: inputs.version });
 
   if (!resolved) {
-    const channel = inputs.private ? "internal" : "oss";
-    info(
-      `Could not derive a version from ref '${inputs.ref}'; classifying as '${channel}' based on repository visibility alone.`,
+    _fallback(inputs, `Could not derive a version from ref '${inputs.ref}'`);
+    return;
+  }
+
+  if (resolved.internalBranch && !inputs.private) {
+    setFailed(
+      `'${inputs.ref}' is an '-internal' branch, but the repository isn't private; an internal branch in a public repository is a configuration error.`,
     );
-    setOutput("channel", channel);
     return;
   }
 
@@ -44342,11 +44352,10 @@ async function run(inputs = new Inputs(), now = new Date()) {
   }
 
   if (resolved.unpublished) {
-    const channel = inputs.private ? "internal" : "oss";
-    info(
-      `${resolved.version.version} is a milestone/RC or first-GA release; classifying as '${channel}' based on repository visibility alone, since the support calendar may not yet reflect this generation.`,
+    _fallback(
+      inputs,
+      `${resolved.version.version} is a milestone/RC or first-GA release, so the support calendar may not yet reflect this generation`,
     );
-    setOutput("channel", channel);
     return;
   }
 
@@ -44359,8 +44368,9 @@ async function run(inputs = new Inputs(), now = new Date()) {
     return;
   }
   if (!generation) {
-    setFailed(
-      `Could not find generation for ${resolved.version.major}.${resolved.version.minor}.`,
+    _fallback(
+      inputs,
+      `Could not find generation data for ${resolved.version.major}.${resolved.version.minor}`,
     );
     return;
   }
@@ -44385,6 +44395,14 @@ async function run(inputs = new Inputs(), now = new Date()) {
 
   info(
     `Resolved release channel '${channel}' for generation ${resolved.version.major}.${resolved.version.minor} (support phase '${phase}', private=${inputs.private}).`,
+  );
+  setOutput("channel", channel);
+}
+
+function _fallback(inputs, reason) {
+  const channel = inputs.private ? "internal" : "oss";
+  info(
+    `${reason}; classifying as '${channel}' based on repository visibility alone.`,
   );
   setOutput("channel", channel);
 }

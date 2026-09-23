@@ -228,13 +228,62 @@ describe("compute-release-channel run", () => {
     expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
   });
 
-  it("fails when the generation lookup returns null", async () => {
+  it("falls back to internal when the generation lookup returns null for a private repository", async () => {
     websiteModule.__getMock.mockResolvedValue(null);
 
     await run(inputs({ ref: "5.7.x", private: true }));
 
+    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("falls back to oss when the generation lookup returns null for a public repository", async () => {
+    websiteModule.__getMock.mockResolvedValue(null);
+
+    await run(inputs({ ref: "7.1.x", private: false }));
+
+    expect(core.setOutput).toHaveBeenCalledWith("channel", "oss");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("falls back to internal for a private -internal branch when the generation can't be found", async () => {
+    websiteModule.__getMock.mockResolvedValue(null);
+
+    await run(inputs({ ref: "4.2.x-internal", private: true }));
+
+    expect(core.setOutput).toHaveBeenCalledWith("channel", "internal");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("fails for a public -internal branch without a generation lookup, since that's a configuration error", async () => {
+    await run(inputs({ ref: "4.2.x-internal", private: false }));
+
+    expect(websiteModule.__getMock).not.toHaveBeenCalled();
     expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Could not find generation"),
+      expect.stringContaining("configuration error"),
+    );
+    expect(core.setOutput).not.toHaveBeenCalledWith(
+      "channel",
+      expect.anything(),
+    );
+  });
+
+  it("fails for a public -internal branch even when the generation would otherwise resolve", async () => {
+    websiteModule.__getMock.mockResolvedValue(
+      generation({
+        ossEnd: { year: 2026, month: 11, day: 24 },
+        commercialEnd: { year: 2027, month: 2, day: 24 },
+      }),
+    );
+
+    await run(
+      inputs({ ref: "6.4.x-internal", private: false }),
+      new Date(2026, 5, 15),
+    );
+
+    expect(websiteModule.__getMock).not.toHaveBeenCalled();
+    expect(core.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining("configuration error"),
     );
   });
 
