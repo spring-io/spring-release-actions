@@ -201,4 +201,64 @@ describe('Milestones', () => {
 			expect(milestone.name).toBe("6.5.0.1");
 		});
 	})
+
+	describe('findClosedMilestonesDueWithin', () => {
+		it('finds closed milestones due within the given month and year', async () => {
+			mockListMilestones.mockResolvedValue({
+				data: [
+					{ title: '1.0.1', number: 1, due_on: '2026-08-05T00:00:00Z' },
+					{ title: '1.1.0-M1', number: 2, due_on: '2026-08-20T00:00:00Z' },
+					{ title: '1.0.2', number: 3, due_on: '2026-09-01T00:00:00Z' },
+					{ title: '1.0.0', number: 4, due_on: '2025-08-05T00:00:00Z' },
+				]
+			});
+			const found = await milestones.findClosedMilestonesDueWithin(2026, 8);
+			expect(found.map((m) => m.name)).toEqual(['1.0.1', '1.1.0-M1']);
+			expect(mockListMilestones).toHaveBeenCalledWith(
+				expect.objectContaining({ owner: 'owner', repo: 'repo', state: 'closed' }),
+			);
+		});
+
+		it('sorts results by version', async () => {
+			mockListMilestones.mockResolvedValue({
+				data: [
+					{ title: '1.1.0', number: 1, due_on: '2026-08-05T00:00:00Z' },
+					{ title: '1.0.5', number: 2, due_on: '2026-08-10T00:00:00Z' },
+				]
+			});
+			const found = await milestones.findClosedMilestonesDueWithin(2026, 8);
+			expect(found.map((m) => m.name)).toEqual(['1.0.5', '1.1.0']);
+		});
+
+		it('ignores milestones whose titles are not versions', async () => {
+			mockListMilestones.mockResolvedValue({
+				data: [
+					{ title: 'Backlog', number: 1, due_on: '2026-08-05T00:00:00Z' },
+					{ title: '1.0.1', number: 2, due_on: '2026-08-06T00:00:00Z' },
+				]
+			});
+			const found = await milestones.findClosedMilestonesDueWithin(2026, 8);
+			expect(found.map((m) => m.name)).toEqual(['1.0.1']);
+		});
+
+		it('returns an empty array when nothing is due in that month', async () => {
+			mockListMilestones.mockResolvedValue({
+				data: [
+					{ title: '1.0.1', number: 1, due_on: '2026-07-05T00:00:00Z' },
+				]
+			});
+			const found = await milestones.findClosedMilestonesDueWithin(2026, 8);
+			expect(found).toEqual([]);
+		});
+
+		it('ignores milestones without a due date', async () => {
+			mockListMilestones.mockResolvedValue({
+				data: [
+					{ title: '1.0.1', number: 1, due_on: null },
+				]
+			});
+			const found = await milestones.findClosedMilestonesDueWithin(2026, 8);
+			expect(found).toEqual([]);
+		});
+	});
 });

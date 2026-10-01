@@ -11,6 +11,7 @@ This repository is a collection of GitHub Actions that help with the release pro
 - link:./compute-release-channel/README.md[Compute Release Channel]
 - link:./compute-version/README.adoc[Compute Version]
 - link:./plan-on-gchat/README.adoc[Plan on GChat]
+- link:./propose-release-blog-post/README.adoc[Propose Release Blog Post]
 - link:./publish-release-notes/README.adoc[Publish Release Notes]
 - link:./push-next-development-version/README.adoc[Push Next Development Version]
 - link:./schedule-milestone/README.adoc[Schedule Milestone]

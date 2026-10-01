@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { Version } from "./versions.js";
-import { compareVersions } from "compare-versions";
+import { compareVersions, validate } from "compare-versions";
 
 const _noOpCore = {
   debug: () => {},
@@ -107,6 +107,43 @@ class Milestones {
   }
 
   /**
+   * Find closed milestones due within the given month of the given year
+   *
+   * @param {number} year
+   * @param {number} month 1-12
+   * @returns {Promise<Array<{ number: number, name: string, dueDate: Date, type: string }>>}
+   */
+  async findClosedMilestonesDueWithin(year, month) {
+    const milestones = await this.gh.paginate(
+      this.gh.rest.issues.listMilestones,
+      {
+        owner: this.owner,
+        repo: this.repo,
+        state: "closed",
+        per_page: 100,
+      },
+    );
+
+    this.core.info(`Looking for milestones closed and due in ${year}-${month}`);
+    this.core.debug(`Found ${milestones.length} closed milestones`);
+
+    return milestones
+      .filter(
+        (m) =>
+          m.due_on &&
+          _isDueWithinMonth(new Date(m.due_on), year, month) &&
+          validate(m.title),
+      )
+      .map((m) => ({
+        number: m.number,
+        name: m.title,
+        dueDate: new Date(m.due_on),
+        type: this.milestoneType,
+      }))
+      .sort((a, b) => compareVersions(a.name, b.name));
+  }
+
+  /**
    * Close a milestone, if it exists
    * @param title the milestone title
    * @returns {Promise<void>}
@@ -163,6 +200,12 @@ class Milestones {
       this.core.info(`Created milestone ${title}`);
     }
   }
+}
+
+function _isDueWithinMonth(dueDate, year, month) {
+  return (
+    dueDate.getUTCFullYear() === year && dueDate.getUTCMonth() + 1 === month
+  );
 }
 
 function _isOnOrAfterToday(dueDate) {
