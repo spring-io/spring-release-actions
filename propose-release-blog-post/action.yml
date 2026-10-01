@@ -1,0 +1,44 @@
+name: "propose-release-blog-post"
+description: "Proposes a draft spring.io blog post announcing a project's releases for a given month, as a PR against spring-website-content"
+author: "jzheaux"
+
+inputs:
+  repository:
+    description: "The repository whose milestones to read; uses the current repository by default"
+    required: false
+  token:
+    description: "The GitHub token for reading milestones from repository; uses the current repository's token by default"
+    required: false
+  project-name:
+    description: "The project name (for example, spring-boot); uses the repository name if not provided"
+    required: false
+  year:
+    description: "The year to look for closed milestones in; defaults to the current year"
+    required: false
+  month:
+    description: "The month (1-12) to look for closed milestones in; defaults to the current month"
+    required: false
+  author:
+    description: "The GitHub handle to use as the blog post's author; defaults to the actor running the workflow"
+    required: false
+  website-token:
+    description: "The GitHub token with permission to push a branch and open a pull request against website-repository"
+    required: true
+  website-repository:
+    description: "The website repository to propose the blog post to; defaults to spring-io/spring-website-content"
+    required: false
+  base-branch:
+    description: "The branch to base the new release branch and pull request on; defaults to main"
+    required: false
+
+outputs:
+  branch:
+    description: "The branch the blog post was proposed on"
+  path:
+    description: "The path of the proposed blog post file within website-repository"
+  pull-request-url:
+    description: "The URL of the opened (or already-open) pull request"
+
+runs:
+  using: "node24"
+  main: "../dist/propose-release-blog-post/main/index.js"

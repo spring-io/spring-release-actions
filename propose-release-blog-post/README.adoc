@@ -1,0 +1,60 @@
+= Propose Release Blog Post Action
+
+This GitHub action proposes a draft spring.io blog post announcing a project's releases for a
+given month, opening (or reusing) a `+{project}-release-{year}.{month}+` branch and pull request
+against `spring-io/spring-website-content`. The releases are ascertained from the project's
+closed GitHub milestones due in that month. The post is rendered from
+link:../src/propose-release-blog-post/release-announcement-template.js[a template] and is meant to be reviewed and edited by a
+human before it's merged.
+
+== Inputs
+
+|===
+| Input | Description | Required
+
+| `repository`
+| The repository whose milestones to read; uses the current repository by default.
+| `false`
+
+| `token`
+| The GitHub token for reading milestones from `repository`; uses the current repository's token by default.
+| `false`
+
+| `project-name`
+| The project name (for example, `spring-boot`); uses the repository name if not provided.
+| `false`
+
+| `year`
+| The year to look for closed milestones in; defaults to the current year.
+| `false`
+
+| `month`
+| The month (1-12) to look for closed milestones in; defaults to the current month.
+| `false`
+
+| `author`
+| The GitHub handle to use as the blog post's author; defaults to the actor running the workflow.
+| `false`
+
+| `website-token`
+| The GitHub token with permission to push a branch and open a pull request against `website-repository`.
+| `true`
+
+| `website-repository`
+| The website repository to propose the blog post to; defaults to `spring-io/spring-website-content`.
+| `false`
+
+| `base-branch`
+| The branch to base the new release branch and pull request on; defaults to `main`.
+| `false`
+|===
+
+== Example Usage
+
+[source,yaml]
+----
+- name: Propose Release Blog Post
+  uses: spring-io/spring-release-actions/propose-release-blog-post@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
+  with:
+    website-token: ${{ secrets.WEBSITE_CONTENT_TOKEN }}
+----

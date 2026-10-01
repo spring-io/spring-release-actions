@@ -9,6 +9,12 @@ import { writeFileSync } from "fs";
  *   GET   /repos/:owner/:repo/milestones
  *   POST  /repos/:owner/:repo/milestones
  *   PATCH /repos/:owner/:repo/milestones/:number
+ *
+ * Also handles the branch/PR endpoints used by propose-release-blog-post's website.js:
+ *   GET   /repos/:owner/:repo/git/ref/*ref
+ *   POST  /repos/:owner/:repo/git/refs
+ *   GET   /repos/:owner/:repo/pulls
+ *   POST  /repos/:owner/:repo/pulls
  */
 const DEFAULT_RUN = {
 	id: 1,
@@ -33,6 +39,9 @@ function createMockGithubServer(initialMilestones = [], options = {}) {
 	let nextNumber =
 		milestones.length > 0 ? Math.max(...milestones.map((m) => m.number)) + 1 : 1;
 	let contents = new Map();
+	let branches = new Map(Object.entries(options.branches ?? { "heads/main": "base-sha" }));
+	let pulls = [];
+	let nextPullNumber = 1;
 	const run = options.run ?? DEFAULT_RUN;
 	const jobs = options.jobs ?? DEFAULT_JOBS;
 
@@ -94,6 +103,41 @@ function createMockGithubServer(initialMilestones = [], options = {}) {
 		res.json(milestones[idx]);
 	});
 
+	app.get("/repos/:owner/:repo/git/ref/*ref", (req, res) => {
+		const ref = decodeURIComponent(req.params.ref);
+		const sha = branches.get(ref);
+		if (!sha) return res.status(404).json({ message: "Not Found" });
+		res.json({ ref: `refs/${ref}`, object: { sha, type: "commit" } });
+	});
+
+	app.post("/repos/:owner/:repo/git/refs", (req, res) => {
+		const shortRef = req.body.ref.replace(/^refs\//, "");
+		branches.set(shortRef, req.body.sha);
+		res.status(201).json({ ref: req.body.ref, object: { sha: req.body.sha, type: "commit" } });
+	});
+
+	app.get("/repos/:owner/:repo/pulls", (req, res) => {
+		const { head, base, state = "open" } = req.query;
+		let result = pulls.filter((p) => state === "all" || p.state === state);
+		if (head) result = result.filter((p) => p.head.label === head);
+		if (base) result = result.filter((p) => p.base.ref === base);
+		res.json(result);
+	});
+
+	app.post("/repos/:owner/:repo/pulls", (req, res) => {
+		const pr = {
+			number: nextPullNumber++,
+			state: "open",
+			title: req.body.title,
+			body: req.body.body,
+			html_url: `https://github.com/${req.params.owner}/${req.params.repo}/pull/${nextPullNumber - 1}`,
+			head: { ref: req.body.head, label: `${req.params.owner}:${req.body.head}` },
+			base: { ref: req.body.base },
+		};
+		pulls.push(pr);
+		res.status(201).json(pr);
+	});
+
 	const server = createServer(app);
 
 	return {
@@ -116,11 +160,17 @@ function createMockGithubServer(initialMilestones = [], options = {}) {
 		getContent(filePath) {
 			return contents.get(filePath);
 		},
-		reset(newMilestones = []) {
+		getPulls() {
+			return pulls.map((p) => ({ ...p }));
+		},
+		reset(newMilestones = [], newBranches = { "heads/main": "base-sha" }) {
 			milestones = newMilestones.map((m) => ({ ...m }));
 			nextNumber =
 				milestones.length > 0 ? Math.max(...milestones.map((m) => m.number)) + 1 : 1;
 			contents = new Map();
+			branches = new Map(Object.entries(newBranches));
+			pulls = [];
+			nextPullNumber = 1;
 		},
 	};
 }
@@ -139,9 +189,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 				{ number: 1, title: "1.0.0", state: "open", due_on: "2025-01-01T00:00:00Z", description: "" },
 				{ number: 2, title: "1.1.0", state: "open", due_on: "2025-06-01T00:00:00Z", description: "" },
 			];
+	const branches = process.env.BRANCHES ? JSON.parse(process.env.BRANCHES) : undefined;
 	const port = parseInt(process.env.PORT || process.argv[2] || "3000");
 
-	const srv = createMockGithubServer(milestones);
+	const srv = createMockGithubServer(milestones, { branches });
 	const actualPort = await srv.start(port);
 	writeFileSync("/tmp/github-server.port", String(actualPort));
 	console.log(`Mock GitHub API server listening on http://localhost:${actualPort}`);
