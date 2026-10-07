@@ -155,6 +155,35 @@ describe('version', () => {
         expect(next.dueDate.getDate()).toBe(23)
     });
 
+    describe('next release for a GA in November', () => {
+        const generation = {
+            dayOfWeek: 1,
+            weekOfMonth: 3
+        };
+
+        it.each([
+            ['M1 on schedule', '1.2.3-M1', [2026, 6, 20], '1.2.3-M2', [2026, 7, 24]],
+            ['M2 on schedule', '1.2.3-M2', [2026, 7, 24], '1.2.3-M3', [2026, 8, 28]],
+            ['M3 on schedule', '1.2.3-M3', [2026, 8, 28], '1.2.3-RC1', [2026, 9, 26]],
+            ['RC1 on schedule', '1.2.3-RC1', [2026, 9, 26], '1.2.3', [2026, 10, 23]],
+            ['M1 slipped into the M2 month', '1.2.3-M1', [2026, 7, 24], '1.2.3-M2', [2026, 8, 28]],
+            ['M1 slipped into the M3 month', '1.2.3-M1', [2026, 8, 28], '1.2.3-RC1', [2026, 9, 26]],
+            ['M2 slipped into the M3 slot', '1.2.3-M2', [2026, 8, 28], '1.2.3-RC1', [2026, 9, 26]],
+            ['M2 slipped into the RC1 month', '1.2.3-M2', [2026, 9, 12], '1.2.3-RC1', [2026, 9, 26]],
+            ['M3 slipped into the RC1 month', '1.2.3-M3', [2026, 9, 12], '1.2.3-RC1', [2026, 9, 26]],
+            ['M2 slipped past the RC1 slot', '1.2.3-M2', [2026, 9, 19], '1.2.3-RC1', [2026, 10, 2]],
+            ['M2 slipped into the GA month', '1.2.3-M2', [2026, 10, 2], '1.2.3-RC1', [2026, 10, 16]],
+            ['RC1 slipped past the GA slot', '1.2.3-RC1', [2026, 10, 16], '1.2.3', [2026, 10, 30]],
+            ['M1 across a year boundary', '1.2.3-M1', [2025, 10, 24], '1.2.3-M2', [2026, 1, 23]]
+        ])('should schedule after %s', (name, version, due, expectedVersion, expectedDue) => {
+            const v = new Version(version, new Date(due[0], due[1], due[2]));
+            const next = v.nextMilestone(generation);
+            expect(next.version).toBe(expectedVersion);
+            expect(next.dueDate).toEqual(new Date(expectedDue[0], expectedDue[1], expectedDue[2]));
+            expect(next.dueDate > v.dueDate).toBe(true);
+        });
+    });
+
     it('should calculate the next GA commercial release', () => {
         const v = new Version('1.2.3', new Date(2026, 11, 28));
         const next = v.nextMilestone(generation);
