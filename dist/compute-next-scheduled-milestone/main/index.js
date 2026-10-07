@@ -49466,6 +49466,8 @@ const releaseTrainMonths = {
   "": [4, 10],
 };
 
+const minimumDaysBetweenReleases = 14;
+
 /**
  * A class representing a version of the project.
  *
@@ -49660,45 +49662,102 @@ function _nextGaDate(version, generation) {
 }
 
 function _nextMilestone(v, generation) {
-  const nextVersion = new Version(_nextMilestoneVersion(v), v.dueDate, v.type);
-  const nextDate = _nextMilestoneDate(nextVersion, generation);
-  return new Version(nextVersion.version, nextDate, v.type);
-}
-
-function _nextMilestoneVersion(version) {
-  if (!Number.isNaN(version.build)) {
+  if (!Number.isNaN(v.build)) {
     throw new Error(
-      `Cannot advance pre-release for four-digit version ${version.version}; only GA four-digit versions are supported`,
+      `Cannot advance pre-release for four-digit version ${v.version}; only GA four-digit versions are supported`,
     );
   }
-  if (version.classifier === "M1") {
-    return `${version.major}.${version.minor}.${version.patch}-M2`;
-  }
-  if (version.classifier === "M2") {
-    return `${version.major}.${version.minor}.${version.patch}-M3`;
-  }
-  if (version.classifier.startsWith("M")) {
-    return `${version.major}.${version.minor}.${version.patch}-RC1`;
-  }
-  return `${version.major}.${version.minor}.${version.patch}`;
-}
-
-function _nextMilestoneDate(version, generation) {
-  const currentMonth = version.dueDate.getMonth();
-  const candidateMonths = releaseTrainMonths[version.classifier];
-  const index =
-    mod(candidateMonths[0] - currentMonth, 12) <
-    mod(candidateMonths[1] - currentMonth, 12)
-      ? 0
-      : 1;
-  const month = candidateMonths[index];
-  const year = version.dueDate.getFullYear() + (month < currentMonth);
-  return getReleaseDate(
-    month,
-    year,
+  const train = _releaseTrain(v);
+  const { classifier, slot } = _nextRelease(v, train);
+  const scheduled = getReleaseDate(
+    mod(slot, 12),
+    Math.floor(slot / 12),
     generation.dayOfWeek,
     generation.weekOfMonth,
   );
+  // Always leave a minimum gap between releases, e.g. when a milestone has
+  // slipped into the slot of the release that follows it
+  const earliest = new Date(
+    v.dueDate.getFullYear(),
+    v.dueDate.getMonth(),
+    v.dueDate.getDate() + minimumDaysBetweenReleases,
+  );
+  const nextVersion = _nextVersion(v, classifier);
+  return new Version(
+    nextVersion,
+    scheduled < earliest ? earliest : scheduled,
+    v.type,
+  );
+}
+
+function _nextVersion(version, classifier) {
+  const base = `${version.major}.${version.minor}.${version.patch}`;
+  return classifier ? `${base}-${classifier}` : base;
+}
+
+/**
+ * Decide which release follows the given pre-release, and in which month.
+ *
+ * GA and RC1 always happen, but M2 and M3 are optional. By default, there is one
+ * milestone a month, so M2 or M3 goes in the later of its own slot and the month
+ * after the current release. It is only scheduled if that is before RC1's slot.
+ * Otherwise, the next release is RC1, regardless of how far the current release
+ * has slipped.
+ */
+function _nextRelease(version, train) {
+  const optional = { M1: "M2", M2: "M3" }[version.classifier];
+  if (optional) {
+    const slot = Math.max(
+      train.slot(optional),
+      _monthIndex(version.dueDate) + 1,
+    );
+    if (slot < train.slot("RC1")) {
+      return { classifier: optional, slot };
+    }
+    return { classifier: "RC1", slot: train.slot("RC1") };
+  }
+  if (version.classifier.startsWith("M")) {
+    return { classifier: "RC1", slot: train.slot("RC1") };
+  }
+  return { classifier: "", slot: train.slot("") };
+}
+
+/**
+ * Find the release train that the given pre-release belongs to, which is the
+ * one whose slot for that release is nearest to its due date (a tie goes to the
+ * earlier train, since slipping is likelier than releasing early).
+ *
+ * @returns an object whose {@code slot(classifier)} gives the month index
+ * that the train releases the given classifier
+ */
+function _releaseTrain(version) {
+  // later milestones, like M4, are treated as M3
+  const classifier = releaseTrainMonths[version.classifier]
+    ? version.classifier
+    : "M3";
+  const current = _monthIndex(version.dueDate);
+  const offsets = releaseTrainMonths[classifier].map(
+    (month) => mod(month - current + 6, 12) - 6,
+  );
+  const nearest = offsets.reduce(
+    (best, offset, i) =>
+      Math.abs(offset) < Math.abs(offsets[best]) ||
+      (Math.abs(offset) === Math.abs(offsets[best]) && offset < offsets[best])
+        ? i
+        : best,
+    0,
+  );
+  const anchor = current + offsets[nearest];
+  return {
+    slot: (target) =>
+      anchor +
+      releaseTrainMonths[target][nearest] -
+      releaseTrainMonths[classifier][nearest],
+  };
+}
+
+function _monthIndex(date) {
+  return date.getFullYear() * 12 + date.getMonth();
 }
 
 function _nextSnapshot(version) {
