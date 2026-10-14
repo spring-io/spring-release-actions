@@ -25,7 +25,7 @@
     "@kie/mock-github": "^2.0.2",
     "@vercel/ncc": "0.45.0",
     "@vitest/coverage-v8": "^5.0.0",
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "husky": "^9.1.7",
     "jest": "^30.5.1",
     "msw": "^3.0.3",
