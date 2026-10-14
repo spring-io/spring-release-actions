@@ -1,6 +1,7 @@
 name: "Release - Perform Release"
 
 permissions:
+  actions: write
   contents: write
   issues: write
   pull-requests: read
@@ -14,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release-version: ${{ steps.release-version.outputs.release-version }}
-      should-release: ${{ steps.release-version.outputs.release-version != '' && steps.release-version.outputs.days-til-release == '0' && steps.count-issues.outputs.count == '0' }}
+      should-release: ${{ steps.count-issues.outputs.count == '0' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: release-version
@@ -27,6 +28,14 @@ jobs:
         uses: ./count-open-issues
         with:
           milestone: ${{ steps.release-version.outputs.release-version }}
+      # count is only '0' when a release version exists, it is due today, and no issues are open
+      - if: ${{ steps.count-issues.outputs.count != '0' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+          # cancellation is asynchronous; wait so this job cannot finish green first
+          sleep 60
 
   publish-release-notes:
     name: "Publish Release Notes"
