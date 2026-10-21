@@ -12,7 +12,7 @@
     "js-base64": "^3.9.3",
     "minimist": "^1.2.6",
     "mustache": "^4.2.0",
-    "node": "^26.11.1",
+    "node": "^26.12.0",
     "npm-run-all": "4.1.5",
     "patch-package": "8.0.1",
     "prettier": "3.9.10",
