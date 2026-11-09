@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { run } from "../src/update-learn-page/index.js";
+import { updateViaGithub } from "../src/update-learn-page/github-strategy.js";
 
 vi.mock("@actions/core", async () => await import("../__fixtures__/core.js"));
 
@@ -49,8 +49,8 @@ describe("update-learn-page (github strategy) integration", () => {
   afterEach(() => server.resetHandlers());
 
   it("creates a documentation file and then replaces same-generation entries on update", async () => {
-    await run({ ...baseInputs, version: "1.2.3" });
-    await run({ ...baseInputs, version: "1.2.4" });
+    await updateViaGithub({ ...baseInputs, version: "1.2.3" });
+    await updateViaGithub({ ...baseInputs, version: "1.2.4" });
 
     const stored = contents.get("project/spring-boot/documentation.json");
     const entries = JSON.parse(Buffer.from(stored.content, "base64").toString());

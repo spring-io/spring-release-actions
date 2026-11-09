@@ -7,9 +7,7 @@ inputs:
     description: "The current version"
     required: true
   website-token:
-    description: "The GitHub token needed to directly edit spring-website-content or spring-website-commercial-content.
-      When supplied, the action edits the documentation.json file in the website repository directly (required for commercial repos).
-      When omitted, the action uses the Spring Projects REST API (suitable for OSS repos)."
+    description: "The GitHub token that can edit spring-website-commercial-content, which is what a commercial release uses (the action fails without it). An OSS release never uses it, as it goes to the Spring Projects REST API"
     required: false
 
   release-channel:

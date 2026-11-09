@@ -54591,8 +54591,10 @@ async function run(inputs = new Inputs()) {
     return;
   }
 
-  // the Projects API only knows the OSS releases, so without a token a
-  // commercial release would end up among them
+  // The repository decides, not the presence of a token: the Projects API only
+  // knows the OSS releases, and there is none for the commercial ones, which
+  // are edited in the website repository. So a commercial release needs the
+  // token that can do that, and an OSS release never uses it.
   if (inputs.commercial && !inputs.websiteToken) {
     setFailed(
       "A commercial release needs a website-token: the Spring Projects API is only for OSS releases",
@@ -54601,7 +54603,7 @@ async function run(inputs = new Inputs()) {
   }
 
   try {
-    if (inputs.websiteToken) {
+    if (inputs.commercial) {
       await updateViaGithub(inputs);
     } else {
       await updateViaApi(inputs);
