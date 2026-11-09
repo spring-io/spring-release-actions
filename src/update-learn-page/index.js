@@ -11,6 +11,15 @@ async function run(inputs = new Inputs()) {
     return;
   }
 
+  // the Projects API only knows the OSS releases, so without a token a
+  // commercial release would end up among them
+  if (inputs.commercial && !inputs.websiteToken) {
+    core.setFailed(
+      "A commercial release needs a website-token: the Spring Projects API is only for OSS releases",
+    );
+    return;
+  }
+
   try {
     if (inputs.websiteToken) {
       await updateViaGithub(inputs);

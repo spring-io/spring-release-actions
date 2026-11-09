@@ -6,13 +6,7 @@ class Inputs {
     this.websiteToken = core.getInput("website-token", { required: false });
     this.token =
       core.getInput("token", { required: false }) || process.env.GITHUB_TOKEN;
-    this.apiDocUrl =
-      core.getInput("api-doc-url", { required: false }) ||
-      "https://docs.spring.io/{project}/site/docs/{version}/api/";
     this.isAntora = core.getBooleanInput("is-antora", { required: false });
-    this.refDocUrl =
-      core.getInput("ref-doc-url", { required: false }) ||
-      "https://docs.spring.io/{project}/reference/{version}/index.html";
     this.projectName =
       core.getInput("project-name", { required: false }) ||
       process.env.GITHUB_REPOSITORY;
@@ -20,7 +14,26 @@ class Inputs {
     this.projectSlug = name.endsWith("-commercial")
       ? name.substring(0, name.length - "-commercial".length)
       : name;
-    this.commercial = this.projectName.includes("commercial");
+    // The release channel, when given, decides which website: only an OSS
+    // release goes to the OSS one. Otherwise the name of the project decides.
+    this.releaseChannel = core.getInput("release-channel", { required: false });
+    this.commercial = this.releaseChannel
+      ? this.releaseChannel !== "oss"
+      : this.projectName.includes("commercial");
+
+    // The enterprise website doesn't redirect, so there {version} can't be used
+    // and each entry gets the exact {major.minor} of its own version instead
+    const docs = this.commercial
+      ? "https://docs.enterprise.spring.io/{project}/reference/{major.minor}"
+      : "https://docs.spring.io/{project}/reference/{version}";
+    // Antora-based projects ship their JavaDoc alongside the reference documentation
+    this.apiDocUrl =
+      core.getInput("api-doc-url", { required: false }) ||
+      (this.commercial || this.isAntora
+        ? `${docs}/api/java/index.html`
+        : "https://docs.spring.io/{project}/site/docs/{version}/api/");
+    this.refDocUrl =
+      core.getInput("ref-doc-url", { required: false }) || `${docs}/index.html`;
     this.websiteRepository =
       core.getInput("website-repository", { required: false }) ||
       (this.commercial

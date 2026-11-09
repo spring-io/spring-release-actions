@@ -12,6 +12,43 @@ function setupGetBooleanInput(map) {
   core.getBooleanInput.mockImplementation((name) => map[name] ?? false);
 }
 
+describe("update-learn-page Inputs api-doc-url default", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([
+    [true, "https://docs.spring.io/{project}/reference/{version}/api/java/index.html"],
+    [false, "https://docs.spring.io/{project}/site/docs/{version}/api/"],
+  ])("when is-antora is %s", (antora, expected) => {
+    setupGetInput({ version: "3.2.0", "project-name": "spring-projects/spring-boot" });
+    setupGetBooleanInput({ "is-antora": antora });
+
+    const inputs = new Inputs();
+
+    expect(inputs.apiDocUrl).toBe(expected);
+    expect(inputs.resolvedApiDocUrl).toBe(expected.replace("{project}", "spring-boot"));
+  });
+
+  it("uses exact major.minor URLs on the enterprise website for a commercial project", () => {
+    setupGetInput({ version: "7.0.6.1", "project-name": "spring-projects/spring-security-commercial" });
+    setupGetBooleanInput({ "is-antora": true });
+
+    const inputs = new Inputs();
+
+    expect(inputs.refDocUrl).toBe("https://docs.enterprise.spring.io/{project}/reference/{major.minor}/index.html");
+    expect(inputs.apiDocUrl).toBe("https://docs.enterprise.spring.io/{project}/reference/{major.minor}/api/java/index.html");
+    expect(inputs.resolvedRefDocUrl).toBe(
+      "https://docs.enterprise.spring.io/spring-security/reference/{major.minor}/index.html",
+    );
+  });
+
+  it("prefers an explicit api-doc-url", () => {
+    setupGetInput({ version: "3.2.0", "project-name": "spring-projects/spring-boot", "api-doc-url": "https://example.com/api" });
+    setupGetBooleanInput({ "is-antora": true });
+
+    expect(new Inputs().apiDocUrl).toBe("https://example.com/api");
+  });
+});
+
 describe("update-learn-page Inputs constructor", () => {
   const originalEnv = { ...process.env };
 
@@ -73,6 +110,28 @@ describe("update-learn-page Inputs constructor", () => {
     expect(inputs.refDocUrl).toBe("https://custom.ref/");
     expect(inputs.isAntora).toBe(true);
   });
+
+  it.each([
+    ["oss", "spring-projects/spring-security-commercial", false, "spring-io/spring-website-content"],
+    ["hotfix", "spring-projects/spring-security", true, "spring-io/spring-website-commercial-content"],
+    ["lts", "spring-projects/spring-security", true, "spring-io/spring-website-commercial-content"],
+    ["internal", "spring-projects/spring-security", true, "spring-io/spring-website-commercial-content"],
+  ])(
+    "release-channel %s decides the website over the name of %s",
+    (channel, projectName, commercial, websiteRepository) => {
+      setupGetInput({
+        version: "7.0.6.1",
+        "release-channel": channel,
+        "project-name": projectName,
+      });
+      setupGetBooleanInput({ "is-antora": true });
+
+      const inputs = new Inputs();
+
+      expect(inputs.commercial).toBe(commercial);
+      expect(inputs.websiteRepository).toBe(websiteRepository);
+    }
+  );
 
   it("uses explicit website-repository when provided", () => {
     setupGetInput({

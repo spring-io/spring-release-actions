@@ -37,6 +37,12 @@ describe('Update Learn Page Action', () => {
 		mockOctokit.mockImplementation(function() { return octokit; });
 	});
 
+	it('should fail for a commercial release without a website token', async () => {
+		await run({ ...defaultInputs, commercial: true, websiteToken: '' });
+		expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining('commercial release needs a website-token'));
+		expect(octokit.repos.createOrUpdateFileContents).not.toHaveBeenCalled();
+	});
+
 	it('should fail if the version is a SNAPSHOT', async () => {
 		await run({ ...defaultInputs, version: '1.2.3-SNAPSHOT' });
 		expect(core.setFailed).toHaveBeenCalledWith("Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published");
@@ -54,7 +60,7 @@ describe('Update Learn Page Action', () => {
 		expect(content.length).toBe(2);
 		expect(content[0].version).toBe('1.2.4-SNAPSHOT');
 		expect(content[1].version).toBe('1.2.3');
-		expect(content[1].referenceDocUrl).toBe('https://docs.spring.io/spring-boot/reference/{version}/index.html');
+		expect(content[1].ref).toBe('https://docs.spring.io/spring-boot/reference/{version}/index.html');
 	});
 
 	it('should update an existing documentation file', async () => {
@@ -118,6 +124,53 @@ describe('buildUpdatedPage', () => {
 			expect(result[0].version).toBe('1.2.3');
 		});
 
+		const enterprise = (generation, path) =>
+			`https://docs.enterprise.spring.io/spring-security/reference/${generation ? generation + '/' : ''}${path}`;
+		const entry = (version, generation, current = false) => ({
+			version,
+			api: enterprise(generation, 'api/java/index.html'),
+			ref: enterprise(generation, 'index.html'),
+			status: 'GENERAL_AVAILABILITY',
+			current
+		});
+		const ref = enterprise('{major.minor}', 'index.html');
+		const api = enterprise('{major.minor}', 'api/java/index.html');
+		const commercial = (existing, newVersion) =>
+			JSON.parse(buildUpdatedPage(JSON.stringify(existing), new Version(newVersion), true, ref, api, true));
+
+		it('omits the antora flag and the directory of the generation when it is the only one', () => {
+			expect(commercial([], '7.0.6.1')).toEqual([entry('7.0.6.1', '', true)]);
+		});
+
+		it('keeps the directory out of the URLs of a version of the newest generation', () => {
+			const result = commercial([entry('7.1.0.1', '', true), entry('7.0.8.1', '7.0')], '7.1.2.1');
+			expect(result).toEqual([entry('7.1.2.1', '', true), entry('7.1.0.1', ''), entry('7.0.8.1', '7.0')]);
+		});
+
+		it('puts the directory back into the URLs of a generation that a newer one replaces', () => {
+			const result = commercial([entry('7.1.2.1', '', true), entry('7.1.0.1', ''), entry('7.0.8.1', '7.0')], '7.2.0.1');
+			expect(result).toEqual([
+				entry('7.2.0.1', '', true),
+				entry('7.1.2.1', '7.1'),
+				entry('7.1.0.1', '7.1'),
+				entry('7.0.8.1', '7.0')
+			]);
+		});
+
+		it('gives a version of an older generation its directory and leaves the newest as it is', () => {
+			const result = commercial([entry('7.1.2.1', '', true), entry('7.0.8.1', '7.0')], '7.0.9.1');
+			expect(result).toEqual([entry('7.1.2.1', '', true), entry('7.0.9.1', '7.0'), entry('7.0.8.1', '7.0')]);
+		});
+
+		it('does not touch URLs that were set by hand', () => {
+			const legacy = {
+				...entry('7.0.5.1', '7.0'),
+				api: 'https://docs.enterprise.spring.io/spring-security/docs/{version}/api/index.html'
+			};
+			const result = commercial([legacy], '7.1.0.1');
+			expect(result.find((e) => e.version === '7.0.5.1')).toEqual({ ...legacy, current: false });
+		});
+
 		it('prepends GA without adding a snapshot entry', () => {
 			const existing = [
 				{ version: '1.1.0', status: 'GENERAL_AVAILABILITY', current: false },
@@ -175,7 +228,7 @@ describe('Update Learn Page Action Commercial', () => {
 		const content = JSON.parse(Buffer.from(call.content, 'base64').toString());
 		expect(content.length).toBe(1);
 		expect(content[0].version).toBe('1.2.3');
-		expect(content[0].referenceDocUrl).toBe('https://docs.spring.io/spring-boot/reference/{version}/index.html');
+		expect(content[0].ref).toBe('https://docs.spring.io/spring-boot/reference/{version}/index.html');
 	});
 
 	it('should update an existing documentation file', async () => {

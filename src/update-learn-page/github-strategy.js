@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
-import { Entry, LearnPage } from "../learn.js";
+import { Entry, LearnPage, linkGenerations } from "../learn.js";
 import { Version } from "../versions.js";
 
 function buildUpdatedPage(
@@ -12,13 +12,16 @@ function buildUpdatedPage(
   commercial,
 ) {
   const learnPage = new LearnPage(existingJson ?? "[]");
-  const latestEntry = new Entry(version, isAntora, refDocUrl, apiDocUrl);
+  // the commercial website's entries don't carry the flag
+  const antora = commercial ? undefined : isAntora;
+  const latestEntry = new Entry(version, antora, refDocUrl, apiDocUrl);
 
   if (commercial) {
-    learnPage.entries = [latestEntry, ...learnPage.entries];
+    // a newer generation takes the place of the newest, so the others move back into their directory
+    learnPage.entries = linkGenerations([latestEntry, ...learnPage.entries]);
   } else {
     const snapshot = version.nextSnapshot();
-    const snapshotEntry = new Entry(snapshot, isAntora, refDocUrl, apiDocUrl);
+    const snapshotEntry = new Entry(snapshot, antora, refDocUrl, apiDocUrl);
     const filtered = learnPage.entries.filter(
       (e) => !e.version.isSameMajorMinor(version),
     );
