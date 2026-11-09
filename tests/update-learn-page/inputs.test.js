@@ -74,6 +74,28 @@ describe("update-learn-page Inputs constructor", () => {
     expect(inputs.isAntora).toBe(true);
   });
 
+  it.each([
+    ["oss", "spring-projects/spring-security-commercial", false, "spring-io/spring-website-content"],
+    ["hotfix", "spring-projects/spring-security", true, "spring-io/spring-website-commercial-content"],
+    ["lts", "spring-projects/spring-security", true, "spring-io/spring-website-commercial-content"],
+    ["internal", "spring-projects/spring-security", true, "spring-io/spring-website-commercial-content"],
+  ])(
+    "release-channel %s decides the website over the name of %s",
+    (channel, projectName, commercial, websiteRepository) => {
+      setupGetInput({
+        version: "7.0.6.1",
+        "release-channel": channel,
+        "project-name": projectName,
+      });
+      setupGetBooleanInput({ "is-antora": true });
+
+      const inputs = new Inputs();
+
+      expect(inputs.commercial).toBe(commercial);
+      expect(inputs.websiteRepository).toBe(websiteRepository);
+    }
+  );
+
   it("uses explicit website-repository when provided", () => {
     setupGetInput({
       version: "1.0.0",

@@ -12,6 +12,9 @@ inputs:
       When omitted, the action uses the Spring Projects REST API (suitable for OSS repos)."
     required: false
 
+  release-channel:
+    description: "The release channel underway: 'oss', 'internal', 'lts', or 'hotfix' (see compute-release-channel). Anything but 'oss' selects the commercial website. When omitted, a project name containing 'commercial' selects it"
+    required: false
   api-doc-url:
     description: "The URL to the project's JavaDoc; supports {version} placeholder"
     default: "https://docs.spring.io/{project}/site/docs/{version}/api/"

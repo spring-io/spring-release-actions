@@ -2,6 +2,9 @@
 
 This GitHub action updates the #learn page on Spring OSS and Commercial Websites.
 
+With a `website-token`, `project/{project}/documentation.json` is edited directly in the website repository, which is how the commercial website is updated.
+Without one (OSS only), the Spring Projects REST API is updated instead.
+
 == Inputs
 
 |===
@@ -12,8 +15,12 @@ This GitHub action updates the #learn page on Spring OSS and Commercial Websites
 | `true`
 
 | `website-token`
-| The GitHub token needed to access spring-website-content or spring-website-commercial-content.
-| `true`
+| The GitHub token needed to directly edit spring-website-content or spring-website-commercial-content. Required for a commercial project, for which the action fails without it. When omitted, the Spring Projects REST API is used instead (OSS only).
+| `false`
+
+| `release-channel`
+| The release channel underway: `oss`, `internal`, `lts`, or `hotfix` (see link:../compute-release-channel[compute-release-channel]). Anything but `oss` selects the commercial website. When omitted, a project name containing `commercial` selects it.
+| `false`
 
 | `api-doc-url`
 | The URL to the project's JavaDoc; supports {version} placeholder.

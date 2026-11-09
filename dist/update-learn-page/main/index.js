@@ -48242,7 +48242,12 @@ class Inputs {
     this.projectSlug = name.endsWith("-commercial")
       ? name.substring(0, name.length - "-commercial".length)
       : name;
-    this.commercial = this.projectName.includes("commercial");
+    // The release channel, when given, decides which website: only an OSS
+    // release goes to the OSS one. Otherwise the name of the project decides.
+    this.releaseChannel = getInput("release-channel", { required: false });
+    this.commercial = this.releaseChannel
+      ? this.releaseChannel !== "oss"
+      : this.projectName.includes("commercial");
     this.websiteRepository =
       getInput("website-repository", { required: false }) ||
       (this.commercial
@@ -53772,6 +53777,15 @@ async function run(inputs = new Inputs()) {
   if (inputs.version.endsWith("-SNAPSHOT")) {
     setFailed(
       "Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published",
+    );
+    return;
+  }
+
+  // the Projects API only knows the OSS releases, so without a token a
+  // commercial release would end up among them
+  if (inputs.commercial && !inputs.websiteToken) {
+    setFailed(
+      "A commercial release needs a website-token: the Spring Projects API is only for OSS releases",
     );
     return;
   }

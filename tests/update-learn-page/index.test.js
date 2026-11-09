@@ -37,6 +37,12 @@ describe('Update Learn Page Action', () => {
 		mockOctokit.mockImplementation(function() { return octokit; });
 	});
 
+	it('should fail for a commercial release without a website token', async () => {
+		await run({ ...defaultInputs, commercial: true, websiteToken: '' });
+		expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining('commercial release needs a website-token'));
+		expect(octokit.repos.createOrUpdateFileContents).not.toHaveBeenCalled();
+	});
+
 	it('should fail if the version is a SNAPSHOT', async () => {
 		await run({ ...defaultInputs, version: '1.2.3-SNAPSHOT' });
 		expect(core.setFailed).toHaveBeenCalledWith("Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published");
