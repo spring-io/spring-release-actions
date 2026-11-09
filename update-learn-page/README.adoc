@@ -2,8 +2,10 @@
 
 This GitHub action updates the #learn page on Spring OSS and Commercial Websites.
 
-With a `website-token`, `project/{project}/documentation.json` is edited directly in the website repository, which is how the commercial website is updated.
-Without one (OSS only), the Spring Projects REST API is updated instead.
+The repository decides what is updated, not the presence of a token:
+
+* An OSS release updates the Spring Projects REST API, authenticated with `token`.
+* A commercial release (any release channel but `oss`) edits `project/{project}/documentation.json` in the website repository with `website-token`, since there is no API for it, and fails without one.
 
 == Inputs
 
@@ -14,8 +16,12 @@ Without one (OSS only), the Spring Projects REST API is updated instead.
 | The current version.
 | `true`
 
+| `token`
+| The token that authenticates the update of the Spring Projects REST API, which is what an OSS release uses. Defaults to `github.token`.
+| `false`
+
 | `website-token`
-| The GitHub token needed to directly edit spring-website-content or spring-website-commercial-content. Required for a commercial project, for which the action fails without it. When omitted, the Spring Projects REST API is used instead (OSS only).
+| The GitHub token that can edit spring-website-commercial-content, which is what a commercial release uses. The action fails without it for a commercial release. An OSS release never uses it.
 | `false`
 
 | `release-channel`
@@ -61,5 +67,6 @@ URLs that were set by hand, outside `/reference/`, are left as they are.
   uses: spring-io/spring-release-actions/update-learn-page@a1f321783a0769dd2aea4fad6c2ae2f95a52b885 # 0.0.5
   with:
     version: '1.2.3'
+    release-channel: hotfix
     website-token: ${{ secrets.WEBSITE_TOKEN }}
 ----

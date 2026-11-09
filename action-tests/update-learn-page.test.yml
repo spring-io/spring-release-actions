@@ -17,6 +17,7 @@ jobs:
           version: "1.2.3"
           website-token: ${{ secrets.GITHUB_TOKEN }}
           website-repository: spring-io/spring-website-content
+          release-channel: lts
           project-name: owner/spring-boot
 
       - name: Update documentation file
@@ -25,4 +26,5 @@ jobs:
           version: "1.2.4"
           website-token: ${{ secrets.GITHUB_TOKEN }}
           website-repository: spring-io/spring-website-content
+          release-channel: lts
           project-name: owner/spring-boot

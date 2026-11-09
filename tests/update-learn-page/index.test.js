@@ -1,17 +1,26 @@
 import { vi } from 'vitest';
 import * as core from '../../__fixtures__/core.js';
 import { run, buildUpdatedPage } from '../../src/update-learn-page/index.js';
+import { updateViaGithub } from '../../src/update-learn-page/github-strategy.js';
 import { Version } from '../../src/versions.js';
 
 const mockOctokit = vi.hoisted(() => vi.fn());
 
 vi.mock('@actions/core', async () => await import('../../__fixtures__/core.js'));
 
+const mockUpdateViaApi = vi.hoisted(() => vi.fn());
+
+vi.mock('../../src/update-learn-page/api-strategy.js', () => ({
+	updateViaApi: mockUpdateViaApi
+}));
+
 vi.mock('@octokit/rest', () => ({
 	Octokit: mockOctokit
 }));
 
 describe('Update Learn Page Action', () => {
+	afterEach(() => mockUpdateViaApi.mockClear());
+
 	const defaultInputs = {
 		websiteToken: 'token',
 		version: '1.2.3',
@@ -43,6 +52,19 @@ describe('Update Learn Page Action', () => {
 		expect(octokit.repos.createOrUpdateFileContents).not.toHaveBeenCalled();
 	});
 
+	it('should update the Projects API for an OSS release, whatever the tokens', async () => {
+		await run({ ...defaultInputs, commercial: false, websiteToken: 'token' });
+		expect(mockUpdateViaApi).toHaveBeenCalledTimes(1);
+		expect(octokit.repos.createOrUpdateFileContents).not.toHaveBeenCalled();
+	});
+
+	it('should edit the website for a commercial release, and not the Projects API', async () => {
+		octokit.repos.getContent.mockRejectedValue({ status: 404 });
+		await run({ ...defaultInputs, commercial: true, websiteToken: 'token' });
+		expect(octokit.repos.createOrUpdateFileContents).toHaveBeenCalledTimes(1);
+		expect(mockUpdateViaApi).not.toHaveBeenCalled();
+	});
+
 	it('should fail if the version is a SNAPSHOT', async () => {
 		await run({ ...defaultInputs, version: '1.2.3-SNAPSHOT' });
 		expect(core.setFailed).toHaveBeenCalledWith("Please specify a non-SNAPSHOT release version to publish; it's accompanying SNAPSHOT version will also be published");
@@ -50,7 +72,7 @@ describe('Update Learn Page Action', () => {
 
 	it('should create a new documentation file', async () => {
 		octokit.repos.getContent.mockRejectedValue({ status: 404 });
-		await run(defaultInputs);
+		await updateViaGithub(defaultInputs);
 		expect(octokit.repos.createOrUpdateFileContents).toHaveBeenCalled();
 		const call = octokit.repos.createOrUpdateFileContents.mock.calls[0][0];
 		expect(call.owner).toBe('spring-io');
@@ -71,7 +93,7 @@ describe('Update Learn Page Action', () => {
 		];
 		const existingContent = Buffer.from(JSON.stringify(existing)).toString('base64');
 		octokit.repos.getContent.mockResolvedValue({ data: { content: existingContent, sha: 'sha' } });
-		await run(defaultInputs);
+		await updateViaGithub(defaultInputs);
 		expect(octokit.repos.createOrUpdateFileContents).toHaveBeenCalled();
 		const call = octokit.repos.createOrUpdateFileContents.mock.calls[0][0];
 		const content = JSON.parse(Buffer.from(call.content, 'base64').toString());
