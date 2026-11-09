@@ -4,7 +4,7 @@ This GitHub action updates the #learn page on Spring OSS and Commercial Websites
 
 The repository decides what is updated, not the presence of a token:
 
-* An OSS release updates the Spring Projects REST API.
+* An OSS release updates the Spring Projects REST API, authenticated with `token`.
 * A commercial release (any release channel but `oss`) edits `project/{project}/documentation.json` in the website repository with `website-token`, since there is no API for it, and fails without one.
 
 == Inputs
@@ -15,6 +15,10 @@ The repository decides what is updated, not the presence of a token:
 | `version`
 | The current version.
 | `true`
+
+| `token`
+| The token that authenticates the update of the Spring Projects REST API, which is what an OSS release uses. Defaults to `github.token`.
+| `false`
 
 | `website-token`
 | The GitHub token that can edit spring-website-commercial-content, which is what a commercial release uses. The action fails without it for a commercial release. An OSS release never uses it.

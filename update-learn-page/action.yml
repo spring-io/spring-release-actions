@@ -6,6 +6,10 @@ inputs:
   version:
     description: "The current version"
     required: true
+  token:
+    description: "The token that authenticates the update of the Spring Projects REST API, which is what an OSS release uses; defaults to github.token"
+    required: false
+    default: ${{ github.token }}
   website-token:
     description: "The GitHub token that can edit spring-website-commercial-content, which is what a commercial release uses (the action fails without it). An OSS release never uses it, as it goes to the Spring Projects REST API"
     required: false
