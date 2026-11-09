@@ -23,7 +23,7 @@ Without one (OSS only), the Spring Projects REST API is updated instead.
 | `false`
 
 | `api-doc-url`
-| The URL to the project's JavaDoc; supports {version} placeholder.
+| The URL to the project's JavaDoc; supports `+{version}+` and `+{major.minor}+` placeholders. Defaults to `+https://docs.spring.io/{project}/reference/{version}/api/java/index.html+` if `is-antora` is true (or `+https://docs.enterprise.spring.io/{project}/reference/{major.minor}/api/java/index.html+` for a commercial project), and `+https://docs.spring.io/{project}/site/docs/{version}/api/+` otherwise.
 | `false`
 
 | `is-antora`
@@ -35,13 +35,23 @@ Without one (OSS only), the Spring Projects REST API is updated instead.
 | `false`
 
 | `ref-doc-url`
-| The URL to the project's reference documentation; supports {version} placeholder.
+| The URL to the project's reference documentation; supports `+{version}+` and `+{major.minor}+` placeholders. Defaults to `+https://docs.spring.io/{project}/reference/{version}/index.html+`, or `+https://docs.enterprise.spring.io/{project}/reference/{major.minor}/index.html+` for a commercial project.
 | `false`
 
 | `website-repository`
-| The Spring Website GitHub repo from which to checkout documentation files.
+| The Spring Website GitHub repo to edit; defaults to `spring-io/spring-website-content`, or `spring-io/spring-website-commercial-content` for a commercial project.
 | `false`
 |===
+
+== Commercial Documentation URLs
+
+The enterprise website doesn't redirect, so a `+{version}+` placeholder can't be left in its URLs for the website to fill in.
+Instead, use `+{major.minor}+`, which is replaced with the exact values of each entry's version, so `7.0.6.1` links to `+https://docs.enterprise.spring.io/spring-security/reference/7.0/index.html+`.
+This is what the commercial defaults do, and commercial entries are written without an `antora` flag.
+
+The newest generation listed in `documentation.json` is the exception: the website serves it without its `+{major.minor}+` directory (`+https://docs.enterprise.spring.io/spring-security/reference/index.html+`).
+So the entries of the newest generation are written without the directory, and when a release starts a newer generation, the entries of the generation it replaces get their directory back.
+URLs that were set by hand, outside `/reference/`, are left as they are.
 
 == Example Usage
 
