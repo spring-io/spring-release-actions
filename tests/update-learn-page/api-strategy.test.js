@@ -84,7 +84,7 @@ describe('api-strategy', () => {
     expect(ga.apiDocUrl).toBe(defaultInputs.resolvedApiDocUrl);
   });
 
-  it('sends HTTP Basic auth with project slug as username', async () => {
+  it('sends HTTP Basic auth with spring-builds as username', async () => {
     const receivedAuth = [];
     server.use(
       http.post(`${API_BASE}/projects/:slug/releases`, ({ request }) => {
@@ -95,7 +95,7 @@ describe('api-strategy', () => {
 
     await updateViaApi(defaultInputs);
 
-    const expected = `Basic ${Buffer.from('spring-boot:test-token').toString('base64')}`;
+    const expected = `Basic ${Buffer.from('spring-builds:test-token').toString('base64')}`;
     expect(receivedAuth[0]).toBe(expected);
   });
 
