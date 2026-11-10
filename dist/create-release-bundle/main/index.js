@@ -2467,7 +2467,7 @@ RedirectableRequest.prototype._sanitizeOptions = function (options) {
     }
   }
   // Ensure sensitive headers are always present
-  if (!Array.isArray(options.sensitiveHeaders)) {
+  if (!isArray(options.sensitiveHeaders)) {
     options.sensitiveHeaders = [];
   }
 
@@ -2845,6 +2845,10 @@ function isSubdomain(subdomain, domain) {
   return dot > 0 && subdomain[dot] === "." && subdomain.endsWith(domain);
 }
 
+function isArray(value) {
+  return value instanceof Array;
+}
+
 function isString(value) {
   return typeof value === "string" || value instanceof String;
 }
@@ -2862,8 +2866,7 @@ function isURL(value) {
 }
 
 function escapeRegex(regex) {
-  // As per https://tc39.es/proposal-regexp-modifiers/#prod-SyntaxCharacter
-  return regex.replace(/[\^$\\.*+?()[\]{}|]/g, "\\$&");
+  return regex.replace(/[[\]\\/()*+?.^$|]/g, "\\$&");
 }
 
 // Exports
@@ -7602,9 +7605,7 @@ const { zstdCompressSync, zstdDecompressSync } = __nccwpck_require__(8522)
 
 let DatabaseSync
 
-// Bump when entries written by an older cache policy are unsafe to reuse.
-// Version 5 invalidates entries that may have been poisoned through redirects.
-const VERSION = 5
+const VERSION = 4
 
 // 2gb
 const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000
@@ -7615,20 +7616,6 @@ const COMPRESS_THRESHOLD = 1024 * 1024
 // zstd support landed in Node 22.19.0/23.4.0, so it may be missing even when
 // node:sqlite is available.
 const hasZstd = typeof zstdCompressSync === 'function' && typeof zstdDecompressSync === 'function'
-
-// SQLite reports a database that another connection is writing as SQLITE_BUSY
-// (5) or SQLITE_LOCKED (6).
-// https://www.sqlite.org/rescode.html#busy
-const SQLITE_BUSY = 5
-const SQLITE_LOCKED = 6
-
-/**
- * @param {Error & { errcode?: number }} err
- * @returns {boolean}
- */
-function isLockedError (err) {
-  return err?.errcode === SQLITE_BUSY || err?.errcode === SQLITE_LOCKED
-}
 
 /**
  * @typedef {import('../../types/cache-interceptor.d.ts').default.CacheStore} CacheStore
@@ -7871,7 +7858,7 @@ module.exports = class SqliteCacheStore {
   get (key) {
     assertCacheKey(key)
 
-    const value = this.#lockSafe(() => this.#findValue(key))
+    const value = this.#findValue(key)
     return value
       ? {
           body: value.body
@@ -7919,10 +7906,10 @@ module.exports = class SqliteCacheStore {
       }
     }
 
-    const existingValue = this.#lockSafe(() => this.#findValue(key, true))
+    const existingValue = this.#findValue(key, true)
     if (existingValue) {
       // Updating an existing response, let's overwrite it
-      this.#lockSafe(() => this.#updateValueQuery.run(
+      this.#updateValueQuery.run(
         storedBody,
         compressed,
         value.deleteAt,
@@ -7935,10 +7922,10 @@ module.exports = class SqliteCacheStore {
         value.cachedAt,
         value.staleAt,
         existingValue.id
-      ))
+      )
     } else {
       // New response, let's insert it
-      this.#lockSafe(() => this.#insertValueQuery.run(
+      this.#insertValueQuery.run(
         url,
         key.method,
         storedBody,
@@ -7952,7 +7939,7 @@ module.exports = class SqliteCacheStore {
         value.vary ? JSON.stringify(value.vary) : null,
         value.cachedAt,
         value.staleAt
-      ))
+      )
       this.#prune()
     }
   }
@@ -8001,53 +7988,23 @@ module.exports = class SqliteCacheStore {
       throw new TypeError(`expected key to be object, got ${typeof key}`)
     }
 
-    this.#lockSafe(() => this.#deleteByUrlQuery.run(this.#makeValueUrl(key)))
-  }
-
-  /**
-   * Runs a database operation, skipping it when another connection holds the
-   * database lock.
-   *
-   * The cache store is meant to be shared between processes, and SQLite reports
-   * a concurrent writer as SQLITE_BUSY/SQLITE_LOCKED. Those errors are
-   * transient, and caching is best effort: the entry is skipped and the next
-   * request retries, rather than failing the request that triggered the write.
-   *
-   * @template T
-   * @param {() => T} fn
-   * @returns {T | undefined}
-   */
-  #lockSafe (fn) {
-    try {
-      return fn()
-    } catch (err) {
-      if (!isLockedError(err)) {
-        throw err
-      }
-
-      return undefined
-    }
+    this.#deleteByUrlQuery.run(this.#makeValueUrl(key))
   }
 
   #prune () {
-    if (Number.isFinite(this.#maxCount)) {
-      // A locked database cannot be measured, so skip pruning instead of
-      // failing the write that triggered it.
-      const size = this.#lockSafe(() => this.size)
-      if (size === undefined || size <= this.#maxCount) {
-        return 0
-      }
+    if (Number.isFinite(this.#maxCount) && this.size <= this.#maxCount) {
+      return 0
     }
 
     {
-      const removed = this.#lockSafe(() => this.#deleteExpiredValuesQuery.run(Date.now()).changes)
+      const removed = this.#deleteExpiredValuesQuery.run(Date.now()).changes
       if (removed) {
         return removed
       }
     }
 
     {
-      const removed = this.#lockSafe(() => this.#deleteOldValuesQuery?.run(Math.max(Math.floor(this.#maxCount * 0.1), 1)).changes)
+      const removed = this.#deleteOldValuesQuery?.run(Math.max(Math.floor(this.#maxCount * 0.1), 1)).changes
       if (removed) {
         return removed
       }
@@ -10557,7 +10514,6 @@ module.exports = {
   kDispatch: Symbol('dispatch'),
   kUrl: Symbol('url'),
   kRequestOrigin: Symbol('request origin'),
-  kRedirectCacheControl: Symbol('redirect cache control'),
   kOriginless: Symbol('originless'),
   kWriting: Symbol('writing'),
   kResuming: Symbol('resuming'),
@@ -11870,7 +11826,7 @@ function defaultFactory (origin, opts) {
 }
 
 class Agent extends DispatcherBase {
-  constructor ({ factory = defaultFactory, maxOrigins = Infinity, connect, tls, ...options } = {}) {
+  constructor ({ factory = defaultFactory, maxOrigins = Infinity, connect, ...options } = {}) {
     if (typeof factory !== 'function') {
       throw new InvalidArgumentError('factory must be a function.')
     }
@@ -11889,11 +11845,7 @@ class Agent extends DispatcherBase {
       connect = { ...connect }
     }
 
-    if (tls && typeof tls !== 'function') {
-      tls = { ...tls }
-    }
-
-    this[kOptions] = { ...util.deepClone(options), maxOrigins, connect, tls }
+    this[kOptions] = { ...util.deepClone(options), maxOrigins, connect }
     this[kFactory] = factory
     this[kClients] = new Map()
     this[kOrigins] = new Set()
@@ -12343,9 +12295,7 @@ function lazyllhttp () {
 
   // We disable wasm SIMD on older versions of Node.js on ppc64 that are broken on Power >=9 architectures.
   let useWasmSIMD = true
-  if (process.arch === 'riscv64') {
-    useWasmSIMD = false
-  } else if (process.arch === 'ppc64') {
+  if (process.arch === 'ppc64') {
     const [major, minor] = process.versions.node.split('.').map(n => parseInt(n, 10))
     if (major < 24 || (major === 24 && minor < 12)) {
       useWasmSIMD = false
@@ -13250,6 +13200,8 @@ function connectH1 (client, socket) {
 }
 
 function onHttpSocketError (err) {
+  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
+
   const parser = this[kParser]
 
   // On Mac OS, we get an ECONNRESET even if there is a full body to be forwarded
@@ -14160,6 +14112,7 @@ const {
 const { channels } = __nccwpck_require__(2414)
 
 const kOpenStreams = Symbol('open streams')
+const kRequestStreamId = Symbol('request stream id')
 const kRequestStream = Symbol('request stream')
 const kRequestStreamCleanup = Symbol('request stream cleanup')
 const kRequestStreamState = Symbol('request stream state')
@@ -14172,15 +14125,6 @@ const kRefusedStreamRetry = Symbol('refused stream retry')
 // an unbounded connect/refuse/reconnect loop that never settles and starves the
 // event loop.
 const MAX_GOAWAY_REPLAY_ATTEMPTS = 1
-
-// RFC 9113 section 6.2. node:http2 reports frame types as raw numbers.
-const HTTP2_FRAME_TYPE_HEADERS = 1
-
-// Lower bound on how long a liveness PING may take to be acked. Stream
-// timeouts can be tiny (tens of ms), while an ack on a live connection can take
-// longer than that on a loaded event loop; without a floor a slow but healthy
-// connection would be torn down.
-const MIN_PROBE_TIMEOUT = 1e3
 
 let extractBody
 
@@ -14248,9 +14192,7 @@ function getGoAwayPendingIdx (client, lastStreamID) {
       continue
     }
 
-    // A pending stream may not have had an ID when it was bound to the request.
-    const streamId = request[kRequestStream]?.id
-    if (typeof streamId !== 'number' || streamId > maxAcceptedStreamID) {
+    if (typeof request[kRequestStreamId] !== 'number' || request[kRequestStreamId] > maxAcceptedStreamID) {
       return i
     }
   }
@@ -14259,6 +14201,7 @@ function getGoAwayPendingIdx (client, lastStreamID) {
 }
 
 function detachRequestFromStream (request) {
+  request[kRequestStreamId] = null
   request[kRequestStream] = null
   request[kRequestStreamCleanup] = null
 }
@@ -14268,6 +14211,7 @@ function bindRequestToStream (request, stream, cleanup) {
   const previousStream = request[kRequestStream]
   detachRequestFromStream(request)
   previousCleanup?.(previousStream)
+  request[kRequestStreamId] = stream.id
   request[kRequestStream] = stream
   request[kRequestStreamCleanup] = cleanup
 }
@@ -14368,14 +14312,8 @@ function severRequestStream (stream) {
     closeStreamSession(stream)
   }
 
-  // #5936: Node can still deliver a session-level error to a native stream
-  // after undici has stopped tracking it (e.g. on idle session teardown). Keep
-  // a persistent noop error sink so the 'error' event is never emitted with no
-  // listener, which would crash the process. A single sink is enough even if
-  // one was already attached by the onError path, so clear it first.
   if (!stream.destroyed && !stream.closed) {
-    stream.off('error', noop)
-    stream.on('error', noop)
+    stream.once('error', noop)
   }
 }
 
@@ -14404,9 +14342,6 @@ function connectH2 (client, socket) {
     // Armed while the peer advertises MAX_CONCURRENT_STREAMS = 0 and we have
     // work that cannot start. See setNoStreamsTimeout.
     noStreamsTimeout: null,
-    // Armed while a PING checks whether the peer is still there after a
-    // stream timed out. See probeHttp2Session.
-    probeTimeout: null,
     // Sockets start out ref'd. Session ref/unref proxies to the socket, so a
     // single cached flag lets us skip redundant uv ref/unref calls, provided
     // every ref/unref of the session or its socket goes through
@@ -14488,11 +14423,6 @@ function connectH2 (client, socket) {
     */
     busy (request) {
       if (session[kRemoteSettings] === false && client[kRunning] > 0) {
-        return true
-      }
-
-      // Do not open streams on a connection that may be dead.
-      if (session[kHTTP2SessionState].probeTimeout != null) {
         return true
       }
 
@@ -14629,60 +14559,6 @@ function onNoStreamsTimeout (session) {
   resetHttp2Session(session, err)
 }
 
-// A stream timeout only resets that stream, unlike HTTP/1.1 which destroys the
-// socket. If the connection itself silently died (dropped by a NAT or load
-// balancer, a hung peer), every new stream would time out in turn and the
-// session would never be replaced. Ask the peer for a PING ack within the
-// timeout that just fired (but at least MIN_PROBE_TIMEOUT): if it answers, only
-// that request was slow; if not, drop the session so queued requests move to a
-// fresh connection.
-function probeHttp2Session (session, timeout) {
-  const state = session[kHTTP2SessionState]
-
-  if (state.probeTimeout != null || session.closed || session.destroyed) {
-    return
-  }
-
-  try {
-    session.ping(onHttp2ProbeAck.bind(session))
-  } catch {
-    // The session is going away on its own.
-    return
-  }
-
-  state.probeTimeout = setTimeout(onHttp2ProbeTimeout, Math.max(timeout, MIN_PROBE_TIMEOUT), session).unref()
-}
-
-function clearHttp2ProbeTimeout (session) {
-  const state = session[kHTTP2SessionState]
-
-  if (state?.probeTimeout != null) {
-    clearTimeout(state.probeTimeout)
-    state.probeTimeout = null
-  }
-}
-
-function onHttp2ProbeAck () {
-  if (this[kHTTP2SessionState].probeTimeout == null) {
-    return
-  }
-
-  clearHttp2ProbeTimeout(this)
-  this[kClient][kResume]()
-}
-
-function onHttp2ProbeTimeout (session) {
-  session[kHTTP2SessionState].probeTimeout = null
-
-  if (session.closed || session.destroyed) {
-    return
-  }
-
-  const err = new SocketError('HTTP/2: connection unresponsive', util.getSocketInfo(session[kSocket]))
-  session[kError] = err
-  resetHttp2Session(session, err)
-}
-
 function clearHttp2IdleTimeout (session) {
   const state = session[kHTTP2SessionState]
 
@@ -14789,6 +14665,8 @@ function onHttp2SendPing (session) {
 }
 
 function onHttp2SessionError (err) {
+  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
+
   this[kSocket][kError] = err
 
   if (this[kReceivedGoAway]) {
@@ -14853,17 +14731,15 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
     }
   }
 
+  for (let i = 0; i < streamsToClose.length; i++) {
+    closeStream(streamsToClose[i])
+  }
+
   if (pendingIdx !== previousPendingIdx) {
     const remainingPendingRequests = client[kQueue].slice(previousPendingIdx)
     client[kQueue].length = pendingIdx
     client[kQueue].push(...retriableRequests, ...remainingPendingRequests)
   }
-
-  // Publish the rebuilt queue and detach the session before closing anything.
-  // A synchronous sibling HEADERS frameError can requeue an accepted-but-unsent
-  // request and resume the client. It must see the final indices and must not
-  // dispatch its retry on the session that is being retired.
-  client[kPendingIdx] = pendingIdx
 
   if (client[kHTTP2Session] === this) {
     client[kSocket] = null
@@ -14877,15 +14753,12 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
 
   clearHttp2IdleTimeout(this)
   clearNoStreamsTimeout(this)
-  clearHttp2ProbeTimeout(this)
-
-  for (let i = 0; i < streamsToClose.length; i++) {
-    closeStream(streamsToClose[i])
-  }
 
   if (!this.closed && !this.destroyed) {
     this.close()
   }
+
+  client[kPendingIdx] = pendingIdx
 
   client.emit('disconnect', client[kUrl], [client], err)
 
@@ -14905,7 +14778,6 @@ function onHttp2SessionClose () {
 
   clearHttp2IdleTimeout(this)
   clearNoStreamsTimeout(this)
-  clearHttp2ProbeTimeout(this)
 
   if (state.ping.interval != null) {
     clearInterval(state.ping.interval)
@@ -14960,6 +14832,8 @@ function onHttp2SocketClose () {
 }
 
 function onHttp2SocketError (err) {
+  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
+
   this[kError] = err
 
   if (this[kHTTP2Session]?.[kReceivedGoAway]) {
@@ -14993,8 +14867,8 @@ function closeStreamSession (stream) {
 }
 
 function onUpgradeStreamClose () {
-  // #5936: Retain the noop error sink so a session-level error delivered to
-  // this stream after undici detaches it cannot crash via an unhandled 'error'.
+  this.off('error', noop)
+
   const state = this[kRequestStreamState]
   this[kRequestStreamState] = null
 
@@ -15098,11 +14972,8 @@ function releaseUpgradeStream (stream) {
 
   removeUpgradeStreamListeners(stream)
 
-  // #5936: removeUpgradeStreamListeners() dropped the noop sink; re-attach a
-  // persistent one so a late session-level error on this (possibly still native
-  // tracked) stream cannot crash via an unhandled 'error'.
   if (!stream.destroyed && !stream.closed) {
-    stream.on('error', noop)
+    stream.once('error', noop)
   }
 }
 
@@ -15535,14 +15406,12 @@ function releaseRequestStream (stream) {
     detachRequestFromStream(request)
   }
 
-  // #5936: Node can deliver a session-level error to a released stream before
-  // its native handle is dropped (e.g. on idle session teardown). Attach a
-  // persistent noop error sink so a late 'error' always has a listener and
-  // cannot crash the process. A closed/destroyed stream cannot emit further
-  // events and is no longer tracked natively, so skip the listener teardown.
+  // A closed or destroyed stream cannot emit further events; leaving the
+  // listeners in place saves the removal scans (they are collected with
+  // the stream). All handlers bail out when the stream state is gone.
   if (!stream.destroyed && !stream.closed) {
     removeRequestStreamListeners(stream)
-    stream.on('error', noop)
+    stream.once('error', noop)
   }
 }
 
@@ -15737,43 +15606,10 @@ function retryRefusedStream (stream, state) {
   // SHOULD NOT automatically retry the same request more than once.
   request[kRefusedStreamRetry] = true
 
-  // The peer only reset this stream, so the HTTP/2 session remains usable for
-  // the retry.
-  requeueStreamRequest(client, state)
-
-  return true
-}
-
-// nghttp2 refuses to send the HEADERS of a stream opened before a GOAWAY was
-// received but flushed after it. The peer never saw the request, so it can be
-// replayed on a new connection whatever its method. A GOAWAY whose
-// lastStreamID covers the stream (e.g. 2^31-1, a graceful shutdown notice)
-// leaves the stream attached to the session, so this is the only signal.
-function retryUnsentStream (state) {
-  const { client, request, session } = state
-
-  if (
-    !session[kReceivedGoAway] ||
-    state.responseReceived ||
-    request.aborted ||
-    request.completed ||
-    !canReplayRequest(request) ||
-    !registerGoAwayRefusal(request)
-  ) {
-    return false
-  }
-
-  requeueStreamRequest(client, state)
-
-  return true
-}
-
-function requeueStreamRequest (client, state) {
-  const { request } = state
-
   // Detach the failed attempt before moving the request back to the pending
-  // queue. Severing also drops the 'close' listener, so the abandoned stream
-  // cannot later complete the retried request.
+  // queue. The peer only reset this stream, so the HTTP/2 session remains
+  // usable for the retry. Severing also drops the 'close' listener, so the
+  // abandoned stream cannot later complete the retried request.
   detachRequestStreamForClose(request)
   state.stream = null
   state.requestFinalized = true
@@ -15781,6 +15617,8 @@ function requeueStreamRequest (client, state) {
   completeRequest(client, request)
   client[kQueue].splice(client[kPendingIdx], 0, request)
   client[kResume]()
+
+  return true
 }
 
 function onError (err) {
@@ -15792,10 +15630,6 @@ function onError (err) {
   }
 
   stream.off('error', onError)
-  // #5936: The stream has already errored, but Node may destroy it again with a
-  // session-level error before the native handle is released. Keep a persistent
-  // noop error sink so that re-delivery cannot go unhandled.
-  stream.on('error', noop)
 
   // Node's HTTP/2 implementation can turn an incomplete Content-Length body
   // into a protocol stream error instead of emitting 'end'. Prefer the
@@ -15827,11 +15661,6 @@ function onFrameError (type, code) {
   }
 
   stream.off('frameError', onFrameError)
-
-  if (type === HTTP2_FRAME_TYPE_HEADERS && retryUnsentStream(state)) {
-    return
-  }
-
   state.abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`))
 }
 
@@ -15850,14 +15679,9 @@ function onTimeout () {
   // Remove self so timeout doesn't fire again after we handle it
   stream.off('timeout', onTimeout)
 
-  const { responseReceived, session, bodyTimeout, headersTimeout } = state
-  const err = responseReceived
-    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${bodyTimeout}"`)
-    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${headersTimeout}"`)
-
-  // Probe before aborting: completing the request resumes the queue, which
-  // must not open new streams until the peer has proven it is alive.
-  probeHttp2Session(session, responseReceived ? bodyTimeout : headersTimeout)
+  const err = state.responseReceived
+    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${state.bodyTimeout}"`)
+    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${state.headersTimeout}"`)
   state.abort(err)
 }
 
@@ -17718,8 +17542,7 @@ const EVENT_HEADERS_SIZE = 19
 let miloPackage
 
 // We disable wasm SIMD on ppc64 as it seems to be broken on Power 9 architectures.
-// We disable wasm SIMD on riscv64 as it seems to be broken on there as well.
-let useWasmSIMD = (process.arch !== 'riscv64' && process.arch !== 'ppc64')
+let useWasmSIMD = process.arch !== 'ppc64'
 // The Env Variable UNDICI_NO_WASM_SIMD allows explicitly overriding the default behavior.
 if (process.env.UNDICI_NO_WASM_SIMD === '1') {
   useWasmSIMD = false
@@ -18738,7 +18561,6 @@ module.exports = { H1Parser, getMiloEnabled, setMiloEnabled }
 
 
 
-const { AsyncResource } = __nccwpck_require__(6698)
 const { PoolStats } = __nccwpck_require__(6854)
 const DispatcherBase = __nccwpck_require__(1841)
 const FixedQueue = __nccwpck_require__(4660)
@@ -18765,22 +18587,6 @@ const kRetiring = Symbol('retiring clients')
 // Closes every live client, including clients that have been
 // taken out of rotation but are still finishing their own
 // requests.
-// Requests that wait in the Pool queue are dispatched later from whichever
-// callback drains the queue (another request's connect, drain, ...). Capture
-// the caller's async context so Client#dispatch, and the diagnostics channel
-// events it publishes, still run in it.
-class QueuedRequest extends AsyncResource {
-  constructor (opts, handler) {
-    super('UNDICI_POOL_QUEUED_REQUEST')
-    this.opts = opts
-    this.handler = handler
-  }
-
-  dispatch (dispatcher) {
-    return this.runInAsyncScope(dispatcher.dispatch, dispatcher, this.opts, this.handler)
-  }
-}
-
 function closeClients (pool) {
   const closeAll = []
   for (let i = 0; i < pool[kClients].length; i++) {
@@ -18824,7 +18630,7 @@ class PoolBase extends DispatcherBase {
         break
       }
       this[kQueued]--
-      needDrain = !item.dispatch(client)
+      needDrain = !client.dispatch(item.opts, item.handler)
     }
 
     client[kNeedDrain] = needDrain
@@ -18869,7 +18675,7 @@ class PoolBase extends DispatcherBase {
       const item = queue.shift()
       this[kQueued]--
 
-      if (!item.dispatch(dispatcher)) {
+      if (!dispatcher.dispatch(item.opts, item.handler)) {
         dispatcher[kNeedDrain] = true
         this[kOnClientBusy](dispatcher)
         hasDispatcher = this[kHasDispatcher]()
@@ -18983,7 +18789,7 @@ class PoolBase extends DispatcherBase {
 
     if (!dispatcher) {
       this[kNeedDrain] = true
-      this[kQueue].push(new QueuedRequest(opts, handler))
+      this[kQueue].push({ opts, handler })
       this[kQueued]++
     } else if (!dispatcher.dispatch(opts, handler)) {
       dispatcher[kNeedDrain] = true
@@ -20471,7 +20277,6 @@ module.exports = {
 
 
 const util = __nccwpck_require__(3440)
-const { kRedirectCacheControl } = __nccwpck_require__(6443)
 const {
   parseCacheControlHeader,
   hasInvalidCacheControlDirective,
@@ -20480,17 +20285,6 @@ const {
   isInvalidOrWildcardVaryHeader,
   isEtagUsable
 } = __nccwpck_require__(7659)
-
-/**
- * A suppressed redirect hop recorded by the redirect handler. Carried on
- * {@link kRedirectCacheControl} and inspected by the cache handler before the
- * final response is stored under the original request key.
- *
- * @typedef {object} RedirectHop
- * @property {number} statusCode The hop's response status code (e.g. 302).
- * @property {import('../../types/header.d.ts').IncomingHttpHeaders} headers The hop's response headers.
- * @property {number} receivedAt The time the hop's response headers were received.
- */
 const { parseHttpDate } = __nccwpck_require__(5453)
 
 function noop () {}
@@ -20539,19 +20333,6 @@ class CacheController {
   set rawTrailers (value) { this.target.rawTrailers = value }
 }
 
-/**
- * @param {string | URL} a
- * @param {string | URL} b
- * @returns {boolean}
- */
-function sameOrigin (a, b) {
-  try {
-    return new URL(String(a)).origin === new URL(String(b)).origin
-  } catch {
-    return String(a) === String(b)
-  }
-}
-
 // Status codes that we can use some heuristics on to cache
 const HEURISTICALLY_CACHEABLE_STATUS_CODES = [
   200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414, 501
@@ -20584,16 +20365,6 @@ function arrayIncludes (array, value) {
   }
 
   return false
-}
-
-function appendVaryValues (target, varyValue) {
-  if (Array.isArray(varyValue)) {
-    for (let i = 0; i < varyValue.length; i++) {
-      target.push(varyValue[i])
-    }
-  } else if (varyValue != null) {
-    target.push(varyValue)
-  }
 }
 
 function appendConnectionHeaderTokens (headersToRemove, connectionHeader) {
@@ -20667,26 +20438,6 @@ function invalidateUnsafeRequest (store, cacheKey, resHeaders) {
   deleteLocationTargets(store, cacheKey, resHeaders.location)
   deleteLocationTargets(store, cacheKey, resHeaders['content-location'])
 }
-
-/**
- * Whether the original request carried a credential that is not reflected in
- * the cache key. The memory/sqlite stores key an entry on origin, method, path
- * and `vary` only, so a credentialed request that is redirected to a resource
- * that varies per principal must not be stored under the original (alias) key:
- * a later caller would be served the first principal's body. The set mirrors the
- * request credentials the redirect handler strips across origins (`authorization`,
- * `cookie`, `proxy-authorization`).
- *
- * @param {import('../../types/header.d.ts').IncomingHttpHeaders | undefined} headers
- * @returns {boolean}
- */
-function requestCarriesCredentials (headers) {
-  return headers != null && (
-    Object.hasOwn(headers, 'authorization') ||
-    Object.hasOwn(headers, 'cookie') ||
-    Object.hasOwn(headers, 'proxy-authorization')
-  )
-}
 /**
  * @typedef {import('../../types/dispatcher.d.ts').default.DispatchHandler} DispatchHandler
  *
@@ -20729,14 +20480,6 @@ class CacheHandler {
   #writeStream
 
   /**
-   * The URLs visited while following redirects, shared by reference from the
-   * redirect handler through the request context. Carries the suppressed hops'
-   * status/headers under {@link kRedirectCacheControl}.
-   * @type {URL[] | undefined}
-   */
-  #history
-
-  /**
    * @param {import('../../types/cache-interceptor.d.ts').default.CacheHandlerOptions} opts
    * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} cacheKey
    * @param {import('../../types/dispatcher.d.ts').default.DispatchHandler} handler
@@ -20753,13 +20496,6 @@ class CacheHandler {
     this.#writeStream?.destroy()
     this.#writeStream = undefined
     this.#downstreamController = new CacheController(controller)
-    // The redirect handler threads the list of visited URLs through the
-    // handler-chain context. Keep a reference to it (it is mutated as redirects
-    // are followed) so onResponseStart can tell which request actually produced
-    // the response. Unlike the request options object, this reference is not
-    // broken by an interceptor that copies the options between the cache and
-    // the redirect.
-    this.#history = context?.history
     this.#handler.onRequestStart?.(this.#downstreamController, context)
   }
 
@@ -20807,62 +20543,6 @@ class CacheHandler {
       return downstreamOnHeaders()
     }
 
-    // A credential-bearing request that was redirected must not have the final
-    // hop's response stored under the original request's key. The cache key
-    // does not include the credential, and the redirect target may vary per
-    // principal (e.g. `/me` -> `/profile/{user}`), so replaying the body under
-    // the alias key would leak one principal's data to another — or to an
-    // unauthenticated caller — from a shared cache. The final hop's permissive
-    // cache-control (e.g. `public`) does not authorize this: the credential was
-    // presented to the original hop, not the resource that actually produced
-    // the body. Fail closed. A history with more than one entry means at least
-    // one redirect was actually followed (a single non-redirected hop records
-    // exactly one entry), so a plain revalidation is not mistaken for a redirect.
-    if (
-      this.#history && this.#history.length > 1 &&
-      requestCarriesCredentials(this.#cacheKey.headers)
-    ) {
-      return downstreamOnHeaders()
-    }
-
-    // A cross-origin redirect can change the origin that actually produced the
-    // final response. Keying that response on the original (trusted) origin
-    // would let a redirect target control an entry for a URL the application
-    // trusts. Every hop in the redirect chain must stay on the cache key's
-    // origin. An intermediate cross-origin hop can bounce back to the trusted
-    // origin (or to any cacheable asset there) even when the final response
-    // comes from the trusted origin, so checking only the final URL is not
-    // enough.
-    if (this.#history && this.#history.length > 0) {
-      for (const hopUrl of this.#history) {
-        if (!sameOrigin(hopUrl.origin, this.#cacheKey.origin)) {
-          return downstreamOnHeaders()
-        }
-      }
-    }
-
-    // A redirect hop that is not forwarded can still carry a storage policy
-    // (for example `no-store`, `private` for a shared cache, `no-cache`,
-    // `must-revalidate`, zero freshness, or `Vary: *`) that the final response
-    // body does not inherit. Honor it, otherwise a redirect that must not be
-    // stored (or that selects a private/authenticated target) could be
-    // laundered into a cacheable final response under the original key.
-    const now = Date.now()
-    const redirectHopInfo = this.#history?.[kRedirectCacheControl]
-    const redirectPolicy = redirectHopInfo?.length > 0
-      ? getRedirectPolicy(
-        this.#cacheType,
-        this.#cacheKey.method,
-        redirectHopInfo,
-        this.#cacheKey.headers,
-        this.#cacheByDefault,
-        now
-      )
-      : undefined
-    if (redirectHopInfo?.length > 0 && redirectPolicy === undefined) {
-      return downstreamOnHeaders()
-    }
-
     const cacheControlHeader = resHeaders['cache-control']
     const cacheControlDirectives = cacheControlHeader ? parseCacheControlHeader(cacheControlHeader) : {}
 
@@ -20895,6 +20575,7 @@ class CacheHandler {
       return downstreamOnHeaders()
     }
 
+    const now = Date.now()
     const resAge = Object.hasOwn(resHeaders, 'age') ? getAge(resHeaders.age) : undefined
     if (resAge !== undefined && resAge >= MAX_RESPONSE_AGE) {
       // Response considered stale
@@ -20931,65 +20612,24 @@ class CacheHandler {
     }
 
     const baseTime = now - currentAge
-    let absoluteStaleAt = staleAt + baseTime
-    if (redirectPolicy !== undefined) {
-      absoluteStaleAt = Math.min(absoluteStaleAt, redirectPolicy.staleAt)
-    }
+    const absoluteStaleAt = staleAt + baseTime
     if (now >= absoluteStaleAt && !revalidationOnly) {
       // Response is already stale
       deleteCachedValueIfNotModified(statusCode, this.#store, this.#cacheKey)
       return downstreamOnHeaders()
     }
 
-    // Union the `Vary` of every suppressed redirect hop with the final
-    // response's `Vary`. A 3xx hop that negotiates its target on `Authorization`
-    // / `Cookie` (or any other header) must make the stored entry vary on those
-    // headers too, or an authenticated user's private response would be served
-    // to unrelated callers.
     let varyDirectives
-    const combinedVary = []
-    if (redirectHopInfo) {
-      for (const hop of redirectHopInfo) {
-        appendVaryValues(combinedVary, hop?.headers?.vary)
-      }
-    }
-    appendVaryValues(combinedVary, resHeaders.vary)
-    if (combinedVary.length > 0) {
-      for (const varyHeader of combinedVary) {
-        if (hasVaryStar(varyHeader)) {
-          // `Vary: *` means the response can never be reused (RFC 9111 §4.1)
-          return downstreamOnHeaders()
-        }
-      }
-      if (this.#cacheKey.headers) {
-        varyDirectives = parseVaryHeader(combinedVary, this.#cacheKey.headers)
-        if (!varyDirectives) {
-          // Parse error
-          return downstreamOnHeaders()
-        }
-      }
-    }
-
-    // When the entry was folded from a redirect chain, the final response's
-    // stale-serving directives (RFC 5861) must not outlive the hops' freshness.
-    // A hop that grants no `stale-while-revalidate` / `stale-if-error` caps
-    // stale serving at its freshness, so the final response cannot launder a
-    // stale-serving window past the hop-bounded `staleAt`. Drop those directives
-    // (and keep the `proxy-revalidate` the hop policy may require) so the entry
-    // revalidates at `staleAt` instead of being served stale for the final
-    // response's window.
-    let effectiveCacheControlDirectives = cacheControlDirectives
-    if (redirectPolicy !== undefined) {
-      effectiveCacheControlDirectives = { ...cacheControlDirectives }
-      delete effectiveCacheControlDirectives['stale-while-revalidate']
-      delete effectiveCacheControlDirectives['stale-if-error']
-      if (redirectPolicy.requiresRevalidation === true) {
-        effectiveCacheControlDirectives['proxy-revalidate'] = true
+    if (this.#cacheKey.headers && resHeaders.vary) {
+      varyDirectives = parseVaryHeader(resHeaders.vary, this.#cacheKey.headers)
+      if (!varyDirectives) {
+        // Parse error
+        return downstreamOnHeaders()
       }
     }
 
     const cachedAt = baseTime
-    const deleteAt = determineDeleteAt(baseTime, now, effectiveCacheControlDirectives, absoluteStaleAt)
+    const deleteAt = determineDeleteAt(baseTime, now, cacheControlDirectives, absoluteStaleAt)
     const strippedHeaders = stripNecessaryHeaders(resHeaders, cacheControlDirectives)
 
     /**
@@ -21000,7 +20640,7 @@ class CacheHandler {
       statusMessage,
       headers: strippedHeaders,
       vary: varyDirectives,
-      cacheControlDirectives: effectiveCacheControlDirectives,
+      cacheControlDirectives,
       cachedAt,
       staleAt: absoluteStaleAt,
       deleteAt
@@ -21016,22 +20656,6 @@ class CacheHandler {
         }
         done = true
         this.#downstreamController.release()
-      }
-
-      // The cached body below is replayed to the downstream handler from later
-      // stream ticks (or an iterator loop), outside the dispatcher's own error
-      // handling, so a throwing downstream handler must be converged to a
-      // per-request error instead of escaping as an uncaught exception.
-      const failReplay = (err) => {
-        if (done) {
-          return
-        }
-        done = true
-        // Abort the revalidation request: this releases the paused origin
-        // response (freeing the connection) and routes the error through
-        // CacheHandler.onResponseError, which destroys the cache write stream
-        // and forwards the error downstream exactly once.
-        controller.abort(err)
       }
 
       const handle304 = (cachedValue) => {
@@ -21065,19 +20689,15 @@ class CacheHandler {
             if (done) {
               return
             }
-            try {
-              for (const chunk of bodyIterator) {
-                const full = this.#writeStream?.write(chunk) === false
-                this.#handler.onResponseData?.(this.#downstreamController, chunk)
-                // when stream is full stop writing until we get a 'drain' event
-                if (full) {
-                  return
-                }
+            for (const chunk of bodyIterator) {
+              const full = this.#writeStream?.write(chunk) === false
+              this.#handler.onResponseData?.(this.#downstreamController, chunk)
+              // when stream is full stop writing until we get a 'drain' event
+              if (full) {
+                return
               }
-              finish304()
-            } catch (err) {
-              failReplay(err)
             }
+            finish304()
           }
 
           this.#writeStream
@@ -21103,13 +20723,8 @@ class CacheHandler {
           // Readable stream body (e.g. from async/remote cache stores)
           cachedValue.body
             .on('data', (chunk) => {
-              try {
-                this.#writeStream?.write(chunk)
-                this.#handler.onResponseData?.(this.#downstreamController, chunk)
-              } catch (err) {
-                cachedValue.body.destroy()
-                failReplay(err)
-              }
+              this.#writeStream?.write(chunk)
+              this.#handler.onResponseData?.(this.#downstreamController, chunk)
             })
             .on('end', () => {
               this.#writeStream?.end()
@@ -21314,139 +20929,6 @@ function canCacheResponse (cacheType, method, statusCode, resHeaders, cacheContr
   }
 
   return true
-}
-
-/**
- * Determine the absolute freshness deadline imposed by all suppressed redirect
- * hops. Returning `undefined` means at least one hop cannot safely be folded
- * into the final response under the original request key.
- *
- * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
- * @param {string} method
- * @param {RedirectHop[]} redirectHops
- * @param {import('../../types/header.d.ts').IncomingHttpHeaders} reqHeaders
- * @param {number | undefined} cacheByDefault
- * @param {number} now
- * @returns {{ staleAt: number, requiresRevalidation: boolean } | undefined}
- */
-function getRedirectPolicy (cacheType, method, redirectHops, reqHeaders, cacheByDefault, now) {
-  let staleAt = Infinity
-  let requiresRevalidation = false
-
-  for (const hop of redirectHops) {
-    const hopPolicy = getRedirectHopPolicy(cacheType, method, hop, reqHeaders, cacheByDefault)
-    if (hopPolicy === undefined || hopPolicy.staleAt <= now) {
-      return undefined
-    }
-
-    staleAt = Math.min(staleAt, hopPolicy.staleAt)
-    requiresRevalidation ||= hopPolicy.requiresRevalidation
-  }
-
-  return { staleAt, requiresRevalidation }
-}
-
-/**
- * Calculate one redirect hop's absolute freshness deadline using the same age,
- * date, expiration, invalid-directive, and heuristic rules as a final response.
- *
- * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
- * @param {string} method
- * @param {RedirectHop} hop
- * @param {import('../../types/header.d.ts').IncomingHttpHeaders} reqHeaders
- * @param {number | undefined} cacheByDefault
- * @returns {{ staleAt: number, requiresRevalidation: boolean } | undefined}
- */
-function getRedirectHopPolicy (cacheType, method, hop, reqHeaders, cacheByDefault) {
-  if (!Number.isInteger(hop?.statusCode) || !Number.isFinite(hop?.receivedAt)) {
-    return undefined
-  }
-
-  const hopHeaders = hop.headers ?? {}
-  const cacheControlHeader = hopHeaders['cache-control']
-  const hopCacheControl = cacheControlHeader
-    ? parseCacheControlHeader(cacheControlHeader)
-    : {}
-
-  // https://www.rfc-editor.org/rfc/rfc9111.html#section-4.1-5
-  if (hopHeaders.vary && hasVaryStar(hopHeaders.vary)) {
-    return undefined
-  }
-
-  if (hopCacheControl['no-store'] === true) {
-    return undefined
-  }
-
-  // A qualified `private` directive still marks the named fields as private.
-  // Folding a redirect that says `private="location"` would preserve the
-  // private target choice in the final body even though a shared cache is not
-  // allowed to store that Location field.
-  if (cacheType === 'shared' && Object.hasOwn(hopCacheControl, 'private')) {
-    return undefined
-  }
-
-  // These directives require the hop to be revalidated before reuse. Since the
-  // cache stores only the final response, it cannot independently validate the
-  // suppressed redirect response.
-  if (
-    Object.hasOwn(hopCacheControl, 'no-cache') ||
-    hopCacheControl['must-revalidate'] === true ||
-    (cacheType === 'shared' && hopCacheControl['proxy-revalidate'] === true)
-  ) {
-    return undefined
-  }
-
-  const heuristicallyCacheable =
-    hopHeaders['last-modified'] &&
-    arrayIncludes(HEURISTICALLY_CACHEABLE_STATUS_CODES, hop.statusCode)
-  if (
-    !cacheControlHeader &&
-    !hopHeaders.expires &&
-    !heuristicallyCacheable &&
-    !cacheByDefault
-  ) {
-    return undefined
-  }
-
-  if (!canCacheResponse(cacheType, method, hop.statusCode, hopHeaders, hopCacheControl, reqHeaders)) {
-    return undefined
-  }
-
-  const age = Object.hasOwn(hopHeaders, 'age') ? getAge(hopHeaders.age) : undefined
-  if (age !== undefined && age >= MAX_RESPONSE_AGE) {
-    return undefined
-  }
-
-  const responseDate = Object.hasOwn(hopHeaders, 'date') ? getDate(hopHeaders.date) : undefined
-  if (responseDate === null) {
-    return undefined
-  }
-
-  const apparentAge = responseDate ? Math.max(0, hop.receivedAt - responseDate.getTime()) : 0
-  const currentAge = Math.max(apparentAge, age ?? 0)
-  const hasValidator =
-    (typeof hopHeaders.etag === 'string' && isEtagUsable(hopHeaders.etag)) ||
-    typeof hopHeaders['last-modified'] === 'string'
-  const freshnessLifetime =
-    determineStaleAt(
-      cacheType,
-      hop.receivedAt,
-      age,
-      hopHeaders,
-      responseDate,
-      hopCacheControl,
-      hasValidator
-    ) ?? cacheByDefault
-
-  if (freshnessLifetime === undefined) {
-    return undefined
-  }
-
-  return {
-    staleAt: hop.receivedAt - currentAge + freshnessLifetime,
-    // RFC 9111 §5.2.2.10: s-maxage implies proxy-revalidate for shared caches.
-    requiresRevalidation: cacheType === 'shared' && Object.hasOwn(hopCacheControl, 's-maxage')
-  }
 }
 
 /**
@@ -21872,13 +21354,9 @@ module.exports = class DecoratorHandler {
   onResponseStart (...args) {
     assert(!this.#onCompleteCalled)
     assert(!this.#onErrorCalled)
+    assert(!this.#onResponseStartCalled)
 
-    // Interim 1xx responses (e.g. 103 Early Hints) come before the final one.
-    const statusCode = args[1]
-    if (statusCode >= 200) {
-      assert(!this.#onResponseStartCalled)
-      this.#onResponseStartCalled = true
-    }
+    this.#onResponseStartCalled = true
 
     return this.#handler.onResponseStart?.(...args)
   }
@@ -21939,7 +21417,6 @@ const DEFAULT_MAX_BUFFER_SIZE = 5 * 1024 * 1024
  * @property {number} bufferedBytes
  * @property {object | null} pendingTrailers
  * @property {boolean} done
- * @property {boolean} [pendingStart] onRequestStart deferred until the primary request's context is known
  */
 
 /**
@@ -21953,20 +21430,6 @@ class DeduplicationHandler {
    * @type {DispatchHandler}
    */
   #primaryHandler
-
-  /**
-   * Whether the primary request has started (onRequestStart received). Until
-   * then the request context is unknown and cannot be given to waiting handlers.
-   * @type {boolean}
-   */
-  #requestStarted = false
-
-  /**
-   * The primary request context, replayed to waiting handlers so they observe
-   * the same redirect history as the primary.
-   * @type {any}
-   */
-  #context = null
 
   /**
    * @type {WaitingHandler[]}
@@ -22050,30 +21513,20 @@ class DeduplicationHandler {
     const waitingController = waitingHandler.controller
 
     try {
-      if (this.#requestStarted) {
-        // The primary request has started, so its context (including the
-        // redirect history) is known and can be delivered immediately.
-        handler.onRequestStart?.(waitingController, this.#context)
+      handler.onRequestStart?.(waitingController, null)
 
-        if (waitingController.aborted) {
-          waitingHandler.done = true
-          return true
-        }
+      if (waitingController.aborted) {
+        waitingHandler.done = true
+        return true
+      }
 
-        if (this.#responseStarted) {
-          handler.onResponseStart?.(
-            waitingController,
-            this.#statusCode,
-            this.#headers,
-            this.#statusMessage
-          )
-        }
-      } else {
-        // The primary request has not started yet. Defer onRequestStart until
-        // its context is known, so the waiting handler observes the same
-        // redirect history as the primary (a cache handler relies on it to
-        // reject cross-origin redirect responses).
-        waitingHandler.pendingStart = true
+      if (this.#responseStarted) {
+        handler.onResponseStart?.(
+          waitingController,
+          this.#statusCode,
+          this.#headers,
+          this.#statusMessage
+        )
       }
     } catch {
       // Ignore errors from waiting handlers
@@ -22094,24 +21547,6 @@ class DeduplicationHandler {
    */
   onRequestStart (controller, context) {
     this.#controller = controller
-    if (!this.#requestStarted) {
-      this.#requestStarted = true
-      this.#context = context
-      // Deliver the now-known context to handlers that joined before the
-      // primary request started.
-      for (const waitingHandler of this.#waitingHandlers) {
-        if (waitingHandler.pendingStart && !waitingHandler.done && !waitingHandler.controller.aborted) {
-          waitingHandler.pendingStart = false
-          try {
-            waitingHandler.handler.onRequestStart?.(waitingHandler.controller, context)
-          } catch {
-            // Ignore errors from waiting handlers
-            waitingHandler.done = true
-          }
-        }
-      }
-      this.#pruneDoneWaitingHandlers()
-    }
     this.#primaryHandler.onRequestStart?.(controller, context)
   }
 
@@ -22296,8 +21731,7 @@ class DeduplicationHandler {
       bufferedChunks: [],
       bufferedBytes: 0,
       pendingTrailers: null,
-      done: false,
-      pendingStart: false
+      done: false
     }
 
     const state = {
@@ -22473,7 +21907,7 @@ module.exports = DeduplicationHandler
 const util = __nccwpck_require__(3440)
 const assert = __nccwpck_require__(4589)
 const { InvalidArgumentError, MaxRedirectsError } = __nccwpck_require__(8707)
-const { kRequestOrigin, kRedirectCacheControl } = __nccwpck_require__(6443)
+const { kRequestOrigin } = __nccwpck_require__(6443)
 
 const redirectableStatusCodes = [300, 301, 302, 303, 307, 308]
 
@@ -22508,16 +21942,6 @@ class RedirectHandler {
     this.maxRedirections = maxRedirections
     this.handler = handler
     this.history = []
-    // Per-hop metadata for each intermediate (suppressed) redirect hop: the
-    // hop's status code and response headers. An outer cache uses it to honor a
-    // hop's storage policy (e.g. `no-store`, `no-cache`, `Vary: *`) that would
-    // otherwise be lost because the hop's response is not forwarded. It travels
-    // as a non-enumerable property of the history array so it reaches the cache
-    // without becoming part of the public request/response context.
-    Object.defineProperty(this.history, kRedirectCacheControl, {
-      value: [],
-      enumerable: false
-    })
   }
 
   onRequestStart (controller, context) {
@@ -22593,15 +22017,6 @@ class RedirectHandler {
       this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
       return
     }
-
-    // This hop's response is suppressed (only its Location is used). Record its
-    // status and headers so an outer cache can honor a restrictive policy that
-    // would otherwise be lost when the final response is stored.
-    this.history[kRedirectCacheControl].push({
-      statusCode,
-      headers: { ...headers },
-      receivedAt: Date.now()
-    })
 
     const baseUrl = requestOrigin
       ? new URL(this.opts.path, requestOrigin)
@@ -22716,25 +22131,9 @@ function normalizeStripHeaders (headers, optionName) {
 function cleanRequestHeaders (headers, removeContent, unknownOrigin, stripHeaders, stripHeadersOnCrossOrigin) {
   const ret = []
   if (Array.isArray(headers)) {
-    // Headers may be either a flat alternating [name, value, name, value, ...]
-    // list or an iterable of [name, value] pairs. A plain JavaScript array of
-    // tuples (e.g. `Object.entries(headers)`) satisfies the iterable-of-pairs
-    // public type, so we must distinguish the two representations before
-    // iterating. Treating every Array as a flat list misreads each tuple as a
-    // header name/value pair and defeats the cross-origin credential stripping.
-    if (headers.length > 0 && Array.isArray(headers[0])) {
-      // Array of [name, value] pairs.
-      for (const [key, value] of headers) {
-        if (!shouldRemoveHeader(key, removeContent, unknownOrigin, stripHeaders, stripHeadersOnCrossOrigin)) {
-          ret.push(key, value)
-        }
-      }
-    } else {
-      // Flat alternating [name, value, name, value, ...] list.
-      for (let i = 0; i < headers.length; i += 2) {
-        if (!shouldRemoveHeader(headers[i], removeContent, unknownOrigin, stripHeaders, stripHeadersOnCrossOrigin)) {
-          ret.push(headers[i], headers[i + 1])
-        }
+    for (let i = 0; i < headers.length; i += 2) {
+      if (!shouldRemoveHeader(headers[i], removeContent, unknownOrigin, stripHeaders, stripHeadersOnCrossOrigin)) {
+        ret.push(headers[i], headers[i + 1])
       }
     }
   } else if (headers && typeof headers === 'object') {
@@ -23468,8 +22867,7 @@ const {
   normalizeHeaders,
   parseCacheControlHeader,
   isInvalidOrWildcardVaryHeader,
-  parseVaryHeader,
-  isEtagUsable
+  parseVaryHeader
 } = __nccwpck_require__(7659)
 const { AbortError } = __nccwpck_require__(8707)
 const { parseHttpDate } = __nccwpck_require__(5453)
@@ -23657,47 +23055,6 @@ function makeRevalidationHeaders (opts, result) {
   return headers
 }
 
-function revalidationTargetMatchesCacheKey (cacheKey, context) {
-  const history = context?.history
-  if (!Array.isArray(history) || history.length === 0) {
-    return true
-  }
-
-  try {
-    const cachedUrl = new URL(cacheKey.path, cacheKey.origin)
-    const responseUrl = history[history.length - 1]
-    return responseUrl.origin === cachedUrl.origin &&
-      responseUrl.pathname === cachedUrl.pathname &&
-      responseUrl.search === cachedUrl.search
-  } catch {
-    return false
-  }
-}
-
-function revalidationEtagMatchesCachedValue (result, headers) {
-  if (!Object.hasOwn(headers, 'etag')) {
-    return true
-  }
-
-  const responseEtag = headers.etag
-  const cachedEtag = result.etag
-  if (
-    typeof responseEtag !== 'string' ||
-    typeof cachedEtag !== 'string' ||
-    !isEtagUsable(responseEtag) ||
-    !isEtagUsable(cachedEtag)
-  ) {
-    return false
-  }
-
-  if (!responseEtag.startsWith('W/')) {
-    return responseEtag === cachedEtag
-  }
-
-  const cachedOpaqueTag = cachedEtag.startsWith('W/') ? cachedEtag.slice(2) : cachedEtag
-  return responseEtag.slice(2) === cachedOpaqueTag
-}
-
 /**
  * @param {import('../../types/cache-interceptor.d.ts').default.GetResult} result
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives | undefined} cacheControlDirectives
@@ -23862,35 +23219,21 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
 
   stream
     .on('error', function (err) {
-      // Never rethrow: this runs from a stream event on a later tick, where a
-      // throw would crash the process. Like core's Request.onResponseError,
-      // the error is dropped if the handler has no onResponseError.
       if (!this.readableEnded) {
-        handler.onResponseError?.(controller, err)
+        if (typeof handler.onResponseError === 'function') {
+          handler.onResponseError(controller, err)
+        } else {
+          throw err
+        }
       }
     })
     .on('close', function () {
       if (!this.errored) {
-        try {
-          handler.onResponseEnd?.(controller, {})
-        } catch (err) {
-          // The stream is already closed, so the error can't be routed
-          // through it; report it to the handler directly instead.
-          handler.onResponseError?.(controller, err)
-        }
+        handler.onResponseEnd?.(controller, {})
       }
     })
 
-  // Downstream handler calls below run outside the dispatcher's own error
-  // handling (on later ticks for the body, or inside a promise callback for
-  // async stores), so a throw must be converged to a per-request error
-  // instead of escaping as an uncaught exception.
-  try {
-    handler.onRequestStart?.(controller, context)
-  } catch (err) {
-    stream.destroy(err)
-    return
-  }
+  handler.onRequestStart?.(controller, context)
 
   if (stream.destroyed) {
     return
@@ -23908,22 +23251,13 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
 
   controller.rawHeaders = util.toRawHeaders(headers)
 
-  try {
-    handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
-  } catch (err) {
-    stream.destroy(err)
-    return
-  }
+  handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
 
   if (opts.method === 'HEAD') {
     stream.destroy()
   } else {
     stream.on('data', function (chunk) {
-      try {
-        handler.onResponseData?.(controller, chunk)
-      } catch (err) {
-        stream.destroy(err)
-      }
+      handler.onResponseData?.(controller, chunk)
     })
   }
 }
@@ -24021,14 +23355,6 @@ function handleResult (
     }
 
     const headers = makeRevalidationHeaders(opts, result)
-    const refetch = () => {
-      if (util.isStream(result.body)) {
-        result.body.on('error', nop).destroy()
-      }
-
-      deleteCachedValue(globalOpts.store, cacheKey)
-      return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
-    }
 
     // We need to revalidate the response
     return dispatch(
@@ -24040,18 +23366,24 @@ function handleResult (
         (success, context, statusCode, headers) => {
           if (success) {
             if (statusCode === 304) {
-              if (
-                !revalidationTargetMatchesCacheKey(cacheKey, context) ||
-                !revalidationEtagMatchesCachedValue(result, headers) ||
-                revalidationResponseDisallowsCachedReuse(globalOpts.type, headers)
-              ) {
-                return refetch()
+              if (revalidationResponseDisallowsCachedReuse(globalOpts.type, headers)) {
+                if (util.isStream(result.body)) {
+                  result.body.on('error', nop).destroy()
+                }
+
+                deleteCachedValue(globalOpts.store, cacheKey)
+                return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
               }
 
               if (revalidationResponseUpdatesCacheControl(headers)) {
                 deleteCachedValue(globalOpts.store, cacheKey)
               } else if (revalidationResponseAddsVary(result, headers.vary ? parseVaryHeader(headers.vary, opts.headers) : undefined)) {
-                return refetch()
+                if (util.isStream(result.body)) {
+                  result.body.on('error', nop).destroy()
+                }
+
+                deleteCachedValue(globalOpts.store, cacheKey)
+                return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
               }
             }
 
@@ -24187,28 +23519,6 @@ module.exports = (opts = {}) => {
             reqCacheControl,
             result
           ))
-          .catch((err) => {
-            // Any throw escaping handleResult on the async-store path (e.g. a
-            // rejection from store.get() itself, or a throw in a code path not
-            // converged by sendCachedValue) would otherwise surface as an
-            // unhandled promise rejection and crash the process. Route it to
-            // the handler instead, matching the synchronous store path where
-            // the error propagates to the request() call site.
-            if (typeof handler.onResponseError === 'function') {
-              handler.onResponseError({
-                rawHeaders: [],
-                rawTrailers: [],
-                pause () {},
-                resume () {},
-                get paused () { return false },
-                get aborted () { return false },
-                get reason () { return null },
-                abort () {}
-              }, err)
-            } else {
-              throw err
-            }
-          })
       } else {
         return handleResult(
           dispatch,
@@ -24455,14 +23765,9 @@ class DecompressHandler extends DecoratorHandler {
             this.#decompressedSize = decompressedSize
           }
 
-          try {
-            const result = super.onResponseData(this.#controller, chunk)
-            if (result === false && !this.#controller.paused) {
-              this.#controller.pause()
-            }
-          } catch (err) {
-            this.#fail(err)
-            return
+          const result = super.onResponseData(this.#controller, chunk)
+          if (result === false && !this.#controller.paused) {
+            this.#controller.pause()
           }
         }
       } while (this.#drainRequested && !this.#terminated && !this.#controller.paused)
@@ -24479,14 +23784,9 @@ class DecompressHandler extends DecoratorHandler {
       return
     }
 
-    this.#cleanupDecompressors()
-    try {
-      super.onResponseEnd(this.#controller, this.#trailers)
-    } catch (err) {
-      this.#fail(err)
-      return
-    }
     this.#terminated = true
+    this.#cleanupDecompressors()
+    super.onResponseEnd(this.#controller, this.#trailers)
   }
 
   #onDecompressionEnd () {
@@ -29681,13 +28981,6 @@ function removeTrailingSlash (path) {
     return path
   }
 
-  // Only strip slashes from the pathname, not from a query string after it
-  const queryIndex = path.indexOf('?')
-  const search = queryIndex === -1 ? '' : path.slice(queryIndex)
-  if (queryIndex !== -1) {
-    path = path.slice(0, queryIndex)
-  }
-
   while (path.endsWith('/')) {
     path = path.slice(0, -1)
   }
@@ -29696,7 +28989,7 @@ function removeTrailingSlash (path) {
     path = '/'
   }
 
-  return path + search
+  return path
 }
 
 function buildKey (opts) {
@@ -29827,9 +29120,6 @@ function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler, re
     paused: false,
     rawHeaders: null,
     rawTrailers: null,
-    get aborted () {
-      return aborted
-    },
     pause () {
       this.paused = true
     },
@@ -35488,11 +34778,12 @@ const EVENT = Buffer.from('event')
 const ID = Buffer.from('id')
 const RETRY = Buffer.from('retry')
 
-// Each data field creates a string node, and each unconsumed input chunk keeps
-// a Buffer wrapper. The absolute ceiling protects the large default byte limit.
-const minParserItems = 1024
-const maxParserItems = 131072
-const bytesPerParserItem = 128
+// The longest prefix a `data:` field can have before its value: "data:" plus a
+// single leading U+0020 SPACE. Used when bounding an unterminated line against
+// maxEventSize so a server cannot force unbounded buffering by never sending a
+// line terminator, while still accepting a terminated data line whose value is
+// exactly maxEventSize bytes.
+const DATA_FIELD_PREFIX_SIZE = DATA.length + 2
 
 function isASCIINumberBytes (buffer, start) {
   if (start >= buffer.length) {
@@ -35586,13 +34877,9 @@ class EventSourceStream extends Transform {
   pos = 0
   lineChunkIndex = 0
   linePos = 0
-  lineLength = 0
-  eventSize = 0
-  eventFieldSizes = { data: 0, event: 0, id: 0, retry: 0 }
-  dataLineCount = 0
+  eventDataSize = 0
+  currentLineSize = 0
   maxEventSize
-  maxDataLines
-  maxBufferedChunks
 
   event = {
     data: undefined,
@@ -35617,11 +34904,6 @@ class EventSourceStream extends Transform {
 
     this.state = options.eventSourceSettings || {}
     this.maxEventSize = options.maxEventSize ?? defaultMaxEventSize
-    const parserItemLimit = this.maxEventSize > 0
-      ? Math.min(maxParserItems, Math.max(minParserItems, Math.floor(this.maxEventSize / bytesPerParserItem)))
-      : 0
-    this.maxDataLines = parserItemLimit
-    this.maxBufferedChunks = parserItemLimit
     if (options.push) {
       this.push = options.push
     }
@@ -35639,14 +34921,6 @@ class EventSourceStream extends Transform {
       return
     }
 
-    // A leading line ending can immediately release the currently buffered
-    // line, even when it uses the final allowed chunk slot.
-    if (this.maxEventSize > 0 &&
-        this.chunks.length >= this.maxBufferedChunks &&
-        chunk[0] !== LF && chunk[0] !== CR) {
-      callback(createMaxEventSizeExceededError())
-      return
-    }
     this.chunks.push(chunk)
 
     // Strip leading byte-order-mark if we opened the stream and started
@@ -35739,23 +35013,19 @@ class EventSourceStream extends Transform {
         continue
       }
 
-      // readLine() is only called after CR or LF. Reject an unfinished line
-      // before it can retain an unbounded number of decoded chunks. The seven
-      // extra bytes allow the longest field prefix ("event: " or "retry: ").
-      if (this.maxEventSize > 0 && ++this.lineLength > this.maxEventSize + 7) {
+      this.advanceCursor()
+      this.currentLineSize++
+
+      // An unterminated line never reaches parseLine(), so enforce the configured
+      // maxEventSize here to prevent unbounded buffering when a server streams a
+      // field that never contains a line terminator.
+      if (this.currentLineSize > this.getMaxEventSizeLineLength()) {
         callback(createMaxEventSizeExceededError())
         return
       }
-      this.advanceCursor()
     }
 
     callback()
-  }
-
-  _destroy (error, callback) {
-    this.chunks.length = 0
-    this.clearEvent()
-    super._destroy(error, callback)
   }
 
   /**
@@ -35794,12 +35064,12 @@ class EventSourceStream extends Transform {
     }
 
     if (isFieldName(line, fieldLength, DATA)) {
-      if (this.maxEventSize > 0 && this.dataLineCount >= this.maxDataLines) {
+      const valueBytes = line.length - valueStart
+      const eventDataSize = this.eventDataSize + (event.data === undefined ? 0 : 1) + valueBytes
+
+      if (this.maxEventSize > 0 && eventDataSize > this.maxEventSize) {
         throw createMaxEventSizeExceededError()
       }
-      const valueBytes = line.length - valueStart
-      const dataSize = this.eventFieldSizes.data + (event.data === undefined ? 0 : 1) + valueBytes
-      this.setEventFieldSize('data', dataSize)
 
       const value = line.toString('utf8', valueStart)
 
@@ -35808,13 +35078,12 @@ class EventSourceStream extends Transform {
       } else {
         event.data += `\n${value}`
       }
-      this.dataLineCount++
+      this.eventDataSize = eventDataSize
       return
     }
 
     if (isFieldName(line, fieldLength, RETRY)) {
       if (isASCIINumberBytes(line, valueStart)) {
-        this.setEventFieldSize('retry', line.length - valueStart)
         event.retry = line.toString('utf8', valueStart)
       }
       return
@@ -35822,27 +35091,18 @@ class EventSourceStream extends Transform {
 
     if (isFieldName(line, fieldLength, ID)) {
       if (isValidLastEventIdBytes(line, valueStart)) {
-        this.setEventFieldSize('id', line.length - valueStart)
         event.id = line.toString('utf8', valueStart)
       }
       return
     }
 
     if (isFieldName(line, fieldLength, EVENT)) {
-      if (valueStart < line.length) {
-        this.setEventFieldSize('event', line.length - valueStart)
-        event.event = line.toString('utf8', valueStart)
+      const value = line.toString('utf8', valueStart)
+
+      if (value.length > 0) {
+        event.event = value
       }
     }
-  }
-
-  setEventFieldSize (field, size) {
-    const eventSize = this.eventSize - this.eventFieldSizes[field] + size
-    if (this.maxEventSize > 0 && eventSize > this.maxEventSize) {
-      throw createMaxEventSizeExceededError()
-    }
-    this.eventSize = eventSize
-    this.eventFieldSizes[field] = size
   }
 
   /**
@@ -35875,12 +35135,7 @@ class EventSourceStream extends Transform {
     this.event.event = undefined
     this.event.id = undefined
     this.event.retry = undefined
-    this.eventSize = 0
-    this.dataLineCount = 0
-    this.eventFieldSizes.data = 0
-    this.eventFieldSizes.event = 0
-    this.eventFieldSizes.id = 0
-    this.eventFieldSizes.retry = 0
+    this.eventDataSize = 0
   }
 
   hasPendingEvent () {
@@ -35916,16 +35171,29 @@ class EventSourceStream extends Transform {
   syncLineStartToCursor () {
     this.lineChunkIndex = this.chunkIndex
     this.linePos = this.pos
-    this.lineLength = 0
+    this.currentLineSize = 0
     this.dropConsumedChunks()
   }
 
+  /**
+   * @returns {number} The maximum length, in bytes, of the currently buffered
+   * (possibly unterminated) line. The extra {@link DATA_FIELD_PREFIX_SIZE}
+   * accounts for the longest `data:` field prefix, so a terminated data line
+   * carrying exactly {@link maxEventSize} value bytes remains accepted.
+   */
+  getMaxEventSizeLineLength () {
+    if (this.maxEventSize <= 0) {
+      return Infinity
+    }
+
+    return this.maxEventSize + DATA_FIELD_PREFIX_SIZE
+  }
+
   dropConsumedChunks () {
-    if (this.lineChunkIndex > 0) {
-      const consumed = this.lineChunkIndex
-      this.chunks.splice(0, consumed)
-      this.lineChunkIndex = 0
-      this.chunkIndex -= consumed
+    while (this.lineChunkIndex > 0) {
+      this.chunks.shift()
+      this.lineChunkIndex--
+      this.chunkIndex--
     }
 
     if (this.chunkIndex === this.chunks.length) {
@@ -36889,36 +36157,16 @@ function extractBody (object, keepalive = false) {
       )
     }
 
-    if (webidl.is.ReadableStream(object)) {
-      stream = object
-    } else {
-      const reader = ReadableStream.from(object).getReader()
-      let cancelled = false
-      // Do not pull from the iterable until the body is read.
-      stream = new ReadableStream({
-        async pull (controller) {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (cancelled) {
-              return
-            }
-            if (done) {
-              controller.close()
-              return
-            }
-            const bytes = isUint8Array(value) ? value : Buffer.from(value)
-            if (bytes.byteLength) {
-              controller.enqueue(bytes)
-              return
-            }
+    stream = webidl.is.ReadableStream(object)
+      ? object
+      : ReadableStream.from(object).pipeThrough(new TransformStream({
+        transform (chunk, controller) {
+          const bytes = isUint8Array(chunk) ? chunk : Buffer.from(chunk)
+          if (bytes.byteLength) {
+            controller.enqueue(bytes)
           }
-        },
-        cancel (reason) {
-          cancelled = true
-          return reader.cancel(reason)
         }
-      }, { highWaterMark: 0 })
-    }
+      }))
   }
 
   // 18. If source is a byte sequence, then set action to a
@@ -39937,7 +39185,10 @@ function fetch (input, init = undefined) {
       cleanupAbortListeners()
     },
     processResponse,
-    dispatcher: getRequestDispatcher(requestObject) // undici
+    dispatcher: getRequestDispatcher(requestObject), // undici
+    // Keep requestObject alive to prevent its AbortController from being GC'd
+    // See https://github.com/nodejs/undici/issues/4627
+    requestObject
   })
 
   // 14. Return p.
@@ -40056,7 +39307,8 @@ function fetching ({
   processResponseEndOfBody,
   processResponseConsumeBody,
   useParallelQueue = false,
-  dispatcher = getGlobalDispatcher() // undici
+  dispatcher = getGlobalDispatcher(), // undici
+  requestObject = null // Keep alive to prevent AbortController GC, see #4627
 }) {
   // Ensure that the dispatcher is set accordingly
   assert(dispatcher)
@@ -40110,7 +39362,9 @@ function fetching ({
     processResponseConsumeBody,
     processResponseEndOfBody,
     taskDestination,
-    crossOriginIsolatedCapability
+    crossOriginIsolatedCapability,
+    // Keep requestObject alive to prevent its AbortController from being GC'd
+    requestObject
   }
 
   // 7. If request’s body is a byte sequence, then set request’s body to
@@ -41921,6 +41175,8 @@ async function httpNetworkFetch (
             appendHeadersListFromResponseHeaders(headersList, headers, rawHeaders)
             const location = headersList.get('location', true)
 
+            this.body = new Readable({ read: () => controller.resume() })
+
             const willFollow = location && request.redirect === 'follow' &&
               redirectStatusSet.has(status)
 
@@ -41938,7 +41194,7 @@ async function httpNetworkFetch (
               // CVE fix similar to urllib3 (GHSA-gm62-xv2j-4w53) and curl (CVE-2022-32206).
               const maxContentEncodings = 5
               if (codings.length > maxContentEncodings) {
-                controller.abort(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
+                reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
                 return
               }
 
@@ -41979,8 +41235,6 @@ async function httpNetworkFetch (
                 }
               }
             }
-
-            this.body = new Readable({ read: () => controller.resume() })
 
             const onError = (err) => this.onResponseError(controller, err)
 
@@ -42131,98 +41385,60 @@ const { webidl } = __nccwpck_require__(7879)
 const { URLSerializer } = __nccwpck_require__(1900)
 const { kConstruct } = __nccwpck_require__(6443)
 const assert = __nccwpck_require__(4589)
+const { getMaxListeners, setMaxListeners, defaultMaxListeners } = __nccwpck_require__(8474)
 
-const requestFinalizer = new FinalizationRegistry(({ signal, reference }) => {
-  removeSignalFollower(signal, reference)
+const kAbortController = Symbol('abortController')
+
+const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
+  signal.removeEventListener('abort', abort)
 })
 
-/**
- * @typedef {object} RequestSignalState
- * @property {AbortController} controller
- * @property {AbortSignal} source
- * @property {WeakRef<AbortController>} reference
- */
+const dependentControllerMap = new WeakMap()
 
-/** @type {WeakMap<AbortSignal, RequestSignalState>} */
-const requestSignals = new WeakMap()
+let abortSignalHasEventHandlerLeakWarning
 
-/** @type {WeakMap<AbortSignal, WeakRef<AbortController> | Set<WeakRef<AbortController>>>} */
-const signalFollowers = new WeakMap()
-
-/**
- * @param {AbortSignal} signal
- * @param {WeakRef<AbortController>} reference
- */
-function removeSignalFollower (signal, reference) {
-  const followers = signalFollowers.get(signal)
-  if (followers instanceof Set) {
-    followers.delete(reference)
-    if (followers.size !== 0) return
-  }
-
-  signal.removeEventListener('abort', abortSignalFollowers)
-  signalFollowers.delete(signal)
+try {
+  abortSignalHasEventHandlerLeakWarning = getMaxListeners(new AbortController().signal) > 0
+} catch {
+  abortSignalHasEventHandlerLeakWarning = false
 }
 
-/**
- * @param {WeakRef<AbortController>} reference
- * @param {unknown} reason
- */
-function abortSignalFollower (reference, reason) {
-  requestFinalizer.unregister(reference)
-  const ac = reference.deref()
-  if (ac !== undefined) {
-    requestSignals.delete(ac.signal)
-    ac.abort(reason)
-  }
-}
+function buildAbort (acRef) {
+  return abort
 
-/** @this {AbortSignal} */
-function abortSignalFollowers () {
-  this.removeEventListener('abort', abortSignalFollowers)
-  const followers = signalFollowers.get(this)
-  if (followers instanceof Set) {
-    for (const reference of followers) {
-      abortSignalFollower(reference, this.reason)
+  function abort () {
+    const ac = acRef.deref()
+    if (ac !== undefined) {
+      // Currently, there is a problem with FinalizationRegistry.
+      // https://github.com/nodejs/node/issues/49344
+      // https://github.com/nodejs/node/issues/47748
+      // In the case of abort, the first step is to unregister from it.
+      // If the controller can refer to it, it is still registered.
+      // It will be removed in the future.
+      requestFinalizer.unregister(abort)
+
+      // Unsubscribe a listener.
+      // FinalizationRegistry will no longer be called, so this must be done.
+      this.removeEventListener('abort', abort)
+
+      ac.abort(this.reason)
+
+      const controllerList = dependentControllerMap.get(ac.signal)
+
+      if (controllerList !== undefined) {
+        if (controllerList.size !== 0) {
+          for (const ref of controllerList) {
+            const ctrl = ref.deref()
+            if (ctrl !== undefined) {
+              ctrl.abort(this.reason)
+            }
+          }
+          controllerList.clear()
+        }
+        dependentControllerMap.delete(ac.signal)
+      }
     }
-    followers.clear()
-  } else {
-    abortSignalFollower(followers, this.reason)
   }
-  signalFollowers.delete(this)
-}
-
-/**
- * @param {AbortSignal | null | undefined} signal
- */
-function createDependentSignal (signal) {
-  const ac = new AbortController()
-  if (signal == null) return ac.signal
-
-  if (signal.aborted) {
-    ac.abort(signal.reason)
-    return ac.signal
-  }
-
-  const reference = new WeakRef(ac)
-  const followers = signalFollowers.get(signal)
-  if (followers === undefined) {
-    util.addAbortListener(signal, abortSignalFollowers)
-    signalFollowers.set(signal, reference)
-  } else if (followers instanceof WeakRef) {
-    const controllers = new Set()
-    controllers.add(followers)
-    controllers.add(reference)
-    signalFollowers.set(signal, controllers)
-  } else {
-    followers.add(reference)
-  }
-
-  requestFinalizer.register(ac, { signal, reference }, reference)
-
-  // The signal must keep its controller alive even after its Request is collected.
-  requestSignals.set(ac.signal, { controller: ac, source: signal, reference })
-  return ac.signal
 }
 
 let patchMethodWarning = false
@@ -42240,6 +41456,13 @@ class Request {
   #headers
 
   #state
+
+  /**
+   * Removes the `abort` listener that makes this request's signal follow the
+   * passed signal. `null` when no such listener was registered.
+   * @type {(() => void) | null}
+   */
+  #abortCleanup = null
 
   // https://fetch.spec.whatwg.org/#dom-request
   constructor (input, init = undefined) {
@@ -42554,8 +41777,51 @@ class Request {
     // 27. Set this’s request to request.
     this.#state = request
 
-    // 28-29. Create a signal that follows the supplied signal, if any.
-    this.#signal = createDependentSignal(signal)
+    // 28. Set this’s signal to a new AbortSignal object with this’s relevant
+    // Realm.
+    // TODO: could this be simplified with AbortSignal.any
+    // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
+    const ac = new AbortController()
+    this.#signal = ac.signal
+
+    // 29. If signal is not null, then make this’s signal follow signal.
+    if (signal != null) {
+      if (signal.aborted) {
+        ac.abort(signal.reason)
+      } else {
+        // Keep a strong ref to ac while request object
+        // is alive. This is needed to prevent AbortController
+        // from being prematurely garbage collected.
+        // See, https://github.com/nodejs/undici/issues/1926.
+        this[kAbortController] = ac
+
+        const acRef = new WeakRef(ac)
+        const abort = buildAbort(acRef)
+
+        // If the max amount of listeners is equal to the default, increase it
+        if (abortSignalHasEventHandlerLeakWarning && getMaxListeners(signal) === defaultMaxListeners) {
+          setMaxListeners(1500, signal)
+        }
+
+        const removeAbortListener = util.addAbortListener(signal, abort)
+        // The third argument must be a registry key to be unregistered.
+        // Without it, you cannot unregister.
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
+        // abort is used as the unregister key. (because it is unique)
+        requestFinalizer.register(ac, { signal, abort }, abort)
+
+        // Allow the listener to be removed deterministically once the fetch
+        // that owns this request has settled, instead of relying solely on the
+        // FinalizationRegistry (i.e. garbage collection). Reusing a single
+        // signal across many requests would otherwise leak listeners.
+        // See https://github.com/nodejs/undici/issues/5285
+        this.#abortCleanup = () => {
+          requestFinalizer.unregister(abort)
+          removeAbortListener()
+          this.#abortCleanup = null
+        }
+      }
+    }
 
     // 30. Set this’s headers to a new Headers object with this’s relevant
     // Realm, whose header list is request’s header list and guard is
@@ -42885,10 +42151,25 @@ class Request {
     // 3. Let clonedRequestObject be the result of creating a Request object,
     // given clonedRequest, this’s headers’s guard, and this’s relevant Realm.
     // 4. Make clonedRequestObject’s signal follow this’s signal.
-    const signal = createDependentSignal(this.#signal)
+    const ac = new AbortController()
+    if (this.signal.aborted) {
+      ac.abort(this.signal.reason)
+    } else {
+      let list = dependentControllerMap.get(this.signal)
+      if (list === undefined) {
+        list = new Set()
+        dependentControllerMap.set(this.signal, list)
+      }
+      const acRef = new WeakRef(ac)
+      list.add(acRef)
+      util.addAbortListener(
+        ac.signal,
+        buildAbort(acRef)
+      )
+    }
 
     // 4. Return clonedRequestObject.
-    return fromInnerRequest(clonedRequest, this.#dispatcher, signal, getHeadersGuard(this.#headers))
+    return fromInnerRequest(clonedRequest, this.#dispatcher, ac.signal, getHeadersGuard(this.#headers))
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -42972,12 +42253,7 @@ class Request {
      * @param {Request} request
      */
     removeRequestAbortListener = (request) => {
-      const state = requestSignals.get(request.#signal)
-      if (state !== undefined) {
-        requestSignals.delete(request.#signal)
-        requestFinalizer.unregister(state.reference)
-        removeSignalFollower(state.source, state.reference)
-      }
+      request.#abortCleanup?.()
     }
 
     webidl.is.Request = (arg) => {
@@ -45664,7 +44940,6 @@ module.exports = {
 
 const assert = __nccwpck_require__(4589)
 const { runtimeFeatures } = __nccwpck_require__(313)
-const { asciiLowercase } = __nccwpck_require__(8116)
 
 /**
  * @typedef {object} Metadata
@@ -45729,12 +45004,14 @@ const getSRIHashAlgorithmIndex = /** @type {GetSRIHashAlgorithmIndex} */ (Map.pr
 
 /**
  * @typedef IsValidSRIHashAlgorithm
- * @see https://w3c.github.io/webappsec-subresource-integrity/#valid-sri-hash-algorithm-token
  * @type {(algorithm: string) => algorithm is SRIHashAlgorithm}
  * @param {*} algorithm
  * @returns {algorithm is SRIHashAlgorithm}
  */
-const isValidSRIHashAlgorithm = (algorithm) => validSRIHashAlgorithmTokenSet.has(asciiLowercase(algorithm))
+
+const isValidSRIHashAlgorithm = /** @type {IsValidSRIHashAlgorithm} */ (
+  Map.prototype.has.bind(validSRIHashAlgorithmTokenSet)
+)
 
 /**
  * @param {Uint8Array} bytes
@@ -45859,8 +45136,8 @@ function parseMetadata (metadata) {
   /** @type {MetadataList} */
   const result = []
 
-  // 2. For each item returned by splitting metadata on ASCII whitespace:
-  for (const item of metadata.split(/[\t\n\f\r ]+/)) {
+  // 2. For each item returned by splitting metadata on spaces:
+  for (const item of metadata.split(' ')) {
     // 1. Let expression-and-options be the result of splitting item on U+003F (?).
     const expressionAndOptions = item.split('?', 1)
 
@@ -45890,8 +45167,7 @@ function parseMetadata (metadata) {
     // 8. Let metadata be the ordered map
     // «["alg" → algorithm, "val" → base64-value]».
     const metadata = {
-      // Possible spec bug?
-      alg: asciiLowercase(algorithm),
+      alg: algorithm,
       val: base64Value
     }
 
@@ -48318,19 +47594,6 @@ class ByteParser extends Writable {
         if (isControlFrame(this.#info.opcode)) {
           this.#loop = this.parseControlFrame(body)
           this.#state = parserStates.INFO
-
-          // If the automatic PONG/CLOSE reply filled the socket's write buffer,
-          // stop parsing and resume on drain so a PING flood cannot grow the
-          // outbound queue without bound.
-          if (this.#loop && this.#handler.socket.writableNeedDrain) {
-            this.#loop = false
-            this.#handler.socket.once('drain', () => {
-              if (this.destroyed) return
-              this.#loop = true
-              this.run(callback)
-            })
-            return
-          }
         } else {
           if (!this.#info.compressed) {
             if (!this.writeFragments(body)) {
@@ -54160,17 +53423,11 @@ const isPlainObject = (val) => {
   const prototype = getPrototypeOf(val);
   return (
     (prototype === null || prototype === Object.prototype || getPrototypeOf(prototype) === null) &&
-    // Treat own Symbol.toStringTag or Symbol.iterator members as evidence the
-    // value is tagged/iterable, ignoring members reachable only through shared
-    // or terminal prototype boundaries. This is exactly what
-    // hasOwnInPrototypeChain(val, prop) computes here: every prototype admitted
-    // above (null, Object.prototype, or a terminal null-prototype template) is
-    // a boundary, so the walk never inspects anything but `val`'s own members,
-    // and stops before even those when `val` is itself the boundary
-    // Object.prototype. Checking that inline avoids allocating the walker's
-    // `seen` list twice per call on the mergeConfig / merge hot path.
-    (isPrototypeBoundary(val, prototype, true) ||
-      (!utils_hasOwnProperty(val, toStringTag) && !utils_hasOwnProperty(val, iterator)))
+    // Treat safe own/inherited Symbol.toStringTag or Symbol.iterator members as
+    // evidence the value is tagged/iterable, while ignoring members reachable
+    // only through shared or terminal prototype boundaries.
+    !hasOwnInPrototypeChain(val, toStringTag) &&
+    !hasOwnInPrototypeChain(val, iterator)
   );
 };
 
@@ -54434,30 +53691,15 @@ const isContextDefined = (context) => !isUndefined(context) && context !== _glob
 function merge(...objs) {
   const { caseless, skipUndefined } = (isContextDefined(this) && this) || {};
   const result = {};
-  // Caseless lookup only applies to string keys — symbol keys are
-  // identity-matched. Every string key that reaches `result` passes through
-  // this index first, so it can never hold two case variants of one key and a
-  // lowercase -> key map is exactly what findKey(result, key) would rescan
-  // Object.keys(result) for on each assignment.
-  const lowerCaseKeys = caseless ? Object.create(null) : null;
   const assignValue = (val, key) => {
     // Skip dangerous property names to prevent prototype pollution
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       return;
     }
 
-    let targetKey = key;
-    if (lowerCaseKeys && typeof key === 'string') {
-      const lowerKey = key.toLowerCase();
-      const knownKey = lowerCaseKeys[lowerKey];
-      // A key recorded but absent from `result` was skipped by skipUndefined;
-      // the later spelling wins then, as it does for findKey.
-      if (knownKey !== undefined && utils_hasOwnProperty(result, knownKey)) {
-        targetKey = knownKey;
-      } else {
-        lowerCaseKeys[lowerKey] = key;
-      }
-    }
+    // findKey lowercases the key, so caseless lookup only applies to strings —
+    // symbol keys are identity-matched.
+    const targetKey = (caseless && typeof key === 'string' && findKey(result, key)) || key;
     // Read via own-prop only — a bare `result[targetKey]` walks the prototype
     // chain, so a polluted Object.prototype value could surface here and get
     // copied into the merged result.
@@ -54481,7 +53723,7 @@ function merge(...objs) {
 
     forEach(source, assignValue);
 
-    if (typeof source !== 'object' || isArray(source) || !Object.getOwnPropertySymbols) {
+    if (typeof source !== 'object' || isArray(source)) {
       continue;
     }
 
@@ -54640,37 +53882,7 @@ const toArray = (thing) => {
   if (!thing) return null;
   if (isArray(thing)) return thing;
   let i = thing.length;
-  if (!Number.isSafeInteger(i) || i < 0 || i > 0xffffffff) return null;
-
-  // Bound the copy by actual indexed properties, including hidden and inherited
-  // members of array-like collections, rather than by the declared length alone.
-  const indexes = new Set();
-  const seen = new Set();
-  let source = thing;
-
-  while (source != null && indexes.size < i) {
-    if (seen.has(source)) return null;
-    seen.add(source);
-
-    const prototype = getPrototypeOf(source);
-    if (isPrototypeBoundary(source, prototype, source === thing)) break;
-
-    Object.getOwnPropertyNames(source).forEach((key) => {
-      const index = +key;
-      if (
-        Number.isInteger(index) &&
-        index >= 0 &&
-        index < i &&
-        String(index) === key &&
-        utils_hasOwnProperty(source, key)
-      ) {
-        indexes.add(index);
-      }
-    });
-    source = prototype;
-  }
-
-  if (indexes.size !== i) return null;
+  if (!isNumber(i)) return null;
   const arr = new Array(i);
   while (i-- > 0) {
     arr[i] = thing[i];
@@ -55089,8 +54301,7 @@ const ignoreDuplicateOf = utils.toObjectSet([
  * @returns {Object} Headers parsed into an object
  */
 /* harmony default export */ const parseHeaders = ((rawHeaders) => {
-  // Header names are data, including __proto__; avoid inherited setters.
-  const parsed = Object.create(null);
+  const parsed = {};
   let key;
   let val;
   let i;
@@ -55336,22 +54547,9 @@ function parseParameters(value) {
 
 const isValidHeaderName = (str) => /^[-_a-zA-Z0-9^`|~,!#$%&'*+.]+$/.test(str.trim());
 
-// `__proto__` is a valid field name, and the one name the uppercase mapping at
-// the bottom of this file cannot reach: it is inherited from Object.prototype
-// instead of being declared on AxiosHeaders.prototype, so `self.__proto__ = v`
-// runs the inherited setter. That silently discards the header, and an array
-// value replaces the instance prototype, taking every method with it.
-// Store it under the same kind of case variant that mapping uses for `set` and
-// `constructor`. Header lookup is caseless, so it reads back under either
-// spelling, and no own `__proto__` slot is ever created for a later
-// `Object.assign` to copy onto a plain object through the same setter.
-const PROTO_HEADER_SLOT = '__Proto__';
-
-const headerSlot = (name) => (name === '__proto__' ? PROTO_HEADER_SLOT : name);
-
 function matchHeaderValue(context, value, header, filter, isHeaderNameFilter) {
   if (utils.isFunction(filter)) {
-    return filter.call(context, value, header);
+    return filter.call(this, value, header);
   }
 
   if (isHeaderNameFilter) {
@@ -55417,7 +54615,7 @@ class AxiosHeaders {
         _rewrite === true ||
         (_rewrite === undefined && self[key] !== false)
       ) {
-        self[headerSlot(key || _header)] = normalizeValue(_value);
+        self[key || _header] = normalizeValue(_value);
       }
     }
 
@@ -55546,7 +54744,7 @@ class AxiosHeaders {
 
   normalize(format) {
     const self = this;
-    const headers = Object.create(null);
+    const headers = {};
 
     utils.forEach(this, (value, header) => {
       const key = utils.findKey(headers, header);
@@ -55557,7 +54755,7 @@ class AxiosHeaders {
         return;
       }
 
-      const normalized = headerSlot(format ? formatHeader(header) : String(header).trim());
+      const normalized = format ? formatHeader(header) : String(header).trim();
 
       if (normalized !== header) {
         delete self[header];
@@ -55770,61 +54968,6 @@ function aggregateErrorMessage(error) {
   return message || error.name || 'AggregateError';
 }
 
-// Shared with `Axios.prototype.request`, which splices the reconstructed
-// caller frames in ahead of this marker.
-const CAUSED_BY_SEPARATOR = '\nCaused by: ';
-const $causeStack = Symbol('causeStack');
-
-// Match the section we appended, not marker-like text in an error message or
-// a replacement stack supplied by the caller. Do not re-read the cause's stack.
-function getCauseStackIndex(error, stack) {
-  const causeStack = utils.hasOwnProp(error, $causeStack) && error[$causeStack];
-
-  return causeStack && stack.endsWith(causeStack) ? stack.length - causeStack.length : -1;
-}
-
-/**
- * Append the stack of a wrapped error to `target.stack`.
- *
- * `cause` already exposes the original error for tooling that walks the standard
- * cause chain, but many error reporters read `stack` and nothing else. Inlining
- * the wrapped stack there means those reporters surface the underlying failure
- * instead of the axios frames that normalized it (see #6670).
- *
- * Every read is defensive: a custom `Error.prepareStackTrace` hook, a runtime
- * without stack support, or a replaced `stack` property can leave the value
- * missing, non-string, or read-only, and normalizing an error must not throw
- * because of that.
- *
- * @param {Error} target The AxiosError being built.
- * @param {Error} source The error being wrapped.
- *
- * @returns {void}
- */
-function appendCauseStack(target, source) {
-  try {
-    const sourceStack = source && source.stack;
-
-    if (typeof sourceStack !== 'string' || !sourceStack) {
-      return;
-    }
-
-    const targetStack = target.stack;
-
-    if (typeof targetStack !== 'string' || !targetStack) {
-      return;
-    }
-
-    // Each call to `from()` creates a fresh target. Re-wrapping includes the
-    // previous stack verbatim, adding one cause section per wrap.
-    const causeStack = CAUSED_BY_SEPARATOR + sourceStack;
-    target.stack = targetStack + causeStack;
-    Object.defineProperty(target, $causeStack, { __proto__: null, value: causeStack });
-  } catch (e) {
-    // Ignore failures from custom stack hooks or un-writable stack properties.
-  }
-}
-
 class AxiosError extends Error {
   static from(error, code, config, request, response, customProps) {
     // `AggregateError` (thrown by Node on dual-stack/Happy-Eyeballs connection
@@ -55850,10 +54993,6 @@ class AxiosError extends Error {
       configurable: true,
     });
     axiosError.name = error.name;
-
-    // Inline the wrapped stack for reporters that read only `stack`; the `cause`
-    // property above already covers cause-aware tooling.
-    appendCauseStack(axiosError, error);
 
     // Preserve status from the original error if not already set from response
     if (error.status != null && axiosError.status == null) {
@@ -56409,16 +55548,6 @@ function trimHandlers(handlers) {
   }
 }
 
-// Preserve the array-key coercion used before IDs were stored in a Map, without
-// treating null, empty strings, or noncanonical numeric strings as ID zero.
-function normalizeHandlerId(id) {
-  if (typeof id === 'string' && id !== '' && String(Number(id)) === id) {
-    return Number(id);
-  }
-
-  return id;
-}
-
 function syncHandlerEntries(manager, internals) {
   const handlers = manager.handlers;
   const length = countHandlers(handlers);
@@ -56501,11 +55630,10 @@ class InterceptorManager {
 
     syncHandlerEntries(this, internals);
 
-    const handlerId = normalizeHandlerId(id);
-    const entry = internals.handlerEntries.get(handlerId);
+    const entry = internals.handlerEntries.get(id);
 
     if (entry) {
-      internals.handlerEntries.delete(handlerId);
+      internals.handlerEntries.delete(id);
 
       // Ignore IDs invalidated by clear or direct replacement of handlers.
       if (this.handlers[entry.index] !== entry.handler) {
@@ -56579,7 +55707,6 @@ class InterceptorManager {
   legacyInterceptorReqResOrdering: true,
   advertiseZstdAcceptEncoding: false,
   validateStatusUndefinedResolves: true,
-  encodeBasicAuthUsername: false,
 });
 
 // EXTERNAL MODULE: external "url"
@@ -56775,29 +55902,6 @@ function arrayToObject(arr) {
   return obj;
 }
 
-function normalizeArray(value) {
-  if (!utils.isArray(value)) return value;
-
-  const keys = Object.keys(value);
-  return keys.length !== value.length || keys.some((key, index) => key !== String(index))
-    ? arrayToObject(value)
-    : value;
-}
-
-function normalizeArrays(obj) {
-  const pending = [obj];
-  while (pending.length) {
-    const target = pending.pop();
-    Object.keys(target).forEach((key) => {
-      const value = (target[key] = normalizeArray(target[key]));
-      if (utils.isArray(value) || utils.isPlainObject(value)) {
-        pending.push(value);
-      }
-    });
-  }
-  return obj;
-}
-
 /**
  * It takes a FormData object and returns a JavaScript object
  *
@@ -56819,7 +55923,6 @@ function formDataToJSON(formData) {
 
     if (isLast) {
       if (utils.hasOwnProp(target, name)) {
-        target[name] = normalizeArray(target[name]);
         target[name] = utils.isArray(target[name])
           ? target[name].concat(value)
           : [target[name], value];
@@ -56850,7 +55953,7 @@ function formDataToJSON(formData) {
       buildPath(parsePropPath(name), value, obj, 0);
     });
 
-    return normalizeArrays(obj);
+    return obj;
   }
 
   return null;
@@ -57413,13 +56516,13 @@ var follow_redirects = __nccwpck_require__(1573);
 ;// CONCATENATED MODULE: external "zlib"
 const external_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("zlib");
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/env/data.js
-const VERSION = "1.21.1";
+const VERSION = "1.20.0";
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/helpers/parseProtocol.js
 
 
 function parseProtocol(url) {
   const match = /^([-+\w]{1,25}):(?:\/\/)?/.exec(url);
-  return (match && match[1].toLowerCase()) || '';
+  return (match && match[1]) || '';
 }
 
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/helpers/fromDataURI.js
@@ -57431,10 +56534,7 @@ function parseProtocol(url) {
 
 // RFC 2397: data:[<mediatype>][;base64],<data>
 // mediatype = type/subtype followed by optional ;name=value parameters
-// The `i` flag makes the `;base64` token case-insensitive, matching the WHATWG
-// URL/Fetch data URL processor (and therefore the fetch adapter and browsers).
-// The remaining character classes do not depend on letter case.
-const DATA_URL_PATTERN = /^([^,;/]+\/[^,;/]+)?((?:;[^,;=]+=[^,;]+)*)(;base64)?,([\s\S]*)$/i;
+const DATA_URL_PATTERN = /^([^,;/]+\/[^,;/]+)?((?:;[^,;=]+=[^,;]+)*)(;base64)?,([\s\S]*)$/;
 
 /**
  * Parse data uri to a Buffer or Blob
@@ -57479,10 +56579,7 @@ function fromDataURI(uri, asBlob, options) {
 
     const buffer =
       encoding === 'base64'
-        ? Buffer.from(
-            body.replace(/%([\da-f]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))),
-            'base64'
-          )
+        ? Buffer.from(body, 'base64')
         : Buffer.from(decodeURIComponent(body), encoding);
 
     if (asBlob) {
@@ -57602,14 +56699,10 @@ class AxiosTransformStream extends external_stream_.Transform {
 
     const divider = 1000 / timeWindow;
     const bytesThreshold = maxRate / divider;
-    let minChunkSize =
+    const minChunkSize =
       internals.minChunkSize !== false
         ? Math.max(internals.minChunkSize, bytesThreshold * 0.01)
         : 0;
-
-    if (maxRate) {
-      minChunkSize = Math.min(bytesThreshold, minChunkSize);
-    }
 
     const pushChunk = (_chunk, _callback) => {
       const bytes = Buffer.byteLength(_chunk);
@@ -57629,9 +56722,6 @@ class AxiosTransformStream extends external_stream_.Transform {
     };
 
     const transformChunk = (_chunk, _callback) => {
-      if (this.destroyed) {
-        return _callback();
-      }
       const chunkSize = Buffer.byteLength(_chunk);
       let chunkRemainder = null;
       let maxChunkSize = readableHighWaterMark;
@@ -57660,9 +56750,7 @@ class AxiosTransformStream extends external_stream_.Transform {
         }
 
         if (bytesLeft < maxChunkSize) {
-          // A buffer boundary must consume at least one byte. Carry any
-          // fractional allowance forward in the next accounting window.
-          maxChunkSize = Math.max(1, Math.floor(bytesLeft));
+          maxChunkSize = bytesLeft;
         }
       }
 
@@ -57962,7 +57050,7 @@ class Http2Sessions {
         }
 
         stream.once('close', () => {
-          if (!--streamsCount && !removed) {
+          if (!--streamsCount) {
             timer = setTimeout(() => {
               timer = null;
               removeSession();
@@ -57976,7 +57064,6 @@ class Http2Sessions {
 
     session.once('close', removeSession);
     session.once('error', removeSession);
-    session.once('goaway', removeSession);
 
     let entry = [session, options];
 
@@ -58011,8 +57098,6 @@ const callbackify = (fn, reducer) => {
 /* harmony default export */ const helpers_callbackify = (callbackify);
 
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/helpers/shouldBypassProxy.js
-
-
 const LOOPBACK_HOSTNAMES = new Set(['localhost', '0.0.0.0']);
 
 const trimTrailingDots = (value) => {
@@ -58334,20 +57419,7 @@ const normalizeNoProxyHost = (hostname) => {
     hostname = hostname.slice(1, -1);
   }
 
-  let trimmed = trimTrailingDots(hostname);
-  if (trimmed.indexOf(':') !== -1) {
-    try {
-      trimmed = new URL('http://[' + trimmed + ']/').hostname.slice(1, -1);
-    } catch (_err) {
-      return trimmed;
-    }
-  } else if (/[\u0080-\uffff]/.test(trimmed)) {
-    const prefix = /^[*.]+/.exec(trimmed);
-    const start = prefix ? prefix[0] : '';
-    const ascii = (0,external_url_.domainToASCII)(trimmed.slice(start.length));
-    if (!ascii) return '';
-    trimmed = start + trimTrailingDots(ascii);
-  }
+  const trimmed = trimTrailingDots(hostname);
 
   // IPv4 shorthand/octal/hex → dotted-decimal; helper is a no-op for inputs
   // containing ':' (IPv6 and IPv4-mapped IPv6) so we fall through to unmap.
@@ -58697,7 +57769,7 @@ const asyncDecorator =
  * Estimate data: URL byte lengths *without* allocating large buffers.
  * - Fetch percent-decodes a base64 body before decoding it.
  * - Node's Buffer.from(body, 'base64') sizes its backing allocation from the
- *   percent-decoded body, including ignored characters and content after padding.
+ *   raw body, including ignored characters and content after padding.
  * - Non-base64 data is percent-decoded and then encoded as UTF-8.
  */
 const isHexDigit = (charCode) =>
@@ -58745,31 +57817,6 @@ const estimateBase64BufferAllocation = (body) => {
   return Math.floor(((len - padding) * 3) / 4);
 };
 
-const estimatePercentDecodedBase64BufferAllocation = (body) => {
-  // Ordinary Base64 needs only its length and trailing padding.
-  if (body.indexOf('%') === -1) {
-    return estimateBase64BufferAllocation(body);
-  }
-
-  let length = 0;
-  let previous = 0;
-  let last = 0;
-
-  for (let i = 0, len = body.length; i < len; i++) {
-    let code = body.charCodeAt(i);
-    if (code === 37 /* '%' */ && isPercentEncodedByte(body, i, len)) {
-      code = hexValue(body.charCodeAt(i + 1)) * 16 + hexValue(body.charCodeAt(i + 2));
-      i += 2;
-    }
-    length++;
-    previous = last;
-    last = code;
-  }
-
-  const padding = last === 61 ? (previous === 61 ? 2 : 1) : 0;
-  return Math.floor(((length - padding) * 3) / 4);
-};
-
 const estimatePercentDecodedBase64Bytes = (body) => {
   const len = body.length;
   let significant = 0;
@@ -58815,16 +57862,16 @@ const estimatePercentDecodedBase64Bytes = (body) => {
   return base64Bytes(significant);
 };
 
-const estimateDataURLBytes = (url, estimateBase64, base64Pattern) => {
+const estimateDataURLBytes = (url, estimateBase64) => {
   if (!url || typeof url !== 'string') return 0;
-  if (!/^data:/i.test(url)) return 0;
+  if (!url.startsWith('data:')) return 0;
 
   const comma = url.indexOf(',');
   if (comma < 0) return 0;
 
   const meta = url.slice(5, comma);
   const body = url.slice(comma + 1);
-  const isBase64 = base64Pattern.test(meta);
+  const isBase64 = /;base64/i.test(meta);
 
   if (isBase64) {
     return estimateBase64(body);
@@ -58871,24 +57918,21 @@ function estimateDataURLDecodedBytes(url) {
 
   return estimateDataURLBytes(
     fragmentIndex === -1 ? url : url.slice(0, fragmentIndex),
-    estimatePercentDecodedBase64Bytes,
-    /; *base64[\t\n\f\r ]*$/i
+    estimatePercentDecodedBase64Bytes
   );
 }
 
 /**
- * Estimate the Buffer backing allocation used after Node's percent-decoding step.
+ * Estimate the Buffer backing allocation used by Node's raw base64 decoder.
  *
  * @param {string} url
  * @returns {number}
  */
 function estimateDataURLBufferAllocation(url) {
-  // Match fromDataURI's case-insensitive protocol and encoding suffix.
-  return estimateDataURLBytes(url, estimatePercentDecodedBase64BufferAllocation, /;base64$/i);
+  return estimateDataURLBytes(url, estimateBase64BufferAllocation);
 }
 
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/adapters/http.js
-
 
 
 
@@ -58974,18 +58018,6 @@ const kAxiosInstalledTunnel = Symbol('axios.http.installedTunnel');
 // so unbounded growth is not a concern in practice.
 const tunnelingAgentCache = new Map();
 const tunnelingAgentCacheUser = new WeakMap();
-const directAgents = new WeakMap();
-const directAgentHooks = ['createConnection', 'getName'];
-const nativeAgentPoolHooks = [
-  'addRequest',
-  'createSocket',
-  'removeSocket',
-  'keepSocketAlive',
-  'reuseSocket',
-  '_getSession',
-  '_cacheSession',
-  '_evictSession',
-];
 // Minimum minor versions where Node's HTTP Agent supports native proxyEnv
 // handling. Checking the selected agent below also covers startup modes such
 // as NODE_OPTIONS=--use-env-proxy and --no-use-env-proxy precedence.
@@ -59032,83 +58064,6 @@ function getProxyEnvAgent(options, configHttpAgent, configHttpsAgent) {
     : configHttpAgent || external_http_.globalAgent;
 }
 
-function getDirectAgent(configuredAgent, transport) {
-  if (
-    !process.allowedNodeEnvironmentFlags ||
-    !process.allowedNodeEnvironmentFlags.has('--use-env-proxy')
-  ) {
-    return configuredAgent;
-  }
-
-  const agent = configuredAgent || transport.globalAgent;
-  const options = agent && agent.options;
-  if (
-    !(agent instanceof transport.Agent) ||
-    agent.protocol !== transport.globalAgent.protocol ||
-    !options ||
-    !utils.hasOwnProp(options, 'proxyEnv') ||
-    typeof options.proxyEnv !== 'object' ||
-    options.proxyEnv === null
-  ) {
-    return configuredAgent;
-  }
-
-  // These hooks own pool queues or TLS session state. Neither binding them to
-  // the source agent nor copying them without subclass state preserves their
-  // behavior on a separate direct pool.
-  for (const hook of nativeAgentPoolHooks) {
-    if (
-      utils.isFunction(transport.Agent.prototype[hook]) &&
-      agent[hook] !== transport.Agent.prototype[hook]
-    ) {
-      throw new core_AxiosError(
-        'proxy: false cannot adapt an agent overriding ' +
-          hook +
-          '; use an agent constructed without proxyEnv',
-        core_AxiosError.ERR_BAD_OPTION_VALUE
-      );
-    }
-  }
-
-  // Node snapshots proxyEnv when constructing the agent. Keep this check
-  // conservative even when the caller later removes protocol-specific entries.
-  let direct = directAgents.get(agent);
-  if (!direct) {
-    direct = new transport.Agent({ ...options, proxyEnv: undefined });
-
-    // Agent.destroy() does not emit an event. Keep the associated pool under
-    // the configured agent's lifetime, including agents reused after destroy().
-    const destroy = agent.destroy;
-    agent.destroy = function destroyWithDirectAgent() {
-      try {
-        return destroy.apply(this, arguments);
-      } finally {
-        direct.destroy();
-      }
-    };
-    directAgents.set(agent, direct);
-  }
-
-  // Connections and pool keys do not own the direct pool's queues. Preserve
-  // their configured receiver and refresh hooks that change between requests.
-  for (const hook of directAgentHooks) {
-    direct[hook] =
-      agent[hook] === transport.Agent.prototype[hook]
-        ? transport.Agent.prototype[hook]
-        : bind(agent[hook], agent);
-  }
-  return direct;
-}
-
-function setDirectAgent(options, configHttpAgent, configHttpsAgent) {
-  const secure = http_isHttps.test(options.protocol);
-  const agent = getDirectAgent(secure ? configHttpsAgent : configHttpAgent, secure ? external_https_ : external_http_);
-  options.agent = agent;
-  if (options.agents) {
-    options.agents[secure ? 'https' : 'http'] = agent;
-  }
-}
-
 function getTunnelingAgent(agentOptions, userHttpsAgent) {
   const key =
     agentOptions.protocol +
@@ -59124,24 +58079,22 @@ function getTunnelingAgent(agentOptions, userHttpsAgent) {
     : tunnelingAgentCache;
   let agent = cache.get(key);
   if (agent) return agent;
-  // Preserve per-request TLS options for the proxy connection, with our proxy
-  // fields taking precedence. Global-agent options belong only to the origin
-  // TLS upgrade in the callback below.
+  // Forward the user's TLS options (custom CA, rejectUnauthorized, client cert,
+  // etc.) into the tunneling agent so they apply to the origin TLS upgrade
+  // performed after CONNECT. Our proxy fields take precedence on conflict.
   const merged =
     userHttpsAgent && userHttpsAgent.options
       ? { ...userHttpsAgent.options, ...agentOptions }
       : agentOptions;
   agent = new dist(merged);
-  const callback = agent.callback;
-  agent.callback = function axiosTunnelingAgentCallback(req, opts) {
-    // Without a proxy the origin TLS connection would be made by https.globalAgent,
-    // so its options have to reach the tunneled origin too. Resolved per request
-    // because the tunneling agent outlives any one of them.
-    const originTLSAgent = userHttpsAgent || external_https_.globalAgent;
-    const originTLSOptions = originTLSAgent && originTLSAgent.options;
-    // HttpsProxyAgent v5 reads callback opts for the post-CONNECT origin TLS upgrade.
-    return callback.call(this, req, { ...originTLSOptions, ...opts });
-  };
+  if (userHttpsAgent && userHttpsAgent.options) {
+    const originTLSOptions = { ...userHttpsAgent.options };
+    const callback = agent.callback;
+    agent.callback = function axiosTunnelingAgentCallback(req, opts) {
+      // HttpsProxyAgent v5 reads callback opts for the post-CONNECT origin TLS upgrade.
+      return callback.call(this, req, { ...originTLSOptions, ...opts });
+    };
+  }
   agent[kAxiosInstalledTunnel] = true;
   cache.set(key, agent);
   return agent;
@@ -59184,10 +58137,6 @@ const http2Sessions = new helpers_Http2Sessions();
  * @returns {Object<string, any>}
  */
 function dispatchBeforeRedirect(options, responseDetails, requestDetails) {
-  if (!isSameOriginRedirect(options, requestDetails)) {
-    stripMatchingHeaders(options.headers, new Set(['authorization', 'cookie']));
-    delete options.auth;
-  }
   if (options.beforeRedirects.proxy) {
     options.beforeRedirects.proxy(options);
   }
@@ -59196,9 +58145,6 @@ function dispatchBeforeRedirect(options, responseDetails, requestDetails) {
   }
   if (options.beforeRedirects.sensitiveHeaders) {
     options.beforeRedirects.sensitiveHeaders(options, requestDetails);
-  }
-  if (options.beforeRedirects.direct) {
-    options.beforeRedirects.direct(options);
   }
   if (options.beforeRedirects.config) {
     options.beforeRedirects.config(options, responseDetails, requestDetails);
@@ -59276,14 +58222,6 @@ function setProxy(
   // (which won't carry the marker) is left alone.
   if (isRedirect && options.agent && options.agent[kAxiosInstalledTunnel]) {
     options.agent = undefined;
-  }
-  if (
-    isRedirect &&
-    options.agents &&
-    options.agents.https &&
-    options.agents.https[kAxiosInstalledTunnel]
-  ) {
-    options.agents.https = configHttpsAgent;
   }
   if (proxy) {
     // Read proxy fields without traversing the prototype chain. URL instances expose
@@ -59422,7 +58360,8 @@ function setProxy(
   };
 
   return Boolean(
-    proxy || (configProxy !== false && allowEnvProxy && isNodeEnvProxyEnabled(proxyEnvAgent))
+    proxy ||
+      (configProxy !== false && allowEnvProxy && isNodeEnvProxyEnabled(proxyEnvAgent))
   );
 }
 
@@ -59572,9 +58511,9 @@ const http2Transport = {
       if (httpVersion === undefined) httpVersion = 1;
       const rawHttpVersion = httpVersion;
       let http2Options = own('http2Options');
-      const configProxy = own('proxy');
       const httpAgent = own('httpAgent');
       const httpsAgent = own('httpsAgent');
+      const configProxy = own('proxy');
       const responseType = own('responseType');
       const responseEncoding = own('responseEncoding');
       const socketPath = own('socketPath');
@@ -59751,20 +58690,6 @@ const http2Transport = {
           });
         } catch (err) {
           throw core_AxiosError.from(err, core_AxiosError.ERR_BAD_REQUEST, config);
-        }
-
-        // Check bytes before converting the result to text or a stream.
-        if (
-          maxContentLength > -1 &&
-          (responseType === 'blob' ? convertedData.size : convertedData.length) > maxContentLength
-        ) {
-          return reject(
-            new core_AxiosError(
-              'maxContentLength size of ' + maxContentLength + ' exceeded',
-              core_AxiosError.ERR_BAD_RESPONSE,
-              config
-            )
-          );
         }
 
         if (responseType === 'text') {
@@ -60026,15 +58951,15 @@ const http2Transport = {
       }
       let transport;
       let isNativeTransport = false;
+      // True only for the follow-redirects transport, which applies
+      // options.maxBodyLength itself. Every other transport (http2, native
+      // http/https, a user-supplied custom transport) needs the explicit
+      // byte-counting pipeline below to enforce maxBodyLength on streamed uploads.
+      let transportEnforcesMaxBodyLength = false;
       const isHttpsRequest = http_isHttps.test(options.protocol);
       // Don't clobber a CONNECT-tunneling agent installed by setProxy() for an
       // HTTPS target.
-      if (!isHttp2 && configProxy === false) {
-        setDirectAgent(options, httpAgent, httpsAgent);
-        options.beforeRedirects.direct = (redirectOptions) => {
-          setDirectAgent(redirectOptions, httpAgent, httpsAgent);
-        };
-      } else if (options.agent == null) {
+      if (options.agent == null) {
         options.agent = isHttpsRequest ? httpsAgent : httpAgent;
       }
 
@@ -60058,6 +58983,7 @@ const http2Transport = {
           transport = isHttpsRequest ? external_https_ : external_http_;
           isNativeTransport = true;
         } else {
+          transportEnforcesMaxBodyLength = true;
           options.sensitiveHeaders = [];
           if (maxRedirects) {
             options.maxRedirects = maxRedirects;
@@ -60447,10 +59373,12 @@ const http2Transport = {
           }
         });
 
-        // Transform decodes string chunks to Buffers before counting, so every
-        // transport receives at most maxBodyLength encoded bytes.
+        // Enforce maxBodyLength for streamed uploads on every transport that
+        // does not apply options.maxBodyLength itself (native http/https, http2,
+        // and user-supplied custom transports). The follow-redirects transport
+        // enforces it on the redirected HTTP/1 path.
         let uploadStream = data;
-        if (maxBodyLength > -1) {
+        if (maxBodyLength > -1 && !transportEnforcesMaxBodyLength) {
           const limit = maxBodyLength;
           let bytesSent = 0;
           uploadStream = external_stream_.pipeline(
@@ -60489,22 +59417,30 @@ const http2Transport = {
   });
 
 const __setProxy = (/* unused pure expression or super */ null && (setProxy));
-const __getDirectAgent = (/* unused pure expression or super */ null && (getDirectAgent));
-const __isNodeNativeEnvProxySupported = (/* unused pure expression or super */ null && (isNodeNativeEnvProxySupported));
 const __isNodeEnvProxyEnabled = (/* unused pure expression or super */ null && (isNodeEnvProxyEnabled));
 const __isSameOriginRedirect = (/* unused pure expression or super */ null && (isSameOriginRedirect));
+
+;// CONCATENATED MODULE: ./node_modules/axios/lib/helpers/isURLSameOrigin.js
+
+
+/* harmony default export */ const isURLSameOrigin = (lib_platform.hasStandardBrowserEnv
+  ? ((origin, isMSIE) => (url) => {
+      url = new URL(url, lib_platform.origin);
+
+      return (
+        origin.protocol === url.protocol &&
+        origin.host === url.host &&
+        (isMSIE || origin.port === url.port)
+      );
+    })(
+      new URL(lib_platform.origin),
+      lib_platform.navigator && /(msie|trident)/i.test(lib_platform.navigator.userAgent)
+    )
+  : () => true);
 
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/helpers/cookies.js
 
 
-
-const decodeCookieValue = (value) => {
-  try {
-    return decodeURIComponent(value);
-  } catch (e) {
-    return value;
-  }
-};
 
 /* harmony default export */ const cookies = (lib_platform.hasStandardBrowserEnv
   ? // Standard browser envs support document.cookie
@@ -60535,37 +59471,24 @@ const decodeCookieValue = (value) => {
 
       read(name) {
         if (typeof document === 'undefined') return null;
-        const cookieString = document.cookie;
-        if (!cookieString) return null;
         // Match name=value by splitting on the semicolon separator instead of building a
         // RegExp from `name` — interpolating an unescaped string into a RegExp would let
         // metacharacters (e.g. `.+?` in an attacker-influenced cookie name) cause ReDoS or
         // match the wrong cookie. Browsers may serialize cookie pairs as either ";" or
         // "; ", so ignore optional whitespace before each cookie name.
-        const cookies = cookieString.split(';');
+        const cookies = document.cookie.split(';');
         for (let i = 0; i < cookies.length; i++) {
           const cookie = cookies[i].replace(/^\s+/, '');
           const eq = cookie.indexOf('=');
           if (eq !== -1 && cookie.slice(0, eq) === name) {
-            return decodeCookieValue(cookie.slice(eq + 1));
+            try {
+              return decodeURIComponent(cookie.slice(eq + 1));
+            } catch (e) {
+              return cookie.slice(eq + 1);
+            }
           }
         }
         return null;
-      },
-
-      async readAsync(name) {
-        try {
-          const store = typeof window !== 'undefined' && window.cookieStore;
-          if (store && utils.isFunction(store.get)) {
-            const cookie = await store.get(name);
-            // Both APIs expose stored bytes; preserve Axios's existing URI decoding.
-            return cookie ? decodeCookieValue(cookie.value) : null;
-          }
-        } catch (e) {
-          // Restricted or unavailable storage retains the synchronous fallback.
-        }
-
-        return this.read(name);
       },
 
       remove(name) {
@@ -60578,78 +59501,10 @@ const decodeCookieValue = (value) => {
       read() {
         return null;
       },
-      async readAsync() {
-        return null;
-      },
       remove() {},
     });
 
-;// CONCATENATED MODULE: ./node_modules/axios/lib/helpers/isURLSameOrigin.js
-
-
-/* harmony default export */ const isURLSameOrigin = (lib_platform.hasStandardBrowserEnv
-  ? ((origin) => (url) => {
-      url = new URL(url, document.baseURI || lib_platform.origin);
-
-      return (
-        origin.protocol === url.protocol && origin.host === url.host && origin.port === url.port
-      );
-    })(new URL(lib_platform.origin))
-  : () => true);
-
-;// CONCATENATED MODULE: ./node_modules/axios/lib/core/assertParamsAcyclic.js
-
-
-
-
-
-function assertParamsAcyclic(params) {
-  const pending = [{ value: params }];
-  const active = new WeakSet();
-  const visited = new WeakSet();
-
-  while (pending.length) {
-    const { value, done } = pending.pop();
-    if (!utils.isPlainObject(value) && !utils.isArray(value)) continue;
-    if (done) {
-      active.delete(value);
-      continue;
-    }
-    if (active.has(value)) {
-      throw new core_AxiosError(
-        'Circular reference detected in params',
-        core_AxiosError.ERR_BAD_OPTION_VALUE
-      );
-    }
-    if (visited.has(value)) continue;
-    visited.add(value);
-    active.add(value);
-    pending.push({ value, done: true });
-
-    const keys = Object.keys(value);
-    if (Object.getOwnPropertySymbols && Object.getOwnPropertyDescriptor) {
-      Object.getOwnPropertySymbols(value).forEach((key) => {
-        const descriptor = Object.getOwnPropertyDescriptor(value, key);
-        if (descriptor && descriptor.enumerable) keys.push(key);
-      });
-    }
-    // Shallow array elements retain fields filtered during plain-object merges.
-    // Inspect reserved data properties without evaluating their accessors.
-    keys.forEach((key) => {
-      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-        const descriptor = Object.getOwnPropertyDescriptor(value, key);
-        if (descriptor && utils.hasOwnProp(descriptor, 'value')) {
-          pending.push({ value: descriptor.value });
-        }
-      } else {
-        pending.push({ value: value[key] });
-      }
-    });
-  }
-}
-
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/core/mergeConfig.js
-
 
 
 
@@ -60660,182 +59515,12 @@ const headersToObject = (thing) => (thing instanceof core_AxiosHeaders ? { ...th
 const ownEnumerableKeys = (thing) => {
   if (Object.getOwnPropertySymbols && Object.getOwnPropertyDescriptor) {
     return Object.keys(thing).concat(
-      Object.getOwnPropertySymbols(thing).filter((symbol) => {
-        const descriptor = Object.getOwnPropertyDescriptor(thing, symbol);
-        return descriptor && descriptor.enumerable;
-      })
+      Object.getOwnPropertySymbols(thing).filter(
+        (symbol) => Object.getOwnPropertyDescriptor(thing, symbol).enumerable
+      )
     );
   }
   return Object.keys(thing);
-};
-
-// Copy params without recursive merges so the serializer remains responsible
-// for its depth policy. Only visit defaults that contribute to the result.
-function mergeParams(a, b) {
-  const pending = [];
-  const copies = new WeakMap();
-  const empty = {};
-
-  function copy(target, source) {
-    if (!utils.isPlainObject(source)) {
-      return utils.isArray(source) ? source.slice() : source;
-    }
-
-    const base = utils.isPlainObject(target) ? target : empty;
-    let bases = copies.get(source);
-    if (!bases) {
-      bases = new WeakMap();
-      copies.set(source, bases);
-    }
-    if (bases.has(base)) return bases.get(base);
-
-    const result = {};
-    bases.set(base, result);
-    pending.push({ base, source, result });
-    return result;
-  }
-
-  const result = utils.isUndefined(b) ? copy(undefined, a) : copy(a, b);
-  while (pending.length) {
-    const { base, source, result: target } = pending.pop();
-    const baseKeys = new Set(ownEnumerableKeys(base));
-    const sourceKeys = new Set(ownEnumerableKeys(source));
-    const keys = new Set([...baseKeys, ...sourceKeys]);
-
-    keys.forEach((key) => {
-      if (key === '__proto__' || key === 'constructor' || key === 'prototype') return;
-      const hasSource = sourceKeys.has(key);
-      const value = hasSource ? source[key] : undefined;
-      const previous =
-        (!hasSource || utils.isPlainObject(value)) && baseKeys.has(key) ? base[key] : undefined;
-      target[key] = hasSource ? copy(previous, value) : copy(undefined, previous);
-    });
-  }
-
-  assertParamsAcyclic(result);
-  return result;
-}
-
-function getMergedValue(target, source, prop, caseless) {
-  if (utils.isPlainObject(target) && utils.isPlainObject(source)) {
-    return utils.merge.call({ caseless }, target, source);
-  } else if (utils.isPlainObject(source)) {
-    return utils.merge({}, source);
-  } else if (utils.isArray(source)) {
-    return source.slice();
-  }
-  return source;
-}
-
-function mergeDeepProperties(a, b, prop, caseless) {
-  if (!utils.isUndefined(b)) {
-    return getMergedValue(a, b, prop, caseless);
-  } else if (!utils.isUndefined(a)) {
-    return getMergedValue(undefined, a, prop, caseless);
-  }
-}
-
-// eslint-disable-next-line consistent-return
-function valueFromConfig2(a, b) {
-  if (!utils.isUndefined(b)) {
-    return getMergedValue(undefined, b);
-  }
-}
-
-// eslint-disable-next-line consistent-return
-function defaultToConfig2(a, b) {
-  if (!utils.isUndefined(b)) {
-    return getMergedValue(undefined, b);
-  } else if (!utils.isUndefined(a)) {
-    return getMergedValue(undefined, a);
-  }
-}
-
-function getMergedTransitionalOption(config1, config2, prop) {
-  const transitional2 = utils.hasOwnProp(config2, 'transitional')
-    ? config2.transitional
-    : undefined;
-
-  if (!utils.isUndefined(transitional2)) {
-    if (utils.isPlainObject(transitional2)) {
-      if (utils.hasOwnProp(transitional2, prop)) {
-        return transitional2[prop];
-      }
-    } else {
-      return undefined;
-    }
-  }
-
-  const transitional1 = utils.hasOwnProp(config1, 'transitional')
-    ? config1.transitional
-    : undefined;
-
-  if (utils.isPlainObject(transitional1) && utils.hasOwnProp(transitional1, prop)) {
-    return transitional1[prop];
-  }
-
-  return undefined;
-}
-
-// eslint-disable-next-line consistent-return
-function mergeDirectKeys(a, b, prop, config1, config2) {
-  if (utils.hasOwnProp(config2, prop)) {
-    return getMergedValue(a, b);
-  } else if (utils.hasOwnProp(config1, prop)) {
-    return getMergedValue(undefined, a);
-  }
-}
-
-function mergeHeaders(a, b, prop) {
-  return mergeDeepProperties(headersToObject(a), headersToObject(b), prop, true);
-}
-
-// Null-proto, frozen descriptor so a polluted Object.prototype.get cannot turn
-// this data descriptor into an accessor descriptor on the way in.
-// defineProperty only reads it, so one shared instance serves every call.
-const hasOwnPropertyDescriptor = Object.freeze({
-  __proto__: null,
-  value: Object.prototype.hasOwnProperty,
-  enumerable: false,
-  writable: true,
-  configurable: true,
-});
-
-// The strategy table and the strategies above are stateless, so they are
-// built once at module load instead of on every call: mergeConfig runs at
-// most twice per request (once from a method alias, once from `_request`).
-const mergeMap = {
-  url: valueFromConfig2,
-  method: valueFromConfig2,
-  data: valueFromConfig2,
-  baseURL: defaultToConfig2,
-  transformRequest: defaultToConfig2,
-  transformResponse: defaultToConfig2,
-  params: mergeParams,
-  paramsSerializer: defaultToConfig2,
-  timeout: defaultToConfig2,
-  timeoutErrorMessage: defaultToConfig2,
-  withCredentials: defaultToConfig2,
-  withXSRFToken: defaultToConfig2,
-  adapter: defaultToConfig2,
-  responseType: defaultToConfig2,
-  xsrfCookieName: defaultToConfig2,
-  xsrfHeaderName: defaultToConfig2,
-  onUploadProgress: defaultToConfig2,
-  onDownloadProgress: defaultToConfig2,
-  decompress: defaultToConfig2,
-  maxContentLength: defaultToConfig2,
-  maxBodyLength: defaultToConfig2,
-  beforeRedirect: defaultToConfig2,
-  transport: defaultToConfig2,
-  httpAgent: defaultToConfig2,
-  httpsAgent: defaultToConfig2,
-  cancelToken: defaultToConfig2,
-  socketPath: defaultToConfig2,
-  allowedSocketPaths: defaultToConfig2,
-  responseEncoding: defaultToConfig2,
-  validateStatus: mergeDirectKeys,
-  headers: mergeHeaders,
 };
 
 /**
@@ -60857,25 +59542,133 @@ function mergeConfig(config1, config2) {
   // `hasOwnProperty` is restored as a non-enumerable own slot to preserve
   // ergonomics for user code that relies on it.
   const config = Object.create(null);
-  Object.defineProperty(config, 'hasOwnProperty', hasOwnPropertyDescriptor);
+  Object.defineProperty(config, 'hasOwnProperty', {
+    // Null-proto descriptor so a polluted Object.prototype.get cannot turn
+    // this data descriptor into an accessor descriptor on the way in.
+    __proto__: null,
+    value: Object.prototype.hasOwnProperty,
+    enumerable: false,
+    writable: true,
+    configurable: true,
+  });
 
-  const keys = ownEnumerableKeys({ ...config1, ...config2 });
+  function getMergedValue(target, source, prop, caseless) {
+    if (utils.isPlainObject(target) && utils.isPlainObject(source)) {
+      return utils.merge.call({ caseless }, target, source);
+    } else if (utils.isPlainObject(source)) {
+      return utils.merge({}, source);
+    } else if (utils.isArray(source)) {
+      return source.slice();
+    }
+    return source;
+  }
 
-  for (let i = 0, len = keys.length; i < len; i++) {
-    const prop = keys[i];
-    if (prop === '__proto__' || prop === 'constructor' || prop === 'prototype') continue;
+  function mergeDeepProperties(a, b, prop, caseless) {
+    if (!utils.isUndefined(b)) {
+      return getMergedValue(a, b, prop, caseless);
+    } else if (!utils.isUndefined(a)) {
+      return getMergedValue(undefined, a, prop, caseless);
+    }
+  }
+
+  // eslint-disable-next-line consistent-return
+  function valueFromConfig2(a, b) {
+    if (!utils.isUndefined(b)) {
+      return getMergedValue(undefined, b);
+    }
+  }
+
+  // eslint-disable-next-line consistent-return
+  function defaultToConfig2(a, b) {
+    if (!utils.isUndefined(b)) {
+      return getMergedValue(undefined, b);
+    } else if (!utils.isUndefined(a)) {
+      return getMergedValue(undefined, a);
+    }
+  }
+
+  function getMergedTransitionalOption(prop) {
+    const transitional2 = utils.hasOwnProp(config2, 'transitional')
+      ? config2.transitional
+      : undefined;
+
+    if (!utils.isUndefined(transitional2)) {
+      if (utils.isPlainObject(transitional2)) {
+        if (utils.hasOwnProp(transitional2, prop)) {
+          return transitional2[prop];
+        }
+      } else {
+        return undefined;
+      }
+    }
+
+    const transitional1 = utils.hasOwnProp(config1, 'transitional')
+      ? config1.transitional
+      : undefined;
+
+    if (utils.isPlainObject(transitional1) && utils.hasOwnProp(transitional1, prop)) {
+      return transitional1[prop];
+    }
+
+    return undefined;
+  }
+
+  // eslint-disable-next-line consistent-return
+  function mergeDirectKeys(a, b, prop) {
+    if (utils.hasOwnProp(config2, prop)) {
+      return getMergedValue(a, b);
+    } else if (utils.hasOwnProp(config1, prop)) {
+      return getMergedValue(undefined, a);
+    }
+  }
+
+  const mergeMap = {
+    url: valueFromConfig2,
+    method: valueFromConfig2,
+    data: valueFromConfig2,
+    baseURL: defaultToConfig2,
+    transformRequest: defaultToConfig2,
+    transformResponse: defaultToConfig2,
+    paramsSerializer: defaultToConfig2,
+    timeout: defaultToConfig2,
+    timeoutErrorMessage: defaultToConfig2,
+    withCredentials: defaultToConfig2,
+    withXSRFToken: defaultToConfig2,
+    adapter: defaultToConfig2,
+    responseType: defaultToConfig2,
+    xsrfCookieName: defaultToConfig2,
+    xsrfHeaderName: defaultToConfig2,
+    onUploadProgress: defaultToConfig2,
+    onDownloadProgress: defaultToConfig2,
+    decompress: defaultToConfig2,
+    maxContentLength: defaultToConfig2,
+    maxBodyLength: defaultToConfig2,
+    beforeRedirect: defaultToConfig2,
+    transport: defaultToConfig2,
+    httpAgent: defaultToConfig2,
+    httpsAgent: defaultToConfig2,
+    cancelToken: defaultToConfig2,
+    socketPath: defaultToConfig2,
+    allowedSocketPaths: defaultToConfig2,
+    responseEncoding: defaultToConfig2,
+    validateStatus: mergeDirectKeys,
+    headers: (a, b, prop) =>
+      mergeDeepProperties(headersToObject(a), headersToObject(b), prop, true),
+  };
+
+  utils.forEach(ownEnumerableKeys({ ...config1, ...config2 }), function computeConfigValue(prop) {
+    if (prop === '__proto__' || prop === 'constructor' || prop === 'prototype') return;
     const merge = utils.hasOwnProp(mergeMap, prop) ? mergeMap[prop] : mergeDeepProperties;
     const a = utils.hasOwnProp(config1, prop) ? config1[prop] : undefined;
     const b = utils.hasOwnProp(config2, prop) ? config2[prop] : undefined;
-    const configValue =
-      merge === mergeDirectKeys ? merge(a, b, prop, config1, config2) : merge(a, b, prop);
+    const configValue = merge(a, b, prop);
     (utils.isUndefined(configValue) && merge !== mergeDirectKeys) || (config[prop] = configValue);
-  }
+  });
 
   if (
     utils.hasOwnProp(config2, 'validateStatus') &&
     utils.isUndefined(config2.validateStatus) &&
-    getMergedTransitionalOption(config1, config2, 'validateStatusUndefinedResolves') === false
+    getMergedTransitionalOption('validateStatusUndefinedResolves') === false
   ) {
     if (utils.hasOwnProp(config1, 'validateStatus')) {
       config.validateStatus = getMergedValue(undefined, config1.validateStatus);
@@ -60912,9 +59705,7 @@ const encodeUTF8 = (str) =>
     String.fromCharCode(parseInt(hex, 16))
   );
 
-const readCookie = (name) => cookies.read(name);
-
-function resolveConfig(config, readXsrfCookie = readCookie) {
+function resolveConfig(config) {
   const newConfig = mergeConfig({}, config);
 
   // Read only own properties to prevent prototype pollution gadgets
@@ -60943,22 +59734,11 @@ function resolveConfig(config, readXsrfCookie = readCookie) {
   if (auth) {
     const username = utils.getSafeProp(auth, 'username') || '';
     const password = utils.getSafeProp(auth, 'password') || '';
-    const transitional = own('transitional');
-    const encodeUsername =
-      transitional &&
-      utils.hasOwnProp(transitional, 'encodeBasicAuthUsername') &&
-      transitional.encodeBasicAuthUsername === true;
 
     try {
       headers.set(
         'Authorization',
-        // Preserve legacy username bytes unless the caller opts in to UTF-8.
-        'Basic ' +
-          btoa(
-            (encodeUsername ? encodeUTF8(username) : username) +
-              ':' +
-              (password ? encodeUTF8(password) : '')
-          )
+        'Basic ' + btoa(username + ':' + (password ? encodeUTF8(password) : ''))
       );
     } catch (e) {
       throw core_AxiosError.from(e, core_AxiosError.ERR_BAD_OPTION_VALUE, config);
@@ -60996,7 +59776,7 @@ function resolveConfig(config, readXsrfCookie = readCookie) {
       withXSRFToken === true || (withXSRFToken == null && isURLSameOrigin(newConfig.url));
 
     if (shouldSendXSRF) {
-      const xsrfValue = xsrfHeaderName && xsrfCookieName && readXsrfCookie(xsrfCookieName);
+      const xsrfValue = xsrfHeaderName && xsrfCookieName && cookies.read(xsrfCookieName);
 
       if (xsrfValue) {
         headers.set(xsrfHeaderName, xsrfValue);
@@ -61023,66 +59803,22 @@ function resolveConfig(config, readXsrfCookie = readCookie) {
 
 
 
-
 const isXHRAdapterSupported = typeof XMLHttpRequest !== 'undefined';
 
 /* harmony default export */ const xhr = (isXHRAdapterSupported &&
   function (config) {
     return new Promise(function dispatchXhrRequest(resolve, reject) {
-      let useAsyncXsrf;
-      try {
-        const store =
-          lib_platform.hasStandardBrowserEnv && typeof window !== 'undefined' && window.cookieStore;
-        useAsyncXsrf = store && utils.isFunction(store.get);
-      } catch (e) {
-        // A restricted Cookie Store getter must retain the synchronous fallback.
-      }
-      let xsrfCookieName;
-      const _config = helpers_resolveConfig(
-        config,
-        useAsyncXsrf
-          ? (name) => {
-              xsrfCookieName = name;
-              return null;
-            }
-          : undefined
-      );
+      const _config = helpers_resolveConfig(config);
       let requestData = _config.data;
       const requestHeaders = core_AxiosHeaders.from(_config.headers).normalize();
       let { responseType, onUploadProgress, onDownloadProgress } = _config;
       let onCanceled;
-      let timeoutId;
       let uploadThrottled, downloadThrottled;
       let flushUpload, flushDownload, flushDownloadWithEvent;
 
       function done() {
-        clearTimeout(timeoutId);
-        // A final progress callback must not prevent the remaining cleanup.
-        // Report errors asynchronously, as onloadend and the throttle timer do.
-        try {
-          flushUpload && flushUpload(); // flush events
-        } catch (err) {
-          setTimeout(() => {
-            throw err;
-          });
-        }
-        try {
-          flushDownload && flushDownload(); // flush events
-        } catch (err) {
-          setTimeout(() => {
-            throw err;
-          });
-        }
-
-        // A flush can synchronously cancel the request and reenter done().
-        // In that case the inner call has already detached these listeners.
-        if (request) {
-          downloadThrottled && request.removeEventListener('progress', downloadThrottled);
-          if (request.upload) {
-            uploadThrottled && request.upload.removeEventListener('progress', uploadThrottled);
-            flushUpload && request.upload.removeEventListener('loadend', flushUpload);
-          }
-        }
+        flushUpload && flushUpload(); // flush events
+        flushDownload && flushDownload(); // flush events
 
         _config.cancelToken && _config.cancelToken.unsubscribe(onCanceled);
 
@@ -61233,7 +59969,6 @@ const isXHRAdapterSupported = typeof XMLHttpRequest !== 'undefined';
 
       // Handle timeout
       request.ontimeout = function handleTimeout() {
-        if (!request) return;
         let timeoutErrorMessage = _config.timeout
           ? 'timeout of ' + _config.timeout + 'ms exceeded'
           : 'timeout exceeded';
@@ -61257,6 +59992,13 @@ const isXHRAdapterSupported = typeof XMLHttpRequest !== 'undefined';
 
       // Remove Content-Type if data is undefined
       requestData === undefined && requestHeaders.setContentType(null);
+
+      // Add headers to the request
+      if ('setRequestHeader' in request) {
+        utils.forEach(toByteStringHeaderObject(requestHeaders), function setRequestHeader(val, key) {
+          request.setRequestHeader(key, val);
+        });
+      }
 
       // Add withCredentials to request if needed
       if (!utils.isUndefined(_config.withCredentials)) {
@@ -61294,22 +60036,18 @@ const isXHRAdapterSupported = typeof XMLHttpRequest !== 'undefined';
             return;
           }
           reject(!cancel || cancel.type ? new cancel_CanceledError(null, config, request) : cancel);
-          const xhr = request;
+          request.abort();
           done();
           request = null;
-          xhr.abort();
         };
 
         _config.cancelToken && _config.cancelToken.subscribe(onCanceled);
-        if (!request) return;
         if (_config.signal) {
           _config.signal.aborted
             ? onCanceled()
             : _config.signal.addEventListener('abort', onCanceled);
         }
       }
-
-      if (!request) return;
 
       const protocol = parseProtocol(_config.url);
 
@@ -61325,73 +60063,8 @@ const isXHRAdapterSupported = typeof XMLHttpRequest !== 'undefined';
         return;
       }
 
-      const sendRequest = () => {
-        if (!request) return;
-        // Apply headers after an asynchronous XSRF read so existing headers are
-        // replaced through AxiosHeaders rather than appended by the native XHR.
-        if ('setRequestHeader' in request) {
-          utils.forEach(
-            toByteStringHeaderObject(requestHeaders),
-            function setRequestHeader(val, key) {
-              request.setRequestHeader(key, val);
-            }
-          );
-        }
-        request.send(requestData || null);
-      };
-
-      if (xsrfCookieName) {
-        // Native XHR timeout starts at send(). Cover cookie preparation and the
-        // subsequent request with the same budget and existing timeout handler.
-        const now =
-          typeof performance !== 'undefined' && utils.isFunction(performance.now)
-            ? () => performance.now()
-            : Date.now;
-        const deadline = request.timeout > 0 ? now() + Number(request.timeout) : undefined;
-        const abortOnTimeout = () => {
-          if (!request) return;
-          const xhr = request;
-          xhr.ontimeout();
-          xhr.abort();
-        };
-        if (deadline !== undefined) {
-          const scheduleTimeout = () => {
-            const remaining = deadline - now();
-            if (remaining > 0) {
-              // Browser timers overflow above the signed 32-bit delay limit.
-              timeoutId = setTimeout(scheduleTimeout, Math.min(remaining, 0x7fffffff));
-            } else {
-              abortOnTimeout();
-            }
-          };
-          scheduleTimeout();
-        }
-
-        cookies
-          .readAsync(xsrfCookieName)
-          .then((value) => {
-            if (!request) return;
-            // Promise callbacks may run before an overdue timer after a busy task.
-            if (deadline !== undefined && now() >= deadline) {
-              abortOnTimeout();
-              return;
-            }
-            if (value) {
-              const headerName =
-                utils.hasOwnProp(_config, 'xsrfHeaderName') && _config.xsrfHeaderName;
-              requestHeaders.set(headerName, value);
-            }
-            sendRequest();
-          })
-          .catch((error) => {
-            if (!request) return;
-            reject(core_AxiosError.from(error, null, config, request));
-            done();
-            request = null;
-          });
-      } else {
-        sendRequest();
-      }
+      // Send the request
+      request.send(requestData || null);
     });
   });
 
@@ -61432,15 +60105,12 @@ const composeSignals = (signals, timeout) => {
     }, timeout);
 
   const unsubscribe = () => {
-    if (!signals) {
-      return;
-    }
+    if (!signals) { return; }
     timer && clearTimeout(timer);
     timer = null;
     signals.forEach((signal) => {
-      const unsubscribeSignal = utils.getSafeProp(signal, 'unsubscribe');
-      utils.isFunction(unsubscribeSignal)
-        ? unsubscribeSignal.call(signal, onabort)
+      signal.unsubscribe
+        ? signal.unsubscribe(onabort)
         : signal.removeEventListener('abort', onabort);
     });
     signals = null;
@@ -61559,162 +60229,7 @@ const trackStream = (stream, chunkSize, onProgress, onFinish) => {
   );
 };
 
-;// CONCATENATED MODULE: ./node_modules/axios/lib/helpers/formDataToBlob.js
-
-
-const formDataToBlob_CRLF = '\r\n';
-const normalizeLines = (value) => String(value).replace(/\r\n|\r|\n/g, formDataToBlob_CRLF);
-const escapeName = (value) =>
-  String(value).replace(/[\r\n"]/g, (char) =>
-    char === '\r' ? '%0D' : char === '\n' ? '%0A' : '%22'
-  );
-
-// Count UTF-8 bytes without allocating an encoded copy of a field. FormData
-// string values normalize line endings; Blob/File contents remain unchanged.
-const stringBytes = (value, normalize) => {
-  let length = 0;
-  for (let i = 0; i < value.length; i++) {
-    const code = value.charCodeAt(i);
-    if (normalize && (code === 13 || code === 10)) {
-      if (code === 13 && value.charCodeAt(i + 1) === 10) i++;
-      length += 2;
-    } else if (code < 0x80) {
-      length++;
-    } else if (code < 0x800) {
-      length += 2;
-    } else if (
-      code >= 0xd800 &&
-      code <= 0xdbff &&
-      value.charCodeAt(i + 1) >= 0xdc00 &&
-      value.charCodeAt(i + 1) <= 0xdfff
-    ) {
-      length += 4;
-      i++;
-    } else {
-      length += 3;
-    }
-  }
-  return length;
-};
-
-// Describe serialization failures independently of any request library.
-class FormDataError extends TypeError {
-  constructor(message, reason) {
-    super(message);
-    this.name = 'FormDataError';
-    this.reason = reason;
-  }
-}
-
-// The caller supplies the boundary, Blob implementation, and limit error.
-function formDataToBlob(form, Blob, limit, limitError, boundary) {
-  if (!utils.isFunction(Blob)) {
-    throw new FormDataError('Blob is not supported', 'blob');
-  }
-
-  if (
-    !utils.isString(boundary) ||
-    !/^[A-Za-z0-9'()+_,./:=? -]{1,70}$/.test(boundary) ||
-    / $/.test(boundary)
-  ) {
-    throw new FormDataError('Invalid multipart boundary', 'boundary');
-  }
-  const footer = '--' + boundary + '--' + formDataToBlob_CRLF;
-  let length = footer.length;
-  const parts = [];
-  const checkLength = (extra) => {
-    if (length + extra > limit) throw limitError();
-  };
-  checkLength(0);
-
-  for (const [name, value] of form) {
-    const isString = utils.isString(value);
-    const valueLength = isString ? stringBytes(value, true) : value.size;
-    if (!Number.isFinite(valueLength) || valueLength < 0) {
-      throw new FormDataError('Unsupported FormData part size', 'part');
-    }
-    // Reject large values and names before building normalized header strings.
-    checkLength(
-      valueLength +
-        stringBytes(name, true) +
-        (!isString && value.name ? stringBytes(value.name, false) : 0) +
-        (!isString && value.type ? stringBytes(value.type, false) : 0)
-    );
-
-    let header =
-      '--' +
-      boundary +
-      formDataToBlob_CRLF +
-      'Content-Disposition: form-data; name="' +
-      escapeName(normalizeLines(name)) +
-      '"';
-    if (!isString) {
-      header +=
-        '; filename="' +
-        escapeName(utils.isString(value.name) ? value.name : 'blob') +
-        '"' +
-        formDataToBlob_CRLF +
-        'Content-Type: ' +
-        String(value.type || 'application/octet-stream').replace(/[\r\n]/g, '');
-    }
-    header += formDataToBlob_CRLF + formDataToBlob_CRLF;
-    const partLength = stringBytes(header, false) + valueLength + formDataToBlob_CRLF.length;
-    checkLength(partLength);
-    length += partLength;
-    parts.push({ header, value, isString });
-  }
-
-  // Native Blob composition retains existing Blob/File data. No file is read
-  // and no complete multipart ArrayBuffer is created to determine its length.
-  const blobParts = [];
-  for (const part of parts) {
-    blobParts.push(part.header, part.isString ? normalizeLines(part.value) : part.value, formDataToBlob_CRLF);
-  }
-  blobParts.push(footer);
-  return new Blob(blobParts, { type: 'multipart/form-data; boundary=' + boundary });
-}
-
-;// CONCATENATED MODULE: ./node_modules/axios/lib/core/createMultipartBody.js
-
-
-
-
-
-function createMultipartBody(form, Blob, limit, limitError, boundary) {
-  // Report missing Blob support before trying to select a random source.
-  if (!utils.isFunction(Blob)) {
-    throw new core_AxiosError('Blob is not supported', core_AxiosError.ERR_NOT_SUPPORT);
-  }
-
-  if (boundary === undefined) {
-    if (utils.isFunction(lib_platform.generateString)) {
-      boundary = 'axios-' + lib_platform.generateString(36, '0123456789abcdef');
-    } else {
-      const crypto = utils.global.crypto;
-      if (!crypto || !utils.isFunction(crypto.getRandomValues)) {
-        throw new core_AxiosError('Random byte generation is not supported', core_AxiosError.ERR_NOT_SUPPORT);
-      }
-      const random = new Uint8Array(18);
-      crypto.getRandomValues(random);
-      boundary =
-        'axios-' + Array.from(random, (value) => ('0' + value.toString(16)).slice(-2)).join('');
-    }
-  }
-
-  try {
-    return formDataToBlob(form, Blob, limit, limitError, boundary);
-  } catch (error) {
-    if (error instanceof FormDataError) {
-      const code =
-        error.reason === 'boundary' ? core_AxiosError.ERR_BAD_OPTION_VALUE : core_AxiosError.ERR_BAD_REQUEST;
-      throw new core_AxiosError(error.message, code);
-    }
-    throw error;
-  }
-}
-
 ;// CONCATENATED MODULE: ./node_modules/axios/lib/adapters/fetch.js
-
 
 
 
@@ -61802,13 +60317,11 @@ const factory = (env) => {
     {
       Request: globalObject.Request,
       Response: globalObject.Response,
-      Blob: globalObject.Blob,
     },
     env
   );
 
-  const envFetch = utils.hasOwnProp(env, 'fetch') ? env.fetch : undefined;
-  const { Request, Response, Blob } = env;
+  const { fetch: envFetch, Request, Response } = env;
   const isFetchSupported = envFetch ? fetch_isFunction(envFetch) : typeof fetch === 'function';
   const isRequestSupported = fetch_isFunction(Request);
   const isResponseSupported = fetch_isFunction(Response);
@@ -61857,20 +60370,6 @@ const factory = (env) => {
     isReadableStreamSupported &&
     test(() => utils.isReadableStream(new Response('').body));
 
-  // Some runtimes reject every explicit cache mode. Use own defaults for both
-  // probes so unrelated polluted options cannot affect cache-mode detection.
-  const requestDefaults = Object.assign(Object.create(null), DEFAULT_REQUEST_OPTIONS);
-
-  if (isRequestSupported && !test(() => new Request(lib_platform.origin, requestDefaults))) {
-    delete requestDefaults.cache;
-
-    // Only omit cache when that makes Request construction succeed. Otherwise
-    // retain the explicit default that protects supporting runtimes from pollution.
-    if (!test(() => new Request(lib_platform.origin, requestDefaults))) {
-      requestDefaults.cache = DEFAULT_REQUEST_OPTIONS.cache;
-    }
-  }
-
   const resolvers = {
     stream: supportsResponseStream && ((res) => res.body),
   };
@@ -61902,6 +60401,14 @@ const factory = (env) => {
 
     if (utils.isBlob(body)) {
       return body.size;
+    }
+
+    if (utils.isSpecCompliantForm(body)) {
+      const _request = new Request(lib_platform.origin, {
+        method: 'POST',
+        body,
+      });
+      return (await _request.arrayBuffer()).byteLength;
     }
 
     if (utils.isArrayBufferView(body) || utils.isArrayBuffer(body)) {
@@ -61966,12 +60473,11 @@ const factory = (env) => {
 
     let requestContentLength;
 
-    // AxiosErrors we raise while request or response bodies are being streamed. Captured
+    // AxiosError we raise while the request body is being streamed. Captured
     // by identity so the catch block can surface it directly, regardless of
     // how the runtime wraps the resulting fetch rejection (undici exposes it
     // as `err.cause`; some browsers drop the original error entirely).
     let pendingBodyError = null;
-    let pendingResponseError = null;
 
     const maxBodyLengthError = () =>
       new core_AxiosError(
@@ -61995,9 +60501,8 @@ const factory = (env) => {
         };
       }
 
-      let parsedURL;
       if (maybeWithAuthCredentials(url)) {
-        parsedURL = new URL(url, lib_platform.origin);
+        const parsedURL = new URL(url, lib_platform.origin);
 
         if (!auth && (parsedURL.username || parsedURL.password)) {
           const urlUsername = fetch_decodeURIComponentSafe(parsedURL.username);
@@ -62026,8 +60531,8 @@ const factory = (env) => {
       // Enforce maxContentLength for data: URLs up-front so we never materialize
       // an oversized payload. The HTTP adapter applies the same check (see http.js
       // "if (protocol === 'data:')" branch).
-      if (hasMaxContentLength && parsedURL && parsedURL.protocol === 'data:') {
-        const estimated = estimateDataURLDecodedBytes(parsedURL.href);
+      if (hasMaxContentLength && typeof url === 'string' && url.startsWith('data:')) {
+        const estimated = estimateDataURLDecodedBytes(url);
         if (estimated > maxContentLength) {
           throw new core_AxiosError(
             'maxContentLength size of ' + maxContentLength + ' exceeded',
@@ -62036,38 +60541,6 @@ const factory = (env) => {
             request
           );
         }
-      }
-
-      const formContentType =
-        utils.isSpecCompliantForm(data) && core_AxiosHeaders.from(own('headers')).getContentType();
-      let formBoundary;
-      if (
-        utils.isString(formContentType) &&
-        /^multipart\/form-data(?:\s*;|$)/i.test(formContentType.trim())
-      ) {
-        const parameters = core_AxiosHeaders.parseParameters(formContentType);
-        if (utils.hasOwnProp(parameters, 'boundary')) formBoundary = parameters.boundary;
-      }
-
-      if (
-        utils.isSpecCompliantForm(data) &&
-        method !== 'get' &&
-        method !== 'head' &&
-        (hasMaxBodyLength ||
-          (onUploadProgress && supportsRequestStream) ||
-          formBoundary !== undefined)
-      ) {
-        data = createMultipartBody(
-          data,
-          Blob,
-          hasMaxBodyLength ? maxBodyLength : Infinity,
-          maxBodyLengthError,
-          formBoundary
-        );
-        // Blob.type lowercases its value, including a case-sensitive boundary.
-        // Retain the caller's header when an explicit boundary was serialized.
-        headers.setContentType(formBoundary === undefined ? data.type : formContentType);
-        requestContentLength = data.size;
       }
 
       // Enforce maxBodyLength against known-size bodies before dispatch using
@@ -62215,7 +60688,7 @@ const factory = (env) => {
       });
 
       if (isRequestSupported) {
-        utils.forEach(requestDefaults, (value, key) => {
+        utils.forEach(DEFAULT_REQUEST_OPTIONS, (value, key) => {
           if (resolvedOptions[key] === undefined) {
             resolvedOptions[key] = value;
           }
@@ -62289,12 +60762,12 @@ const factory = (env) => {
           if (hasMaxContentLength) {
             bytesRead = loadedBytes;
             if (bytesRead > maxContentLength) {
-              throw (pendingResponseError = new core_AxiosError(
+              throw new core_AxiosError(
                 'maxContentLength size of ' + maxContentLength + ' exceeded',
                 core_AxiosError.ERR_BAD_RESPONSE,
                 config,
                 request
-              ));
+              );
             }
           }
           onProgress && onProgress(loadedBytes);
@@ -62380,17 +60853,13 @@ const factory = (env) => {
       }
 
       // Surface a maxBodyLength violation we raised while the request body was
-      // being streamed. Keeping the original error (rather than reading
+      // being streamed. Matching by identity (rather than reading
       // `err.cause.isAxiosError`) keeps the error deterministic across runtimes
       // and avoids both prototype-pollution reads and mis-attributing a foreign
       // AxiosError that merely happened to land in `err.cause`.
       if (pendingBodyError) {
         request && !pendingBodyError.request && (pendingBodyError.request = request);
         throw pendingBodyError;
-      }
-
-      if (pendingResponseError) {
-        throw pendingResponseError;
       }
 
       // Re-throw AxiosErrors we raised synchronously (data: URL / content-length
@@ -62428,15 +60897,9 @@ const factory = (env) => {
 const seedCache = new Map();
 
 const getFetch = (config) => {
-  const env = Object.create(null);
-  const configuredEnv = config && utils.hasOwnProp(config, 'env') && config.env;
-  ['fetch', 'Request', 'Response', 'Blob'].forEach((key) => {
-    if (configuredEnv && utils.hasOwnProp(configuredEnv, key)) {
-      env[key] = configuredEnv[key];
-    }
-  });
-  const { fetch, Request, Response, Blob } = env;
-  const seeds = [Request, Response, fetch, Blob];
+  let env = (config && config.env) || {};
+  const { fetch, Request, Response } = env;
+  const seeds = [Request, Response, fetch];
 
   let len = seeds.length,
     i = len,
@@ -62623,37 +61086,6 @@ function throwIfCancellationRequested(config) {
 }
 
 /**
- * Resolve the clock used to time adapter execution.
- *
- * Prefers the monotonic `performance.now()` so wall-clock adjustments do not
- * skew the measurement, and so frameworks that forbid reading the current
- * time during prerendering (e.g. Next.js Cache Components) accept it. Falls
- * back to `Date.now()` in runtimes without the High Resolution Time API.
- *
- * @returns {() => number} Millisecond clock
- */
-function resolveClock() {
-  return typeof performance !== 'undefined' && utils.isFunction(performance.now)
-    ? () => performance.now()
-    : Date.now;
-}
-
-/**
- * Whole milliseconds elapsed since `start`, floored at zero.
- *
- * Rounded so the value stays an integer as with `Date.now()`. The fallback
- * wall clock can move backwards mid-request, so the result is clamped.
- *
- * @param {() => number} now Clock returned by `resolveClock()`
- * @param {number} start Timestamp read from `now`
- *
- * @returns {number} Non-negative elapsed milliseconds
- */
-function elapsedSince(now, start) {
-  return Math.max(0, Math.round(now() - start));
-}
-
-/**
  * Dispatch a request to the server using the configured adapter.
  *
  * @param {object} config The config that is to be used for the request
@@ -62679,14 +61111,9 @@ function dispatchRequest(_config) {
 
   const adapter = adapters.getAdapter(config.adapter || lib_defaults.adapter, config);
 
-  const now = resolveClock();
-  const start = now();
-
   return adapter(config).then(
     function onAdapterResolution(response) {
       throwIfCancellationRequested(config);
-
-      response.duration = elapsedSince(now, start);
 
       // Expose the current response on config so that transformResponse can
       // attach it to any AxiosError it throws (e.g. on JSON parse failure).
@@ -62708,7 +61135,6 @@ function dispatchRequest(_config) {
 
         // Transform response data
         if (reason && reason.response) {
-          reason.response.duration = elapsedSince(now, start);
           config.response = reason.response;
           try {
             reason.response.data = transformData.call(
@@ -62856,39 +61282,7 @@ function assertOptions(options, schema, allowUnknown) {
 
 
 
-
 const Axios_validators = validator.validators;
-
-// Recognize header maps without consuming objects intended as literal values.
-// AxiosHeaders from other builds share a brand and header-container interface,
-// but not constructor identity. A tag and toJSON alone can describe a literal.
-const isHeadersBucket = (value) => {
-  if (value == null || utils.isPlainObject(value) || value instanceof core_AxiosHeaders) {
-    return true;
-  }
-
-  try {
-    return (
-      utils.isObject(value) &&
-      utils.getSafeProp(value, Symbol.toStringTag) === 'AxiosHeaders' &&
-      [
-        'toJSON',
-        'set',
-        'get',
-        'has',
-        'delete',
-        'clear',
-        'normalize',
-        'concat',
-        'toString',
-        Symbol.iterator,
-      ].every((method) => utils.isFunction(utils.getSafeProp(value, method)))
-    );
-  } catch (e) {
-    // A failed optional brand probe must not prevent literal header serialization.
-    return false;
-  }
-};
 
 /**
  * Create a new instance of Axios
@@ -62936,26 +61330,16 @@ class Axios {
 
           if (!err.stack) {
             err.stack = stack;
+            // match without the 2 top stack lines
           } else if (stack) {
-            // Match a common suffix after the 2 top frames when available,
-            // otherwise compare the full reconstructed stack.
             const firstNewlineIndex = stack.indexOf('\n');
             const secondNewlineIndex =
               firstNewlineIndex === -1 ? -1 : stack.indexOf('\n', firstNewlineIndex + 1);
-            const duplicateCheckSuffix =
-              secondNewlineIndex === -1 ? stack : stack.slice(secondNewlineIndex + 1);
+            const stackWithoutTwoTopLines =
+              secondNewlineIndex === -1 ? '' : stack.slice(secondNewlineIndex + 1);
 
-            // `AxiosError.from()` may have already inlined the wrapped error's
-            // stack under a `Caused by:` marker. Keep the reconstructed caller
-            // frames ahead of that marker so stack-only reporters do not read
-            // them as part of the low-level cause.
-            const currentStack = String(err.stack);
-            const causeIndex = getCauseStackIndex(err, currentStack);
-            const stackHead = causeIndex === -1 ? currentStack : currentStack.slice(0, causeIndex);
-            const causeSection = causeIndex === -1 ? '' : currentStack.slice(causeIndex);
-
-            if (!stackHead.endsWith(duplicateCheckSuffix)) {
-              err.stack = stackHead + '\n' + stack + causeSection;
+            if (!String(err.stack).endsWith(stackWithoutTwoTopLines)) {
+              err.stack += '\n' + stack;
             }
           }
         } catch (e) {
@@ -62991,7 +61375,6 @@ class Axios {
           legacyInterceptorReqResOrdering: Axios_validators.transitional(Axios_validators.boolean),
           advertiseZstdAcceptEncoding: Axios_validators.transitional(Axios_validators.boolean),
           validateStatusUndefinedResolves: Axios_validators.transitional(Axios_validators.boolean),
-          encodeBasicAuthUsername: Axios_validators.transitional(Axios_validators.boolean),
         },
         false
       );
@@ -63017,10 +61400,7 @@ class Axios {
     // Set config.allowAbsoluteUrls
     if (config.allowAbsoluteUrls !== undefined) {
       // do nothing
-    } else if (
-      utils.hasOwnProp(this.defaults, 'allowAbsoluteUrls') &&
-      this.defaults.allowAbsoluteUrls !== undefined
-    ) {
+    } else if (this.defaults.allowAbsoluteUrls !== undefined) {
       config.allowAbsoluteUrls = this.defaults.allowAbsoluteUrls;
     } else {
       config.allowAbsoluteUrls = true;
@@ -63042,21 +61422,12 @@ class Axios {
       'get'
     ).toLowerCase();
 
-    // Flatten header defaults without consuming literal method-named headers.
-    const commonHeaders = utils.getSafeProp(headers, 'common');
-    const methodHeaders = utils.getSafeProp(headers, config.method);
-    const contextHeaders =
-      headers &&
-      utils.merge(
-        isHeadersBucket(commonHeaders) ? commonHeaders : undefined,
-        isHeadersBucket(methodHeaders) ? methodHeaders : undefined
-      );
+    // Flatten headers
+    let contextHeaders = headers && utils.merge(headers.common, headers[config.method]);
 
     headers &&
       utils.forEach(core_methodList.concat('common'), (method) => {
-        if (isHeadersBucket(utils.getSafeProp(headers, method))) {
-          delete headers[method];
-        }
+        delete headers[method];
       });
 
     config.headers = core_AxiosHeaders.concat(contextHeaders, headers);
@@ -63165,7 +61536,7 @@ class Axios {
 // Provide aliases for supported request methods
 utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
   /*eslint func-names:0*/
-  Axios.prototype[method] = async function (url, config) {
+  Axios.prototype[method] = function (url, config) {
     return this.request(
       mergeConfig(config || {}, {
         method,
@@ -63178,7 +61549,7 @@ utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData
 
 utils.forEach(['post', 'put', 'patch', 'query'], function forEachMethodWithData(method) {
   function generateHTTPMethod(isForm) {
-    return async function httpMethod(url, data, config) {
+    return function httpMethod(url, data, config) {
       return this.request(
         mergeConfig(config || {}, {
           method,

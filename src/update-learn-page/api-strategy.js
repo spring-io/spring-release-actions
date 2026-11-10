@@ -3,13 +3,19 @@ import { Version } from "../versions.js";
 
 const PROJECTS_API_BASE = "https://api.spring.io";
 
+// The Projects API authenticates with the login of a member of the spring-io/spring-team
+// GitHub team and that user's token, so the username cannot be the project slug.
+const PROJECTS_API_USERNAME = "spring-builds";
+
 async function updateViaApi(inputs) {
   const apiBase = inputs.projectsApiBase ?? PROJECTS_API_BASE;
   const slug = inputs.projectSlug;
   const version = new Version(inputs.version);
   const snapshot = version.nextSnapshot();
 
-  const credentials = Buffer.from(`${slug}:${inputs.token}`).toString("base64");
+  const credentials = Buffer.from(
+    `${PROJECTS_API_USERNAME}:${inputs.token}`,
+  ).toString("base64");
   const auth = `Basic ${credentials}`;
 
   const existing = await _fetchReleases(apiBase, slug);

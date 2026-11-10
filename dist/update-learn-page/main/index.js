@@ -2828,9 +2828,7 @@ const { zstdCompressSync, zstdDecompressSync } = __nccwpck_require__(8522)
 
 let DatabaseSync
 
-// Bump when entries written by an older cache policy are unsafe to reuse.
-// Version 5 invalidates entries that may have been poisoned through redirects.
-const VERSION = 5
+const VERSION = 4
 
 // 2gb
 const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000
@@ -2841,20 +2839,6 @@ const COMPRESS_THRESHOLD = 1024 * 1024
 // zstd support landed in Node 22.19.0/23.4.0, so it may be missing even when
 // node:sqlite is available.
 const hasZstd = typeof zstdCompressSync === 'function' && typeof zstdDecompressSync === 'function'
-
-// SQLite reports a database that another connection is writing as SQLITE_BUSY
-// (5) or SQLITE_LOCKED (6).
-// https://www.sqlite.org/rescode.html#busy
-const SQLITE_BUSY = 5
-const SQLITE_LOCKED = 6
-
-/**
- * @param {Error & { errcode?: number }} err
- * @returns {boolean}
- */
-function isLockedError (err) {
-  return err?.errcode === SQLITE_BUSY || err?.errcode === SQLITE_LOCKED
-}
 
 /**
  * @typedef {import('../../types/cache-interceptor.d.ts').default.CacheStore} CacheStore
@@ -3097,7 +3081,7 @@ module.exports = class SqliteCacheStore {
   get (key) {
     assertCacheKey(key)
 
-    const value = this.#lockSafe(() => this.#findValue(key))
+    const value = this.#findValue(key)
     return value
       ? {
           body: value.body
@@ -3145,10 +3129,10 @@ module.exports = class SqliteCacheStore {
       }
     }
 
-    const existingValue = this.#lockSafe(() => this.#findValue(key, true))
+    const existingValue = this.#findValue(key, true)
     if (existingValue) {
       // Updating an existing response, let's overwrite it
-      this.#lockSafe(() => this.#updateValueQuery.run(
+      this.#updateValueQuery.run(
         storedBody,
         compressed,
         value.deleteAt,
@@ -3161,10 +3145,10 @@ module.exports = class SqliteCacheStore {
         value.cachedAt,
         value.staleAt,
         existingValue.id
-      ))
+      )
     } else {
       // New response, let's insert it
-      this.#lockSafe(() => this.#insertValueQuery.run(
+      this.#insertValueQuery.run(
         url,
         key.method,
         storedBody,
@@ -3178,7 +3162,7 @@ module.exports = class SqliteCacheStore {
         value.vary ? JSON.stringify(value.vary) : null,
         value.cachedAt,
         value.staleAt
-      ))
+      )
       this.#prune()
     }
   }
@@ -3227,53 +3211,23 @@ module.exports = class SqliteCacheStore {
       throw new TypeError(`expected key to be object, got ${typeof key}`)
     }
 
-    this.#lockSafe(() => this.#deleteByUrlQuery.run(this.#makeValueUrl(key)))
-  }
-
-  /**
-   * Runs a database operation, skipping it when another connection holds the
-   * database lock.
-   *
-   * The cache store is meant to be shared between processes, and SQLite reports
-   * a concurrent writer as SQLITE_BUSY/SQLITE_LOCKED. Those errors are
-   * transient, and caching is best effort: the entry is skipped and the next
-   * request retries, rather than failing the request that triggered the write.
-   *
-   * @template T
-   * @param {() => T} fn
-   * @returns {T | undefined}
-   */
-  #lockSafe (fn) {
-    try {
-      return fn()
-    } catch (err) {
-      if (!isLockedError(err)) {
-        throw err
-      }
-
-      return undefined
-    }
+    this.#deleteByUrlQuery.run(this.#makeValueUrl(key))
   }
 
   #prune () {
-    if (Number.isFinite(this.#maxCount)) {
-      // A locked database cannot be measured, so skip pruning instead of
-      // failing the write that triggered it.
-      const size = this.#lockSafe(() => this.size)
-      if (size === undefined || size <= this.#maxCount) {
-        return 0
-      }
+    if (Number.isFinite(this.#maxCount) && this.size <= this.#maxCount) {
+      return 0
     }
 
     {
-      const removed = this.#lockSafe(() => this.#deleteExpiredValuesQuery.run(Date.now()).changes)
+      const removed = this.#deleteExpiredValuesQuery.run(Date.now()).changes
       if (removed) {
         return removed
       }
     }
 
     {
-      const removed = this.#lockSafe(() => this.#deleteOldValuesQuery?.run(Math.max(Math.floor(this.#maxCount * 0.1), 1)).changes)
+      const removed = this.#deleteOldValuesQuery?.run(Math.max(Math.floor(this.#maxCount * 0.1), 1)).changes
       if (removed) {
         return removed
       }
@@ -5783,7 +5737,6 @@ module.exports = {
   kDispatch: Symbol('dispatch'),
   kUrl: Symbol('url'),
   kRequestOrigin: Symbol('request origin'),
-  kRedirectCacheControl: Symbol('redirect cache control'),
   kOriginless: Symbol('originless'),
   kWriting: Symbol('writing'),
   kResuming: Symbol('resuming'),
@@ -7096,7 +7049,7 @@ function defaultFactory (origin, opts) {
 }
 
 class Agent extends DispatcherBase {
-  constructor ({ factory = defaultFactory, maxOrigins = Infinity, connect, tls, ...options } = {}) {
+  constructor ({ factory = defaultFactory, maxOrigins = Infinity, connect, ...options } = {}) {
     if (typeof factory !== 'function') {
       throw new InvalidArgumentError('factory must be a function.')
     }
@@ -7115,11 +7068,7 @@ class Agent extends DispatcherBase {
       connect = { ...connect }
     }
 
-    if (tls && typeof tls !== 'function') {
-      tls = { ...tls }
-    }
-
-    this[kOptions] = { ...util.deepClone(options), maxOrigins, connect, tls }
+    this[kOptions] = { ...util.deepClone(options), maxOrigins, connect }
     this[kFactory] = factory
     this[kClients] = new Map()
     this[kOrigins] = new Set()
@@ -7569,9 +7518,7 @@ function lazyllhttp () {
 
   // We disable wasm SIMD on older versions of Node.js on ppc64 that are broken on Power >=9 architectures.
   let useWasmSIMD = true
-  if (process.arch === 'riscv64') {
-    useWasmSIMD = false
-  } else if (process.arch === 'ppc64') {
+  if (process.arch === 'ppc64') {
     const [major, minor] = process.versions.node.split('.').map(n => parseInt(n, 10))
     if (major < 24 || (major === 24 && minor < 12)) {
       useWasmSIMD = false
@@ -8476,6 +8423,8 @@ function connectH1 (client, socket) {
 }
 
 function onHttpSocketError (err) {
+  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
+
   const parser = this[kParser]
 
   // On Mac OS, we get an ECONNRESET even if there is a full body to be forwarded
@@ -9386,6 +9335,7 @@ const {
 const { channels } = __nccwpck_require__(2414)
 
 const kOpenStreams = Symbol('open streams')
+const kRequestStreamId = Symbol('request stream id')
 const kRequestStream = Symbol('request stream')
 const kRequestStreamCleanup = Symbol('request stream cleanup')
 const kRequestStreamState = Symbol('request stream state')
@@ -9398,15 +9348,6 @@ const kRefusedStreamRetry = Symbol('refused stream retry')
 // an unbounded connect/refuse/reconnect loop that never settles and starves the
 // event loop.
 const MAX_GOAWAY_REPLAY_ATTEMPTS = 1
-
-// RFC 9113 section 6.2. node:http2 reports frame types as raw numbers.
-const HTTP2_FRAME_TYPE_HEADERS = 1
-
-// Lower bound on how long a liveness PING may take to be acked. Stream
-// timeouts can be tiny (tens of ms), while an ack on a live connection can take
-// longer than that on a loaded event loop; without a floor a slow but healthy
-// connection would be torn down.
-const MIN_PROBE_TIMEOUT = 1e3
 
 let extractBody
 
@@ -9474,9 +9415,7 @@ function getGoAwayPendingIdx (client, lastStreamID) {
       continue
     }
 
-    // A pending stream may not have had an ID when it was bound to the request.
-    const streamId = request[kRequestStream]?.id
-    if (typeof streamId !== 'number' || streamId > maxAcceptedStreamID) {
+    if (typeof request[kRequestStreamId] !== 'number' || request[kRequestStreamId] > maxAcceptedStreamID) {
       return i
     }
   }
@@ -9485,6 +9424,7 @@ function getGoAwayPendingIdx (client, lastStreamID) {
 }
 
 function detachRequestFromStream (request) {
+  request[kRequestStreamId] = null
   request[kRequestStream] = null
   request[kRequestStreamCleanup] = null
 }
@@ -9494,6 +9434,7 @@ function bindRequestToStream (request, stream, cleanup) {
   const previousStream = request[kRequestStream]
   detachRequestFromStream(request)
   previousCleanup?.(previousStream)
+  request[kRequestStreamId] = stream.id
   request[kRequestStream] = stream
   request[kRequestStreamCleanup] = cleanup
 }
@@ -9594,14 +9535,8 @@ function severRequestStream (stream) {
     closeStreamSession(stream)
   }
 
-  // #5936: Node can still deliver a session-level error to a native stream
-  // after undici has stopped tracking it (e.g. on idle session teardown). Keep
-  // a persistent noop error sink so the 'error' event is never emitted with no
-  // listener, which would crash the process. A single sink is enough even if
-  // one was already attached by the onError path, so clear it first.
   if (!stream.destroyed && !stream.closed) {
-    stream.off('error', noop)
-    stream.on('error', noop)
+    stream.once('error', noop)
   }
 }
 
@@ -9630,9 +9565,6 @@ function connectH2 (client, socket) {
     // Armed while the peer advertises MAX_CONCURRENT_STREAMS = 0 and we have
     // work that cannot start. See setNoStreamsTimeout.
     noStreamsTimeout: null,
-    // Armed while a PING checks whether the peer is still there after a
-    // stream timed out. See probeHttp2Session.
-    probeTimeout: null,
     // Sockets start out ref'd. Session ref/unref proxies to the socket, so a
     // single cached flag lets us skip redundant uv ref/unref calls, provided
     // every ref/unref of the session or its socket goes through
@@ -9714,11 +9646,6 @@ function connectH2 (client, socket) {
     */
     busy (request) {
       if (session[kRemoteSettings] === false && client[kRunning] > 0) {
-        return true
-      }
-
-      // Do not open streams on a connection that may be dead.
-      if (session[kHTTP2SessionState].probeTimeout != null) {
         return true
       }
 
@@ -9855,60 +9782,6 @@ function onNoStreamsTimeout (session) {
   resetHttp2Session(session, err)
 }
 
-// A stream timeout only resets that stream, unlike HTTP/1.1 which destroys the
-// socket. If the connection itself silently died (dropped by a NAT or load
-// balancer, a hung peer), every new stream would time out in turn and the
-// session would never be replaced. Ask the peer for a PING ack within the
-// timeout that just fired (but at least MIN_PROBE_TIMEOUT): if it answers, only
-// that request was slow; if not, drop the session so queued requests move to a
-// fresh connection.
-function probeHttp2Session (session, timeout) {
-  const state = session[kHTTP2SessionState]
-
-  if (state.probeTimeout != null || session.closed || session.destroyed) {
-    return
-  }
-
-  try {
-    session.ping(onHttp2ProbeAck.bind(session))
-  } catch {
-    // The session is going away on its own.
-    return
-  }
-
-  state.probeTimeout = setTimeout(onHttp2ProbeTimeout, Math.max(timeout, MIN_PROBE_TIMEOUT), session).unref()
-}
-
-function clearHttp2ProbeTimeout (session) {
-  const state = session[kHTTP2SessionState]
-
-  if (state?.probeTimeout != null) {
-    clearTimeout(state.probeTimeout)
-    state.probeTimeout = null
-  }
-}
-
-function onHttp2ProbeAck () {
-  if (this[kHTTP2SessionState].probeTimeout == null) {
-    return
-  }
-
-  clearHttp2ProbeTimeout(this)
-  this[kClient][kResume]()
-}
-
-function onHttp2ProbeTimeout (session) {
-  session[kHTTP2SessionState].probeTimeout = null
-
-  if (session.closed || session.destroyed) {
-    return
-  }
-
-  const err = new SocketError('HTTP/2: connection unresponsive', util.getSocketInfo(session[kSocket]))
-  session[kError] = err
-  resetHttp2Session(session, err)
-}
-
 function clearHttp2IdleTimeout (session) {
   const state = session[kHTTP2SessionState]
 
@@ -10015,6 +9888,8 @@ function onHttp2SendPing (session) {
 }
 
 function onHttp2SessionError (err) {
+  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
+
   this[kSocket][kError] = err
 
   if (this[kReceivedGoAway]) {
@@ -10079,17 +9954,15 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
     }
   }
 
+  for (let i = 0; i < streamsToClose.length; i++) {
+    closeStream(streamsToClose[i])
+  }
+
   if (pendingIdx !== previousPendingIdx) {
     const remainingPendingRequests = client[kQueue].slice(previousPendingIdx)
     client[kQueue].length = pendingIdx
     client[kQueue].push(...retriableRequests, ...remainingPendingRequests)
   }
-
-  // Publish the rebuilt queue and detach the session before closing anything.
-  // A synchronous sibling HEADERS frameError can requeue an accepted-but-unsent
-  // request and resume the client. It must see the final indices and must not
-  // dispatch its retry on the session that is being retired.
-  client[kPendingIdx] = pendingIdx
 
   if (client[kHTTP2Session] === this) {
     client[kSocket] = null
@@ -10103,15 +9976,12 @@ function onHttp2SessionGoAway (errorCode, lastStreamID) {
 
   clearHttp2IdleTimeout(this)
   clearNoStreamsTimeout(this)
-  clearHttp2ProbeTimeout(this)
-
-  for (let i = 0; i < streamsToClose.length; i++) {
-    closeStream(streamsToClose[i])
-  }
 
   if (!this.closed && !this.destroyed) {
     this.close()
   }
+
+  client[kPendingIdx] = pendingIdx
 
   client.emit('disconnect', client[kUrl], [client], err)
 
@@ -10131,7 +10001,6 @@ function onHttp2SessionClose () {
 
   clearHttp2IdleTimeout(this)
   clearNoStreamsTimeout(this)
-  clearHttp2ProbeTimeout(this)
 
   if (state.ping.interval != null) {
     clearInterval(state.ping.interval)
@@ -10186,6 +10055,8 @@ function onHttp2SocketClose () {
 }
 
 function onHttp2SocketError (err) {
+  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
+
   this[kError] = err
 
   if (this[kHTTP2Session]?.[kReceivedGoAway]) {
@@ -10219,8 +10090,8 @@ function closeStreamSession (stream) {
 }
 
 function onUpgradeStreamClose () {
-  // #5936: Retain the noop error sink so a session-level error delivered to
-  // this stream after undici detaches it cannot crash via an unhandled 'error'.
+  this.off('error', noop)
+
   const state = this[kRequestStreamState]
   this[kRequestStreamState] = null
 
@@ -10324,11 +10195,8 @@ function releaseUpgradeStream (stream) {
 
   removeUpgradeStreamListeners(stream)
 
-  // #5936: removeUpgradeStreamListeners() dropped the noop sink; re-attach a
-  // persistent one so a late session-level error on this (possibly still native
-  // tracked) stream cannot crash via an unhandled 'error'.
   if (!stream.destroyed && !stream.closed) {
-    stream.on('error', noop)
+    stream.once('error', noop)
   }
 }
 
@@ -10761,14 +10629,12 @@ function releaseRequestStream (stream) {
     detachRequestFromStream(request)
   }
 
-  // #5936: Node can deliver a session-level error to a released stream before
-  // its native handle is dropped (e.g. on idle session teardown). Attach a
-  // persistent noop error sink so a late 'error' always has a listener and
-  // cannot crash the process. A closed/destroyed stream cannot emit further
-  // events and is no longer tracked natively, so skip the listener teardown.
+  // A closed or destroyed stream cannot emit further events; leaving the
+  // listeners in place saves the removal scans (they are collected with
+  // the stream). All handlers bail out when the stream state is gone.
   if (!stream.destroyed && !stream.closed) {
     removeRequestStreamListeners(stream)
-    stream.on('error', noop)
+    stream.once('error', noop)
   }
 }
 
@@ -10963,43 +10829,10 @@ function retryRefusedStream (stream, state) {
   // SHOULD NOT automatically retry the same request more than once.
   request[kRefusedStreamRetry] = true
 
-  // The peer only reset this stream, so the HTTP/2 session remains usable for
-  // the retry.
-  requeueStreamRequest(client, state)
-
-  return true
-}
-
-// nghttp2 refuses to send the HEADERS of a stream opened before a GOAWAY was
-// received but flushed after it. The peer never saw the request, so it can be
-// replayed on a new connection whatever its method. A GOAWAY whose
-// lastStreamID covers the stream (e.g. 2^31-1, a graceful shutdown notice)
-// leaves the stream attached to the session, so this is the only signal.
-function retryUnsentStream (state) {
-  const { client, request, session } = state
-
-  if (
-    !session[kReceivedGoAway] ||
-    state.responseReceived ||
-    request.aborted ||
-    request.completed ||
-    !canReplayRequest(request) ||
-    !registerGoAwayRefusal(request)
-  ) {
-    return false
-  }
-
-  requeueStreamRequest(client, state)
-
-  return true
-}
-
-function requeueStreamRequest (client, state) {
-  const { request } = state
-
   // Detach the failed attempt before moving the request back to the pending
-  // queue. Severing also drops the 'close' listener, so the abandoned stream
-  // cannot later complete the retried request.
+  // queue. The peer only reset this stream, so the HTTP/2 session remains
+  // usable for the retry. Severing also drops the 'close' listener, so the
+  // abandoned stream cannot later complete the retried request.
   detachRequestStreamForClose(request)
   state.stream = null
   state.requestFinalized = true
@@ -11007,6 +10840,8 @@ function requeueStreamRequest (client, state) {
   completeRequest(client, request)
   client[kQueue].splice(client[kPendingIdx], 0, request)
   client[kResume]()
+
+  return true
 }
 
 function onError (err) {
@@ -11018,10 +10853,6 @@ function onError (err) {
   }
 
   stream.off('error', onError)
-  // #5936: The stream has already errored, but Node may destroy it again with a
-  // session-level error before the native handle is released. Keep a persistent
-  // noop error sink so that re-delivery cannot go unhandled.
-  stream.on('error', noop)
 
   // Node's HTTP/2 implementation can turn an incomplete Content-Length body
   // into a protocol stream error instead of emitting 'end'. Prefer the
@@ -11053,11 +10884,6 @@ function onFrameError (type, code) {
   }
 
   stream.off('frameError', onFrameError)
-
-  if (type === HTTP2_FRAME_TYPE_HEADERS && retryUnsentStream(state)) {
-    return
-  }
-
   state.abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`))
 }
 
@@ -11076,14 +10902,9 @@ function onTimeout () {
   // Remove self so timeout doesn't fire again after we handle it
   stream.off('timeout', onTimeout)
 
-  const { responseReceived, session, bodyTimeout, headersTimeout } = state
-  const err = responseReceived
-    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${bodyTimeout}"`)
-    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${headersTimeout}"`)
-
-  // Probe before aborting: completing the request resumes the queue, which
-  // must not open new streams until the peer has proven it is alive.
-  probeHttp2Session(session, responseReceived ? bodyTimeout : headersTimeout)
+  const err = state.responseReceived
+    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${state.bodyTimeout}"`)
+    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${state.headersTimeout}"`)
   state.abort(err)
 }
 
@@ -12944,8 +12765,7 @@ const EVENT_HEADERS_SIZE = 19
 let miloPackage
 
 // We disable wasm SIMD on ppc64 as it seems to be broken on Power 9 architectures.
-// We disable wasm SIMD on riscv64 as it seems to be broken on there as well.
-let useWasmSIMD = (process.arch !== 'riscv64' && process.arch !== 'ppc64')
+let useWasmSIMD = process.arch !== 'ppc64'
 // The Env Variable UNDICI_NO_WASM_SIMD allows explicitly overriding the default behavior.
 if (process.env.UNDICI_NO_WASM_SIMD === '1') {
   useWasmSIMD = false
@@ -13964,7 +13784,6 @@ module.exports = { H1Parser, getMiloEnabled, setMiloEnabled }
 
 
 
-const { AsyncResource } = __nccwpck_require__(6698)
 const { PoolStats } = __nccwpck_require__(6854)
 const DispatcherBase = __nccwpck_require__(1841)
 const FixedQueue = __nccwpck_require__(4660)
@@ -13991,22 +13810,6 @@ const kRetiring = Symbol('retiring clients')
 // Closes every live client, including clients that have been
 // taken out of rotation but are still finishing their own
 // requests.
-// Requests that wait in the Pool queue are dispatched later from whichever
-// callback drains the queue (another request's connect, drain, ...). Capture
-// the caller's async context so Client#dispatch, and the diagnostics channel
-// events it publishes, still run in it.
-class QueuedRequest extends AsyncResource {
-  constructor (opts, handler) {
-    super('UNDICI_POOL_QUEUED_REQUEST')
-    this.opts = opts
-    this.handler = handler
-  }
-
-  dispatch (dispatcher) {
-    return this.runInAsyncScope(dispatcher.dispatch, dispatcher, this.opts, this.handler)
-  }
-}
-
 function closeClients (pool) {
   const closeAll = []
   for (let i = 0; i < pool[kClients].length; i++) {
@@ -14050,7 +13853,7 @@ class PoolBase extends DispatcherBase {
         break
       }
       this[kQueued]--
-      needDrain = !item.dispatch(client)
+      needDrain = !client.dispatch(item.opts, item.handler)
     }
 
     client[kNeedDrain] = needDrain
@@ -14095,7 +13898,7 @@ class PoolBase extends DispatcherBase {
       const item = queue.shift()
       this[kQueued]--
 
-      if (!item.dispatch(dispatcher)) {
+      if (!dispatcher.dispatch(item.opts, item.handler)) {
         dispatcher[kNeedDrain] = true
         this[kOnClientBusy](dispatcher)
         hasDispatcher = this[kHasDispatcher]()
@@ -14209,7 +14012,7 @@ class PoolBase extends DispatcherBase {
 
     if (!dispatcher) {
       this[kNeedDrain] = true
-      this[kQueue].push(new QueuedRequest(opts, handler))
+      this[kQueue].push({ opts, handler })
       this[kQueued]++
     } else if (!dispatcher.dispatch(opts, handler)) {
       dispatcher[kNeedDrain] = true
@@ -15697,7 +15500,6 @@ module.exports = {
 
 
 const util = __nccwpck_require__(3440)
-const { kRedirectCacheControl } = __nccwpck_require__(6443)
 const {
   parseCacheControlHeader,
   hasInvalidCacheControlDirective,
@@ -15706,17 +15508,6 @@ const {
   isInvalidOrWildcardVaryHeader,
   isEtagUsable
 } = __nccwpck_require__(7659)
-
-/**
- * A suppressed redirect hop recorded by the redirect handler. Carried on
- * {@link kRedirectCacheControl} and inspected by the cache handler before the
- * final response is stored under the original request key.
- *
- * @typedef {object} RedirectHop
- * @property {number} statusCode The hop's response status code (e.g. 302).
- * @property {import('../../types/header.d.ts').IncomingHttpHeaders} headers The hop's response headers.
- * @property {number} receivedAt The time the hop's response headers were received.
- */
 const { parseHttpDate } = __nccwpck_require__(5453)
 
 function noop () {}
@@ -15765,19 +15556,6 @@ class CacheController {
   set rawTrailers (value) { this.target.rawTrailers = value }
 }
 
-/**
- * @param {string | URL} a
- * @param {string | URL} b
- * @returns {boolean}
- */
-function sameOrigin (a, b) {
-  try {
-    return new URL(String(a)).origin === new URL(String(b)).origin
-  } catch {
-    return String(a) === String(b)
-  }
-}
-
 // Status codes that we can use some heuristics on to cache
 const HEURISTICALLY_CACHEABLE_STATUS_CODES = [
   200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414, 501
@@ -15810,16 +15588,6 @@ function arrayIncludes (array, value) {
   }
 
   return false
-}
-
-function appendVaryValues (target, varyValue) {
-  if (Array.isArray(varyValue)) {
-    for (let i = 0; i < varyValue.length; i++) {
-      target.push(varyValue[i])
-    }
-  } else if (varyValue != null) {
-    target.push(varyValue)
-  }
 }
 
 function appendConnectionHeaderTokens (headersToRemove, connectionHeader) {
@@ -15893,26 +15661,6 @@ function invalidateUnsafeRequest (store, cacheKey, resHeaders) {
   deleteLocationTargets(store, cacheKey, resHeaders.location)
   deleteLocationTargets(store, cacheKey, resHeaders['content-location'])
 }
-
-/**
- * Whether the original request carried a credential that is not reflected in
- * the cache key. The memory/sqlite stores key an entry on origin, method, path
- * and `vary` only, so a credentialed request that is redirected to a resource
- * that varies per principal must not be stored under the original (alias) key:
- * a later caller would be served the first principal's body. The set mirrors the
- * request credentials the redirect handler strips across origins (`authorization`,
- * `cookie`, `proxy-authorization`).
- *
- * @param {import('../../types/header.d.ts').IncomingHttpHeaders | undefined} headers
- * @returns {boolean}
- */
-function requestCarriesCredentials (headers) {
-  return headers != null && (
-    Object.hasOwn(headers, 'authorization') ||
-    Object.hasOwn(headers, 'cookie') ||
-    Object.hasOwn(headers, 'proxy-authorization')
-  )
-}
 /**
  * @typedef {import('../../types/dispatcher.d.ts').default.DispatchHandler} DispatchHandler
  *
@@ -15955,14 +15703,6 @@ class CacheHandler {
   #writeStream
 
   /**
-   * The URLs visited while following redirects, shared by reference from the
-   * redirect handler through the request context. Carries the suppressed hops'
-   * status/headers under {@link kRedirectCacheControl}.
-   * @type {URL[] | undefined}
-   */
-  #history
-
-  /**
    * @param {import('../../types/cache-interceptor.d.ts').default.CacheHandlerOptions} opts
    * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} cacheKey
    * @param {import('../../types/dispatcher.d.ts').default.DispatchHandler} handler
@@ -15979,13 +15719,6 @@ class CacheHandler {
     this.#writeStream?.destroy()
     this.#writeStream = undefined
     this.#downstreamController = new CacheController(controller)
-    // The redirect handler threads the list of visited URLs through the
-    // handler-chain context. Keep a reference to it (it is mutated as redirects
-    // are followed) so onResponseStart can tell which request actually produced
-    // the response. Unlike the request options object, this reference is not
-    // broken by an interceptor that copies the options between the cache and
-    // the redirect.
-    this.#history = context?.history
     this.#handler.onRequestStart?.(this.#downstreamController, context)
   }
 
@@ -16033,62 +15766,6 @@ class CacheHandler {
       return downstreamOnHeaders()
     }
 
-    // A credential-bearing request that was redirected must not have the final
-    // hop's response stored under the original request's key. The cache key
-    // does not include the credential, and the redirect target may vary per
-    // principal (e.g. `/me` -> `/profile/{user}`), so replaying the body under
-    // the alias key would leak one principal's data to another — or to an
-    // unauthenticated caller — from a shared cache. The final hop's permissive
-    // cache-control (e.g. `public`) does not authorize this: the credential was
-    // presented to the original hop, not the resource that actually produced
-    // the body. Fail closed. A history with more than one entry means at least
-    // one redirect was actually followed (a single non-redirected hop records
-    // exactly one entry), so a plain revalidation is not mistaken for a redirect.
-    if (
-      this.#history && this.#history.length > 1 &&
-      requestCarriesCredentials(this.#cacheKey.headers)
-    ) {
-      return downstreamOnHeaders()
-    }
-
-    // A cross-origin redirect can change the origin that actually produced the
-    // final response. Keying that response on the original (trusted) origin
-    // would let a redirect target control an entry for a URL the application
-    // trusts. Every hop in the redirect chain must stay on the cache key's
-    // origin. An intermediate cross-origin hop can bounce back to the trusted
-    // origin (or to any cacheable asset there) even when the final response
-    // comes from the trusted origin, so checking only the final URL is not
-    // enough.
-    if (this.#history && this.#history.length > 0) {
-      for (const hopUrl of this.#history) {
-        if (!sameOrigin(hopUrl.origin, this.#cacheKey.origin)) {
-          return downstreamOnHeaders()
-        }
-      }
-    }
-
-    // A redirect hop that is not forwarded can still carry a storage policy
-    // (for example `no-store`, `private` for a shared cache, `no-cache`,
-    // `must-revalidate`, zero freshness, or `Vary: *`) that the final response
-    // body does not inherit. Honor it, otherwise a redirect that must not be
-    // stored (or that selects a private/authenticated target) could be
-    // laundered into a cacheable final response under the original key.
-    const now = Date.now()
-    const redirectHopInfo = this.#history?.[kRedirectCacheControl]
-    const redirectPolicy = redirectHopInfo?.length > 0
-      ? getRedirectPolicy(
-        this.#cacheType,
-        this.#cacheKey.method,
-        redirectHopInfo,
-        this.#cacheKey.headers,
-        this.#cacheByDefault,
-        now
-      )
-      : undefined
-    if (redirectHopInfo?.length > 0 && redirectPolicy === undefined) {
-      return downstreamOnHeaders()
-    }
-
     const cacheControlHeader = resHeaders['cache-control']
     const cacheControlDirectives = cacheControlHeader ? parseCacheControlHeader(cacheControlHeader) : {}
 
@@ -16121,6 +15798,7 @@ class CacheHandler {
       return downstreamOnHeaders()
     }
 
+    const now = Date.now()
     const resAge = Object.hasOwn(resHeaders, 'age') ? getAge(resHeaders.age) : undefined
     if (resAge !== undefined && resAge >= MAX_RESPONSE_AGE) {
       // Response considered stale
@@ -16157,65 +15835,24 @@ class CacheHandler {
     }
 
     const baseTime = now - currentAge
-    let absoluteStaleAt = staleAt + baseTime
-    if (redirectPolicy !== undefined) {
-      absoluteStaleAt = Math.min(absoluteStaleAt, redirectPolicy.staleAt)
-    }
+    const absoluteStaleAt = staleAt + baseTime
     if (now >= absoluteStaleAt && !revalidationOnly) {
       // Response is already stale
       deleteCachedValueIfNotModified(statusCode, this.#store, this.#cacheKey)
       return downstreamOnHeaders()
     }
 
-    // Union the `Vary` of every suppressed redirect hop with the final
-    // response's `Vary`. A 3xx hop that negotiates its target on `Authorization`
-    // / `Cookie` (or any other header) must make the stored entry vary on those
-    // headers too, or an authenticated user's private response would be served
-    // to unrelated callers.
     let varyDirectives
-    const combinedVary = []
-    if (redirectHopInfo) {
-      for (const hop of redirectHopInfo) {
-        appendVaryValues(combinedVary, hop?.headers?.vary)
-      }
-    }
-    appendVaryValues(combinedVary, resHeaders.vary)
-    if (combinedVary.length > 0) {
-      for (const varyHeader of combinedVary) {
-        if (hasVaryStar(varyHeader)) {
-          // `Vary: *` means the response can never be reused (RFC 9111 §4.1)
-          return downstreamOnHeaders()
-        }
-      }
-      if (this.#cacheKey.headers) {
-        varyDirectives = parseVaryHeader(combinedVary, this.#cacheKey.headers)
-        if (!varyDirectives) {
-          // Parse error
-          return downstreamOnHeaders()
-        }
-      }
-    }
-
-    // When the entry was folded from a redirect chain, the final response's
-    // stale-serving directives (RFC 5861) must not outlive the hops' freshness.
-    // A hop that grants no `stale-while-revalidate` / `stale-if-error` caps
-    // stale serving at its freshness, so the final response cannot launder a
-    // stale-serving window past the hop-bounded `staleAt`. Drop those directives
-    // (and keep the `proxy-revalidate` the hop policy may require) so the entry
-    // revalidates at `staleAt` instead of being served stale for the final
-    // response's window.
-    let effectiveCacheControlDirectives = cacheControlDirectives
-    if (redirectPolicy !== undefined) {
-      effectiveCacheControlDirectives = { ...cacheControlDirectives }
-      delete effectiveCacheControlDirectives['stale-while-revalidate']
-      delete effectiveCacheControlDirectives['stale-if-error']
-      if (redirectPolicy.requiresRevalidation === true) {
-        effectiveCacheControlDirectives['proxy-revalidate'] = true
+    if (this.#cacheKey.headers && resHeaders.vary) {
+      varyDirectives = parseVaryHeader(resHeaders.vary, this.#cacheKey.headers)
+      if (!varyDirectives) {
+        // Parse error
+        return downstreamOnHeaders()
       }
     }
 
     const cachedAt = baseTime
-    const deleteAt = determineDeleteAt(baseTime, now, effectiveCacheControlDirectives, absoluteStaleAt)
+    const deleteAt = determineDeleteAt(baseTime, now, cacheControlDirectives, absoluteStaleAt)
     const strippedHeaders = stripNecessaryHeaders(resHeaders, cacheControlDirectives)
 
     /**
@@ -16226,7 +15863,7 @@ class CacheHandler {
       statusMessage,
       headers: strippedHeaders,
       vary: varyDirectives,
-      cacheControlDirectives: effectiveCacheControlDirectives,
+      cacheControlDirectives,
       cachedAt,
       staleAt: absoluteStaleAt,
       deleteAt
@@ -16242,22 +15879,6 @@ class CacheHandler {
         }
         done = true
         this.#downstreamController.release()
-      }
-
-      // The cached body below is replayed to the downstream handler from later
-      // stream ticks (or an iterator loop), outside the dispatcher's own error
-      // handling, so a throwing downstream handler must be converged to a
-      // per-request error instead of escaping as an uncaught exception.
-      const failReplay = (err) => {
-        if (done) {
-          return
-        }
-        done = true
-        // Abort the revalidation request: this releases the paused origin
-        // response (freeing the connection) and routes the error through
-        // CacheHandler.onResponseError, which destroys the cache write stream
-        // and forwards the error downstream exactly once.
-        controller.abort(err)
       }
 
       const handle304 = (cachedValue) => {
@@ -16291,19 +15912,15 @@ class CacheHandler {
             if (done) {
               return
             }
-            try {
-              for (const chunk of bodyIterator) {
-                const full = this.#writeStream?.write(chunk) === false
-                this.#handler.onResponseData?.(this.#downstreamController, chunk)
-                // when stream is full stop writing until we get a 'drain' event
-                if (full) {
-                  return
-                }
+            for (const chunk of bodyIterator) {
+              const full = this.#writeStream?.write(chunk) === false
+              this.#handler.onResponseData?.(this.#downstreamController, chunk)
+              // when stream is full stop writing until we get a 'drain' event
+              if (full) {
+                return
               }
-              finish304()
-            } catch (err) {
-              failReplay(err)
             }
+            finish304()
           }
 
           this.#writeStream
@@ -16329,13 +15946,8 @@ class CacheHandler {
           // Readable stream body (e.g. from async/remote cache stores)
           cachedValue.body
             .on('data', (chunk) => {
-              try {
-                this.#writeStream?.write(chunk)
-                this.#handler.onResponseData?.(this.#downstreamController, chunk)
-              } catch (err) {
-                cachedValue.body.destroy()
-                failReplay(err)
-              }
+              this.#writeStream?.write(chunk)
+              this.#handler.onResponseData?.(this.#downstreamController, chunk)
             })
             .on('end', () => {
               this.#writeStream?.end()
@@ -16540,139 +16152,6 @@ function canCacheResponse (cacheType, method, statusCode, resHeaders, cacheContr
   }
 
   return true
-}
-
-/**
- * Determine the absolute freshness deadline imposed by all suppressed redirect
- * hops. Returning `undefined` means at least one hop cannot safely be folded
- * into the final response under the original request key.
- *
- * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
- * @param {string} method
- * @param {RedirectHop[]} redirectHops
- * @param {import('../../types/header.d.ts').IncomingHttpHeaders} reqHeaders
- * @param {number | undefined} cacheByDefault
- * @param {number} now
- * @returns {{ staleAt: number, requiresRevalidation: boolean } | undefined}
- */
-function getRedirectPolicy (cacheType, method, redirectHops, reqHeaders, cacheByDefault, now) {
-  let staleAt = Infinity
-  let requiresRevalidation = false
-
-  for (const hop of redirectHops) {
-    const hopPolicy = getRedirectHopPolicy(cacheType, method, hop, reqHeaders, cacheByDefault)
-    if (hopPolicy === undefined || hopPolicy.staleAt <= now) {
-      return undefined
-    }
-
-    staleAt = Math.min(staleAt, hopPolicy.staleAt)
-    requiresRevalidation ||= hopPolicy.requiresRevalidation
-  }
-
-  return { staleAt, requiresRevalidation }
-}
-
-/**
- * Calculate one redirect hop's absolute freshness deadline using the same age,
- * date, expiration, invalid-directive, and heuristic rules as a final response.
- *
- * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
- * @param {string} method
- * @param {RedirectHop} hop
- * @param {import('../../types/header.d.ts').IncomingHttpHeaders} reqHeaders
- * @param {number | undefined} cacheByDefault
- * @returns {{ staleAt: number, requiresRevalidation: boolean } | undefined}
- */
-function getRedirectHopPolicy (cacheType, method, hop, reqHeaders, cacheByDefault) {
-  if (!Number.isInteger(hop?.statusCode) || !Number.isFinite(hop?.receivedAt)) {
-    return undefined
-  }
-
-  const hopHeaders = hop.headers ?? {}
-  const cacheControlHeader = hopHeaders['cache-control']
-  const hopCacheControl = cacheControlHeader
-    ? parseCacheControlHeader(cacheControlHeader)
-    : {}
-
-  // https://www.rfc-editor.org/rfc/rfc9111.html#section-4.1-5
-  if (hopHeaders.vary && hasVaryStar(hopHeaders.vary)) {
-    return undefined
-  }
-
-  if (hopCacheControl['no-store'] === true) {
-    return undefined
-  }
-
-  // A qualified `private` directive still marks the named fields as private.
-  // Folding a redirect that says `private="location"` would preserve the
-  // private target choice in the final body even though a shared cache is not
-  // allowed to store that Location field.
-  if (cacheType === 'shared' && Object.hasOwn(hopCacheControl, 'private')) {
-    return undefined
-  }
-
-  // These directives require the hop to be revalidated before reuse. Since the
-  // cache stores only the final response, it cannot independently validate the
-  // suppressed redirect response.
-  if (
-    Object.hasOwn(hopCacheControl, 'no-cache') ||
-    hopCacheControl['must-revalidate'] === true ||
-    (cacheType === 'shared' && hopCacheControl['proxy-revalidate'] === true)
-  ) {
-    return undefined
-  }
-
-  const heuristicallyCacheable =
-    hopHeaders['last-modified'] &&
-    arrayIncludes(HEURISTICALLY_CACHEABLE_STATUS_CODES, hop.statusCode)
-  if (
-    !cacheControlHeader &&
-    !hopHeaders.expires &&
-    !heuristicallyCacheable &&
-    !cacheByDefault
-  ) {
-    return undefined
-  }
-
-  if (!canCacheResponse(cacheType, method, hop.statusCode, hopHeaders, hopCacheControl, reqHeaders)) {
-    return undefined
-  }
-
-  const age = Object.hasOwn(hopHeaders, 'age') ? getAge(hopHeaders.age) : undefined
-  if (age !== undefined && age >= MAX_RESPONSE_AGE) {
-    return undefined
-  }
-
-  const responseDate = Object.hasOwn(hopHeaders, 'date') ? getDate(hopHeaders.date) : undefined
-  if (responseDate === null) {
-    return undefined
-  }
-
-  const apparentAge = responseDate ? Math.max(0, hop.receivedAt - responseDate.getTime()) : 0
-  const currentAge = Math.max(apparentAge, age ?? 0)
-  const hasValidator =
-    (typeof hopHeaders.etag === 'string' && isEtagUsable(hopHeaders.etag)) ||
-    typeof hopHeaders['last-modified'] === 'string'
-  const freshnessLifetime =
-    determineStaleAt(
-      cacheType,
-      hop.receivedAt,
-      age,
-      hopHeaders,
-      responseDate,
-      hopCacheControl,
-      hasValidator
-    ) ?? cacheByDefault
-
-  if (freshnessLifetime === undefined) {
-    return undefined
-  }
-
-  return {
-    staleAt: hop.receivedAt - currentAge + freshnessLifetime,
-    // RFC 9111 §5.2.2.10: s-maxage implies proxy-revalidate for shared caches.
-    requiresRevalidation: cacheType === 'shared' && Object.hasOwn(hopCacheControl, 's-maxage')
-  }
 }
 
 /**
@@ -17098,13 +16577,9 @@ module.exports = class DecoratorHandler {
   onResponseStart (...args) {
     assert(!this.#onCompleteCalled)
     assert(!this.#onErrorCalled)
+    assert(!this.#onResponseStartCalled)
 
-    // Interim 1xx responses (e.g. 103 Early Hints) come before the final one.
-    const statusCode = args[1]
-    if (statusCode >= 200) {
-      assert(!this.#onResponseStartCalled)
-      this.#onResponseStartCalled = true
-    }
+    this.#onResponseStartCalled = true
 
     return this.#handler.onResponseStart?.(...args)
   }
@@ -17165,7 +16640,6 @@ const DEFAULT_MAX_BUFFER_SIZE = 5 * 1024 * 1024
  * @property {number} bufferedBytes
  * @property {object | null} pendingTrailers
  * @property {boolean} done
- * @property {boolean} [pendingStart] onRequestStart deferred until the primary request's context is known
  */
 
 /**
@@ -17179,20 +16653,6 @@ class DeduplicationHandler {
    * @type {DispatchHandler}
    */
   #primaryHandler
-
-  /**
-   * Whether the primary request has started (onRequestStart received). Until
-   * then the request context is unknown and cannot be given to waiting handlers.
-   * @type {boolean}
-   */
-  #requestStarted = false
-
-  /**
-   * The primary request context, replayed to waiting handlers so they observe
-   * the same redirect history as the primary.
-   * @type {any}
-   */
-  #context = null
 
   /**
    * @type {WaitingHandler[]}
@@ -17276,30 +16736,20 @@ class DeduplicationHandler {
     const waitingController = waitingHandler.controller
 
     try {
-      if (this.#requestStarted) {
-        // The primary request has started, so its context (including the
-        // redirect history) is known and can be delivered immediately.
-        handler.onRequestStart?.(waitingController, this.#context)
+      handler.onRequestStart?.(waitingController, null)
 
-        if (waitingController.aborted) {
-          waitingHandler.done = true
-          return true
-        }
+      if (waitingController.aborted) {
+        waitingHandler.done = true
+        return true
+      }
 
-        if (this.#responseStarted) {
-          handler.onResponseStart?.(
-            waitingController,
-            this.#statusCode,
-            this.#headers,
-            this.#statusMessage
-          )
-        }
-      } else {
-        // The primary request has not started yet. Defer onRequestStart until
-        // its context is known, so the waiting handler observes the same
-        // redirect history as the primary (a cache handler relies on it to
-        // reject cross-origin redirect responses).
-        waitingHandler.pendingStart = true
+      if (this.#responseStarted) {
+        handler.onResponseStart?.(
+          waitingController,
+          this.#statusCode,
+          this.#headers,
+          this.#statusMessage
+        )
       }
     } catch {
       // Ignore errors from waiting handlers
@@ -17320,24 +16770,6 @@ class DeduplicationHandler {
    */
   onRequestStart (controller, context) {
     this.#controller = controller
-    if (!this.#requestStarted) {
-      this.#requestStarted = true
-      this.#context = context
-      // Deliver the now-known context to handlers that joined before the
-      // primary request started.
-      for (const waitingHandler of this.#waitingHandlers) {
-        if (waitingHandler.pendingStart && !waitingHandler.done && !waitingHandler.controller.aborted) {
-          waitingHandler.pendingStart = false
-          try {
-            waitingHandler.handler.onRequestStart?.(waitingHandler.controller, context)
-          } catch {
-            // Ignore errors from waiting handlers
-            waitingHandler.done = true
-          }
-        }
-      }
-      this.#pruneDoneWaitingHandlers()
-    }
     this.#primaryHandler.onRequestStart?.(controller, context)
   }
 
@@ -17522,8 +16954,7 @@ class DeduplicationHandler {
       bufferedChunks: [],
       bufferedBytes: 0,
       pendingTrailers: null,
-      done: false,
-      pendingStart: false
+      done: false
     }
 
     const state = {
@@ -17699,7 +17130,7 @@ module.exports = DeduplicationHandler
 const util = __nccwpck_require__(3440)
 const assert = __nccwpck_require__(4589)
 const { InvalidArgumentError, MaxRedirectsError } = __nccwpck_require__(8707)
-const { kRequestOrigin, kRedirectCacheControl } = __nccwpck_require__(6443)
+const { kRequestOrigin } = __nccwpck_require__(6443)
 
 const redirectableStatusCodes = [300, 301, 302, 303, 307, 308]
 
@@ -17734,16 +17165,6 @@ class RedirectHandler {
     this.maxRedirections = maxRedirections
     this.handler = handler
     this.history = []
-    // Per-hop metadata for each intermediate (suppressed) redirect hop: the
-    // hop's status code and response headers. An outer cache uses it to honor a
-    // hop's storage policy (e.g. `no-store`, `no-cache`, `Vary: *`) that would
-    // otherwise be lost because the hop's response is not forwarded. It travels
-    // as a non-enumerable property of the history array so it reaches the cache
-    // without becoming part of the public request/response context.
-    Object.defineProperty(this.history, kRedirectCacheControl, {
-      value: [],
-      enumerable: false
-    })
   }
 
   onRequestStart (controller, context) {
@@ -17819,15 +17240,6 @@ class RedirectHandler {
       this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
       return
     }
-
-    // This hop's response is suppressed (only its Location is used). Record its
-    // status and headers so an outer cache can honor a restrictive policy that
-    // would otherwise be lost when the final response is stored.
-    this.history[kRedirectCacheControl].push({
-      statusCode,
-      headers: { ...headers },
-      receivedAt: Date.now()
-    })
 
     const baseUrl = requestOrigin
       ? new URL(this.opts.path, requestOrigin)
@@ -17942,25 +17354,9 @@ function normalizeStripHeaders (headers, optionName) {
 function cleanRequestHeaders (headers, removeContent, unknownOrigin, stripHeaders, stripHeadersOnCrossOrigin) {
   const ret = []
   if (Array.isArray(headers)) {
-    // Headers may be either a flat alternating [name, value, name, value, ...]
-    // list or an iterable of [name, value] pairs. A plain JavaScript array of
-    // tuples (e.g. `Object.entries(headers)`) satisfies the iterable-of-pairs
-    // public type, so we must distinguish the two representations before
-    // iterating. Treating every Array as a flat list misreads each tuple as a
-    // header name/value pair and defeats the cross-origin credential stripping.
-    if (headers.length > 0 && Array.isArray(headers[0])) {
-      // Array of [name, value] pairs.
-      for (const [key, value] of headers) {
-        if (!shouldRemoveHeader(key, removeContent, unknownOrigin, stripHeaders, stripHeadersOnCrossOrigin)) {
-          ret.push(key, value)
-        }
-      }
-    } else {
-      // Flat alternating [name, value, name, value, ...] list.
-      for (let i = 0; i < headers.length; i += 2) {
-        if (!shouldRemoveHeader(headers[i], removeContent, unknownOrigin, stripHeaders, stripHeadersOnCrossOrigin)) {
-          ret.push(headers[i], headers[i + 1])
-        }
+    for (let i = 0; i < headers.length; i += 2) {
+      if (!shouldRemoveHeader(headers[i], removeContent, unknownOrigin, stripHeaders, stripHeadersOnCrossOrigin)) {
+        ret.push(headers[i], headers[i + 1])
       }
     }
   } else if (headers && typeof headers === 'object') {
@@ -18694,8 +18090,7 @@ const {
   normalizeHeaders,
   parseCacheControlHeader,
   isInvalidOrWildcardVaryHeader,
-  parseVaryHeader,
-  isEtagUsable
+  parseVaryHeader
 } = __nccwpck_require__(7659)
 const { AbortError } = __nccwpck_require__(8707)
 const { parseHttpDate } = __nccwpck_require__(5453)
@@ -18883,47 +18278,6 @@ function makeRevalidationHeaders (opts, result) {
   return headers
 }
 
-function revalidationTargetMatchesCacheKey (cacheKey, context) {
-  const history = context?.history
-  if (!Array.isArray(history) || history.length === 0) {
-    return true
-  }
-
-  try {
-    const cachedUrl = new URL(cacheKey.path, cacheKey.origin)
-    const responseUrl = history[history.length - 1]
-    return responseUrl.origin === cachedUrl.origin &&
-      responseUrl.pathname === cachedUrl.pathname &&
-      responseUrl.search === cachedUrl.search
-  } catch {
-    return false
-  }
-}
-
-function revalidationEtagMatchesCachedValue (result, headers) {
-  if (!Object.hasOwn(headers, 'etag')) {
-    return true
-  }
-
-  const responseEtag = headers.etag
-  const cachedEtag = result.etag
-  if (
-    typeof responseEtag !== 'string' ||
-    typeof cachedEtag !== 'string' ||
-    !isEtagUsable(responseEtag) ||
-    !isEtagUsable(cachedEtag)
-  ) {
-    return false
-  }
-
-  if (!responseEtag.startsWith('W/')) {
-    return responseEtag === cachedEtag
-  }
-
-  const cachedOpaqueTag = cachedEtag.startsWith('W/') ? cachedEtag.slice(2) : cachedEtag
-  return responseEtag.slice(2) === cachedOpaqueTag
-}
-
 /**
  * @param {import('../../types/cache-interceptor.d.ts').default.GetResult} result
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives | undefined} cacheControlDirectives
@@ -19088,35 +18442,21 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
 
   stream
     .on('error', function (err) {
-      // Never rethrow: this runs from a stream event on a later tick, where a
-      // throw would crash the process. Like core's Request.onResponseError,
-      // the error is dropped if the handler has no onResponseError.
       if (!this.readableEnded) {
-        handler.onResponseError?.(controller, err)
+        if (typeof handler.onResponseError === 'function') {
+          handler.onResponseError(controller, err)
+        } else {
+          throw err
+        }
       }
     })
     .on('close', function () {
       if (!this.errored) {
-        try {
-          handler.onResponseEnd?.(controller, {})
-        } catch (err) {
-          // The stream is already closed, so the error can't be routed
-          // through it; report it to the handler directly instead.
-          handler.onResponseError?.(controller, err)
-        }
+        handler.onResponseEnd?.(controller, {})
       }
     })
 
-  // Downstream handler calls below run outside the dispatcher's own error
-  // handling (on later ticks for the body, or inside a promise callback for
-  // async stores), so a throw must be converged to a per-request error
-  // instead of escaping as an uncaught exception.
-  try {
-    handler.onRequestStart?.(controller, context)
-  } catch (err) {
-    stream.destroy(err)
-    return
-  }
+  handler.onRequestStart?.(controller, context)
 
   if (stream.destroyed) {
     return
@@ -19134,22 +18474,13 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
 
   controller.rawHeaders = util.toRawHeaders(headers)
 
-  try {
-    handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
-  } catch (err) {
-    stream.destroy(err)
-    return
-  }
+  handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
 
   if (opts.method === 'HEAD') {
     stream.destroy()
   } else {
     stream.on('data', function (chunk) {
-      try {
-        handler.onResponseData?.(controller, chunk)
-      } catch (err) {
-        stream.destroy(err)
-      }
+      handler.onResponseData?.(controller, chunk)
     })
   }
 }
@@ -19247,14 +18578,6 @@ function handleResult (
     }
 
     const headers = makeRevalidationHeaders(opts, result)
-    const refetch = () => {
-      if (util.isStream(result.body)) {
-        result.body.on('error', nop).destroy()
-      }
-
-      deleteCachedValue(globalOpts.store, cacheKey)
-      return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
-    }
 
     // We need to revalidate the response
     return dispatch(
@@ -19266,18 +18589,24 @@ function handleResult (
         (success, context, statusCode, headers) => {
           if (success) {
             if (statusCode === 304) {
-              if (
-                !revalidationTargetMatchesCacheKey(cacheKey, context) ||
-                !revalidationEtagMatchesCachedValue(result, headers) ||
-                revalidationResponseDisallowsCachedReuse(globalOpts.type, headers)
-              ) {
-                return refetch()
+              if (revalidationResponseDisallowsCachedReuse(globalOpts.type, headers)) {
+                if (util.isStream(result.body)) {
+                  result.body.on('error', nop).destroy()
+                }
+
+                deleteCachedValue(globalOpts.store, cacheKey)
+                return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
               }
 
               if (revalidationResponseUpdatesCacheControl(headers)) {
                 deleteCachedValue(globalOpts.store, cacheKey)
               } else if (revalidationResponseAddsVary(result, headers.vary ? parseVaryHeader(headers.vary, opts.headers) : undefined)) {
-                return refetch()
+                if (util.isStream(result.body)) {
+                  result.body.on('error', nop).destroy()
+                }
+
+                deleteCachedValue(globalOpts.store, cacheKey)
+                return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
               }
             }
 
@@ -19413,28 +18742,6 @@ module.exports = (opts = {}) => {
             reqCacheControl,
             result
           ))
-          .catch((err) => {
-            // Any throw escaping handleResult on the async-store path (e.g. a
-            // rejection from store.get() itself, or a throw in a code path not
-            // converged by sendCachedValue) would otherwise surface as an
-            // unhandled promise rejection and crash the process. Route it to
-            // the handler instead, matching the synchronous store path where
-            // the error propagates to the request() call site.
-            if (typeof handler.onResponseError === 'function') {
-              handler.onResponseError({
-                rawHeaders: [],
-                rawTrailers: [],
-                pause () {},
-                resume () {},
-                get paused () { return false },
-                get aborted () { return false },
-                get reason () { return null },
-                abort () {}
-              }, err)
-            } else {
-              throw err
-            }
-          })
       } else {
         return handleResult(
           dispatch,
@@ -19681,14 +18988,9 @@ class DecompressHandler extends DecoratorHandler {
             this.#decompressedSize = decompressedSize
           }
 
-          try {
-            const result = super.onResponseData(this.#controller, chunk)
-            if (result === false && !this.#controller.paused) {
-              this.#controller.pause()
-            }
-          } catch (err) {
-            this.#fail(err)
-            return
+          const result = super.onResponseData(this.#controller, chunk)
+          if (result === false && !this.#controller.paused) {
+            this.#controller.pause()
           }
         }
       } while (this.#drainRequested && !this.#terminated && !this.#controller.paused)
@@ -19705,14 +19007,9 @@ class DecompressHandler extends DecoratorHandler {
       return
     }
 
-    this.#cleanupDecompressors()
-    try {
-      super.onResponseEnd(this.#controller, this.#trailers)
-    } catch (err) {
-      this.#fail(err)
-      return
-    }
     this.#terminated = true
+    this.#cleanupDecompressors()
+    super.onResponseEnd(this.#controller, this.#trailers)
   }
 
   #onDecompressionEnd () {
@@ -24907,13 +24204,6 @@ function removeTrailingSlash (path) {
     return path
   }
 
-  // Only strip slashes from the pathname, not from a query string after it
-  const queryIndex = path.indexOf('?')
-  const search = queryIndex === -1 ? '' : path.slice(queryIndex)
-  if (queryIndex !== -1) {
-    path = path.slice(0, queryIndex)
-  }
-
   while (path.endsWith('/')) {
     path = path.slice(0, -1)
   }
@@ -24922,7 +24212,7 @@ function removeTrailingSlash (path) {
     path = '/'
   }
 
-  return path + search
+  return path
 }
 
 function buildKey (opts) {
@@ -25053,9 +24343,6 @@ function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler, re
     paused: false,
     rawHeaders: null,
     rawTrailers: null,
-    get aborted () {
-      return aborted
-    },
     pause () {
       this.paused = true
     },
@@ -30714,11 +30001,12 @@ const EVENT = Buffer.from('event')
 const ID = Buffer.from('id')
 const RETRY = Buffer.from('retry')
 
-// Each data field creates a string node, and each unconsumed input chunk keeps
-// a Buffer wrapper. The absolute ceiling protects the large default byte limit.
-const minParserItems = 1024
-const maxParserItems = 131072
-const bytesPerParserItem = 128
+// The longest prefix a `data:` field can have before its value: "data:" plus a
+// single leading U+0020 SPACE. Used when bounding an unterminated line against
+// maxEventSize so a server cannot force unbounded buffering by never sending a
+// line terminator, while still accepting a terminated data line whose value is
+// exactly maxEventSize bytes.
+const DATA_FIELD_PREFIX_SIZE = DATA.length + 2
 
 function isASCIINumberBytes (buffer, start) {
   if (start >= buffer.length) {
@@ -30812,13 +30100,9 @@ class EventSourceStream extends Transform {
   pos = 0
   lineChunkIndex = 0
   linePos = 0
-  lineLength = 0
-  eventSize = 0
-  eventFieldSizes = { data: 0, event: 0, id: 0, retry: 0 }
-  dataLineCount = 0
+  eventDataSize = 0
+  currentLineSize = 0
   maxEventSize
-  maxDataLines
-  maxBufferedChunks
 
   event = {
     data: undefined,
@@ -30843,11 +30127,6 @@ class EventSourceStream extends Transform {
 
     this.state = options.eventSourceSettings || {}
     this.maxEventSize = options.maxEventSize ?? defaultMaxEventSize
-    const parserItemLimit = this.maxEventSize > 0
-      ? Math.min(maxParserItems, Math.max(minParserItems, Math.floor(this.maxEventSize / bytesPerParserItem)))
-      : 0
-    this.maxDataLines = parserItemLimit
-    this.maxBufferedChunks = parserItemLimit
     if (options.push) {
       this.push = options.push
     }
@@ -30865,14 +30144,6 @@ class EventSourceStream extends Transform {
       return
     }
 
-    // A leading line ending can immediately release the currently buffered
-    // line, even when it uses the final allowed chunk slot.
-    if (this.maxEventSize > 0 &&
-        this.chunks.length >= this.maxBufferedChunks &&
-        chunk[0] !== LF && chunk[0] !== CR) {
-      callback(createMaxEventSizeExceededError())
-      return
-    }
     this.chunks.push(chunk)
 
     // Strip leading byte-order-mark if we opened the stream and started
@@ -30965,23 +30236,19 @@ class EventSourceStream extends Transform {
         continue
       }
 
-      // readLine() is only called after CR or LF. Reject an unfinished line
-      // before it can retain an unbounded number of decoded chunks. The seven
-      // extra bytes allow the longest field prefix ("event: " or "retry: ").
-      if (this.maxEventSize > 0 && ++this.lineLength > this.maxEventSize + 7) {
+      this.advanceCursor()
+      this.currentLineSize++
+
+      // An unterminated line never reaches parseLine(), so enforce the configured
+      // maxEventSize here to prevent unbounded buffering when a server streams a
+      // field that never contains a line terminator.
+      if (this.currentLineSize > this.getMaxEventSizeLineLength()) {
         callback(createMaxEventSizeExceededError())
         return
       }
-      this.advanceCursor()
     }
 
     callback()
-  }
-
-  _destroy (error, callback) {
-    this.chunks.length = 0
-    this.clearEvent()
-    super._destroy(error, callback)
   }
 
   /**
@@ -31020,12 +30287,12 @@ class EventSourceStream extends Transform {
     }
 
     if (isFieldName(line, fieldLength, DATA)) {
-      if (this.maxEventSize > 0 && this.dataLineCount >= this.maxDataLines) {
+      const valueBytes = line.length - valueStart
+      const eventDataSize = this.eventDataSize + (event.data === undefined ? 0 : 1) + valueBytes
+
+      if (this.maxEventSize > 0 && eventDataSize > this.maxEventSize) {
         throw createMaxEventSizeExceededError()
       }
-      const valueBytes = line.length - valueStart
-      const dataSize = this.eventFieldSizes.data + (event.data === undefined ? 0 : 1) + valueBytes
-      this.setEventFieldSize('data', dataSize)
 
       const value = line.toString('utf8', valueStart)
 
@@ -31034,13 +30301,12 @@ class EventSourceStream extends Transform {
       } else {
         event.data += `\n${value}`
       }
-      this.dataLineCount++
+      this.eventDataSize = eventDataSize
       return
     }
 
     if (isFieldName(line, fieldLength, RETRY)) {
       if (isASCIINumberBytes(line, valueStart)) {
-        this.setEventFieldSize('retry', line.length - valueStart)
         event.retry = line.toString('utf8', valueStart)
       }
       return
@@ -31048,27 +30314,18 @@ class EventSourceStream extends Transform {
 
     if (isFieldName(line, fieldLength, ID)) {
       if (isValidLastEventIdBytes(line, valueStart)) {
-        this.setEventFieldSize('id', line.length - valueStart)
         event.id = line.toString('utf8', valueStart)
       }
       return
     }
 
     if (isFieldName(line, fieldLength, EVENT)) {
-      if (valueStart < line.length) {
-        this.setEventFieldSize('event', line.length - valueStart)
-        event.event = line.toString('utf8', valueStart)
+      const value = line.toString('utf8', valueStart)
+
+      if (value.length > 0) {
+        event.event = value
       }
     }
-  }
-
-  setEventFieldSize (field, size) {
-    const eventSize = this.eventSize - this.eventFieldSizes[field] + size
-    if (this.maxEventSize > 0 && eventSize > this.maxEventSize) {
-      throw createMaxEventSizeExceededError()
-    }
-    this.eventSize = eventSize
-    this.eventFieldSizes[field] = size
   }
 
   /**
@@ -31101,12 +30358,7 @@ class EventSourceStream extends Transform {
     this.event.event = undefined
     this.event.id = undefined
     this.event.retry = undefined
-    this.eventSize = 0
-    this.dataLineCount = 0
-    this.eventFieldSizes.data = 0
-    this.eventFieldSizes.event = 0
-    this.eventFieldSizes.id = 0
-    this.eventFieldSizes.retry = 0
+    this.eventDataSize = 0
   }
 
   hasPendingEvent () {
@@ -31142,16 +30394,29 @@ class EventSourceStream extends Transform {
   syncLineStartToCursor () {
     this.lineChunkIndex = this.chunkIndex
     this.linePos = this.pos
-    this.lineLength = 0
+    this.currentLineSize = 0
     this.dropConsumedChunks()
   }
 
+  /**
+   * @returns {number} The maximum length, in bytes, of the currently buffered
+   * (possibly unterminated) line. The extra {@link DATA_FIELD_PREFIX_SIZE}
+   * accounts for the longest `data:` field prefix, so a terminated data line
+   * carrying exactly {@link maxEventSize} value bytes remains accepted.
+   */
+  getMaxEventSizeLineLength () {
+    if (this.maxEventSize <= 0) {
+      return Infinity
+    }
+
+    return this.maxEventSize + DATA_FIELD_PREFIX_SIZE
+  }
+
   dropConsumedChunks () {
-    if (this.lineChunkIndex > 0) {
-      const consumed = this.lineChunkIndex
-      this.chunks.splice(0, consumed)
-      this.lineChunkIndex = 0
-      this.chunkIndex -= consumed
+    while (this.lineChunkIndex > 0) {
+      this.chunks.shift()
+      this.lineChunkIndex--
+      this.chunkIndex--
     }
 
     if (this.chunkIndex === this.chunks.length) {
@@ -32115,36 +31380,16 @@ function extractBody (object, keepalive = false) {
       )
     }
 
-    if (webidl.is.ReadableStream(object)) {
-      stream = object
-    } else {
-      const reader = ReadableStream.from(object).getReader()
-      let cancelled = false
-      // Do not pull from the iterable until the body is read.
-      stream = new ReadableStream({
-        async pull (controller) {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (cancelled) {
-              return
-            }
-            if (done) {
-              controller.close()
-              return
-            }
-            const bytes = isUint8Array(value) ? value : Buffer.from(value)
-            if (bytes.byteLength) {
-              controller.enqueue(bytes)
-              return
-            }
+    stream = webidl.is.ReadableStream(object)
+      ? object
+      : ReadableStream.from(object).pipeThrough(new TransformStream({
+        transform (chunk, controller) {
+          const bytes = isUint8Array(chunk) ? chunk : Buffer.from(chunk)
+          if (bytes.byteLength) {
+            controller.enqueue(bytes)
           }
-        },
-        cancel (reason) {
-          cancelled = true
-          return reader.cancel(reason)
         }
-      }, { highWaterMark: 0 })
-    }
+      }))
   }
 
   // 18. If source is a byte sequence, then set action to a
@@ -35163,7 +34408,10 @@ function fetch (input, init = undefined) {
       cleanupAbortListeners()
     },
     processResponse,
-    dispatcher: getRequestDispatcher(requestObject) // undici
+    dispatcher: getRequestDispatcher(requestObject), // undici
+    // Keep requestObject alive to prevent its AbortController from being GC'd
+    // See https://github.com/nodejs/undici/issues/4627
+    requestObject
   })
 
   // 14. Return p.
@@ -35282,7 +34530,8 @@ function fetching ({
   processResponseEndOfBody,
   processResponseConsumeBody,
   useParallelQueue = false,
-  dispatcher = getGlobalDispatcher() // undici
+  dispatcher = getGlobalDispatcher(), // undici
+  requestObject = null // Keep alive to prevent AbortController GC, see #4627
 }) {
   // Ensure that the dispatcher is set accordingly
   assert(dispatcher)
@@ -35336,7 +34585,9 @@ function fetching ({
     processResponseConsumeBody,
     processResponseEndOfBody,
     taskDestination,
-    crossOriginIsolatedCapability
+    crossOriginIsolatedCapability,
+    // Keep requestObject alive to prevent its AbortController from being GC'd
+    requestObject
   }
 
   // 7. If request’s body is a byte sequence, then set request’s body to
@@ -37147,6 +36398,8 @@ async function httpNetworkFetch (
             appendHeadersListFromResponseHeaders(headersList, headers, rawHeaders)
             const location = headersList.get('location', true)
 
+            this.body = new Readable({ read: () => controller.resume() })
+
             const willFollow = location && request.redirect === 'follow' &&
               redirectStatusSet.has(status)
 
@@ -37164,7 +36417,7 @@ async function httpNetworkFetch (
               // CVE fix similar to urllib3 (GHSA-gm62-xv2j-4w53) and curl (CVE-2022-32206).
               const maxContentEncodings = 5
               if (codings.length > maxContentEncodings) {
-                controller.abort(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
+                reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
                 return
               }
 
@@ -37205,8 +36458,6 @@ async function httpNetworkFetch (
                 }
               }
             }
-
-            this.body = new Readable({ read: () => controller.resume() })
 
             const onError = (err) => this.onResponseError(controller, err)
 
@@ -37357,98 +36608,60 @@ const { webidl } = __nccwpck_require__(7879)
 const { URLSerializer } = __nccwpck_require__(1900)
 const { kConstruct } = __nccwpck_require__(6443)
 const assert = __nccwpck_require__(4589)
+const { getMaxListeners, setMaxListeners, defaultMaxListeners } = __nccwpck_require__(8474)
 
-const requestFinalizer = new FinalizationRegistry(({ signal, reference }) => {
-  removeSignalFollower(signal, reference)
+const kAbortController = Symbol('abortController')
+
+const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
+  signal.removeEventListener('abort', abort)
 })
 
-/**
- * @typedef {object} RequestSignalState
- * @property {AbortController} controller
- * @property {AbortSignal} source
- * @property {WeakRef<AbortController>} reference
- */
+const dependentControllerMap = new WeakMap()
 
-/** @type {WeakMap<AbortSignal, RequestSignalState>} */
-const requestSignals = new WeakMap()
+let abortSignalHasEventHandlerLeakWarning
 
-/** @type {WeakMap<AbortSignal, WeakRef<AbortController> | Set<WeakRef<AbortController>>>} */
-const signalFollowers = new WeakMap()
-
-/**
- * @param {AbortSignal} signal
- * @param {WeakRef<AbortController>} reference
- */
-function removeSignalFollower (signal, reference) {
-  const followers = signalFollowers.get(signal)
-  if (followers instanceof Set) {
-    followers.delete(reference)
-    if (followers.size !== 0) return
-  }
-
-  signal.removeEventListener('abort', abortSignalFollowers)
-  signalFollowers.delete(signal)
+try {
+  abortSignalHasEventHandlerLeakWarning = getMaxListeners(new AbortController().signal) > 0
+} catch {
+  abortSignalHasEventHandlerLeakWarning = false
 }
 
-/**
- * @param {WeakRef<AbortController>} reference
- * @param {unknown} reason
- */
-function abortSignalFollower (reference, reason) {
-  requestFinalizer.unregister(reference)
-  const ac = reference.deref()
-  if (ac !== undefined) {
-    requestSignals.delete(ac.signal)
-    ac.abort(reason)
-  }
-}
+function buildAbort (acRef) {
+  return abort
 
-/** @this {AbortSignal} */
-function abortSignalFollowers () {
-  this.removeEventListener('abort', abortSignalFollowers)
-  const followers = signalFollowers.get(this)
-  if (followers instanceof Set) {
-    for (const reference of followers) {
-      abortSignalFollower(reference, this.reason)
+  function abort () {
+    const ac = acRef.deref()
+    if (ac !== undefined) {
+      // Currently, there is a problem with FinalizationRegistry.
+      // https://github.com/nodejs/node/issues/49344
+      // https://github.com/nodejs/node/issues/47748
+      // In the case of abort, the first step is to unregister from it.
+      // If the controller can refer to it, it is still registered.
+      // It will be removed in the future.
+      requestFinalizer.unregister(abort)
+
+      // Unsubscribe a listener.
+      // FinalizationRegistry will no longer be called, so this must be done.
+      this.removeEventListener('abort', abort)
+
+      ac.abort(this.reason)
+
+      const controllerList = dependentControllerMap.get(ac.signal)
+
+      if (controllerList !== undefined) {
+        if (controllerList.size !== 0) {
+          for (const ref of controllerList) {
+            const ctrl = ref.deref()
+            if (ctrl !== undefined) {
+              ctrl.abort(this.reason)
+            }
+          }
+          controllerList.clear()
+        }
+        dependentControllerMap.delete(ac.signal)
+      }
     }
-    followers.clear()
-  } else {
-    abortSignalFollower(followers, this.reason)
   }
-  signalFollowers.delete(this)
-}
-
-/**
- * @param {AbortSignal | null | undefined} signal
- */
-function createDependentSignal (signal) {
-  const ac = new AbortController()
-  if (signal == null) return ac.signal
-
-  if (signal.aborted) {
-    ac.abort(signal.reason)
-    return ac.signal
-  }
-
-  const reference = new WeakRef(ac)
-  const followers = signalFollowers.get(signal)
-  if (followers === undefined) {
-    util.addAbortListener(signal, abortSignalFollowers)
-    signalFollowers.set(signal, reference)
-  } else if (followers instanceof WeakRef) {
-    const controllers = new Set()
-    controllers.add(followers)
-    controllers.add(reference)
-    signalFollowers.set(signal, controllers)
-  } else {
-    followers.add(reference)
-  }
-
-  requestFinalizer.register(ac, { signal, reference }, reference)
-
-  // The signal must keep its controller alive even after its Request is collected.
-  requestSignals.set(ac.signal, { controller: ac, source: signal, reference })
-  return ac.signal
 }
 
 let patchMethodWarning = false
@@ -37466,6 +36679,13 @@ class Request {
   #headers
 
   #state
+
+  /**
+   * Removes the `abort` listener that makes this request's signal follow the
+   * passed signal. `null` when no such listener was registered.
+   * @type {(() => void) | null}
+   */
+  #abortCleanup = null
 
   // https://fetch.spec.whatwg.org/#dom-request
   constructor (input, init = undefined) {
@@ -37780,8 +37000,51 @@ class Request {
     // 27. Set this’s request to request.
     this.#state = request
 
-    // 28-29. Create a signal that follows the supplied signal, if any.
-    this.#signal = createDependentSignal(signal)
+    // 28. Set this’s signal to a new AbortSignal object with this’s relevant
+    // Realm.
+    // TODO: could this be simplified with AbortSignal.any
+    // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
+    const ac = new AbortController()
+    this.#signal = ac.signal
+
+    // 29. If signal is not null, then make this’s signal follow signal.
+    if (signal != null) {
+      if (signal.aborted) {
+        ac.abort(signal.reason)
+      } else {
+        // Keep a strong ref to ac while request object
+        // is alive. This is needed to prevent AbortController
+        // from being prematurely garbage collected.
+        // See, https://github.com/nodejs/undici/issues/1926.
+        this[kAbortController] = ac
+
+        const acRef = new WeakRef(ac)
+        const abort = buildAbort(acRef)
+
+        // If the max amount of listeners is equal to the default, increase it
+        if (abortSignalHasEventHandlerLeakWarning && getMaxListeners(signal) === defaultMaxListeners) {
+          setMaxListeners(1500, signal)
+        }
+
+        const removeAbortListener = util.addAbortListener(signal, abort)
+        // The third argument must be a registry key to be unregistered.
+        // Without it, you cannot unregister.
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
+        // abort is used as the unregister key. (because it is unique)
+        requestFinalizer.register(ac, { signal, abort }, abort)
+
+        // Allow the listener to be removed deterministically once the fetch
+        // that owns this request has settled, instead of relying solely on the
+        // FinalizationRegistry (i.e. garbage collection). Reusing a single
+        // signal across many requests would otherwise leak listeners.
+        // See https://github.com/nodejs/undici/issues/5285
+        this.#abortCleanup = () => {
+          requestFinalizer.unregister(abort)
+          removeAbortListener()
+          this.#abortCleanup = null
+        }
+      }
+    }
 
     // 30. Set this’s headers to a new Headers object with this’s relevant
     // Realm, whose header list is request’s header list and guard is
@@ -38111,10 +37374,25 @@ class Request {
     // 3. Let clonedRequestObject be the result of creating a Request object,
     // given clonedRequest, this’s headers’s guard, and this’s relevant Realm.
     // 4. Make clonedRequestObject’s signal follow this’s signal.
-    const signal = createDependentSignal(this.#signal)
+    const ac = new AbortController()
+    if (this.signal.aborted) {
+      ac.abort(this.signal.reason)
+    } else {
+      let list = dependentControllerMap.get(this.signal)
+      if (list === undefined) {
+        list = new Set()
+        dependentControllerMap.set(this.signal, list)
+      }
+      const acRef = new WeakRef(ac)
+      list.add(acRef)
+      util.addAbortListener(
+        ac.signal,
+        buildAbort(acRef)
+      )
+    }
 
     // 4. Return clonedRequestObject.
-    return fromInnerRequest(clonedRequest, this.#dispatcher, signal, getHeadersGuard(this.#headers))
+    return fromInnerRequest(clonedRequest, this.#dispatcher, ac.signal, getHeadersGuard(this.#headers))
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -38198,12 +37476,7 @@ class Request {
      * @param {Request} request
      */
     removeRequestAbortListener = (request) => {
-      const state = requestSignals.get(request.#signal)
-      if (state !== undefined) {
-        requestSignals.delete(request.#signal)
-        requestFinalizer.unregister(state.reference)
-        removeSignalFollower(state.source, state.reference)
-      }
+      request.#abortCleanup?.()
     }
 
     webidl.is.Request = (arg) => {
@@ -40890,7 +40163,6 @@ module.exports = {
 
 const assert = __nccwpck_require__(4589)
 const { runtimeFeatures } = __nccwpck_require__(313)
-const { asciiLowercase } = __nccwpck_require__(8116)
 
 /**
  * @typedef {object} Metadata
@@ -40955,12 +40227,14 @@ const getSRIHashAlgorithmIndex = /** @type {GetSRIHashAlgorithmIndex} */ (Map.pr
 
 /**
  * @typedef IsValidSRIHashAlgorithm
- * @see https://w3c.github.io/webappsec-subresource-integrity/#valid-sri-hash-algorithm-token
  * @type {(algorithm: string) => algorithm is SRIHashAlgorithm}
  * @param {*} algorithm
  * @returns {algorithm is SRIHashAlgorithm}
  */
-const isValidSRIHashAlgorithm = (algorithm) => validSRIHashAlgorithmTokenSet.has(asciiLowercase(algorithm))
+
+const isValidSRIHashAlgorithm = /** @type {IsValidSRIHashAlgorithm} */ (
+  Map.prototype.has.bind(validSRIHashAlgorithmTokenSet)
+)
 
 /**
  * @param {Uint8Array} bytes
@@ -41085,8 +40359,8 @@ function parseMetadata (metadata) {
   /** @type {MetadataList} */
   const result = []
 
-  // 2. For each item returned by splitting metadata on ASCII whitespace:
-  for (const item of metadata.split(/[\t\n\f\r ]+/)) {
+  // 2. For each item returned by splitting metadata on spaces:
+  for (const item of metadata.split(' ')) {
     // 1. Let expression-and-options be the result of splitting item on U+003F (?).
     const expressionAndOptions = item.split('?', 1)
 
@@ -41116,8 +40390,7 @@ function parseMetadata (metadata) {
     // 8. Let metadata be the ordered map
     // «["alg" → algorithm, "val" → base64-value]».
     const metadata = {
-      // Possible spec bug?
-      alg: asciiLowercase(algorithm),
+      alg: algorithm,
       val: base64Value
     }
 
@@ -43544,19 +42817,6 @@ class ByteParser extends Writable {
         if (isControlFrame(this.#info.opcode)) {
           this.#loop = this.parseControlFrame(body)
           this.#state = parserStates.INFO
-
-          // If the automatic PONG/CLOSE reply filled the socket's write buffer,
-          // stop parsing and resume on drain so a PING flood cannot grow the
-          // outbound queue without bound.
-          if (this.#loop && this.#handler.socket.writableNeedDrain) {
-            this.#loop = false
-            this.#handler.socket.once('drain', () => {
-              if (this.destroyed) return
-              this.#loop = true
-              this.run(callback)
-            })
-            return
-          }
         } else {
           if (!this.#info.compressed) {
             if (!this.writeFragments(body)) {
@@ -54485,13 +53745,19 @@ async function updateViaGithub(inputs) {
 
 const PROJECTS_API_BASE = "https://api.spring.io";
 
+// The Projects API authenticates with the login of a member of the spring-io/spring-team
+// GitHub team and that user's token, so the username cannot be the project slug.
+const PROJECTS_API_USERNAME = "spring-builds";
+
 async function updateViaApi(inputs) {
   const apiBase = inputs.projectsApiBase ?? PROJECTS_API_BASE;
   const slug = inputs.projectSlug;
   const version = new Version(inputs.version);
   const snapshot = version.nextSnapshot();
 
-  const credentials = Buffer.from(`${slug}:${inputs.token}`).toString("base64");
+  const credentials = Buffer.from(
+    `${PROJECTS_API_USERNAME}:${inputs.token}`,
+  ).toString("base64");
   const auth = `Basic ${credentials}`;
 
   const existing = await _fetchReleases(apiBase, slug);
