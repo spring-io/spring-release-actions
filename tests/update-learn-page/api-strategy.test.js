@@ -21,6 +21,7 @@ describe('api-strategy', () => {
   let releases;
   let deletedVersions;
   let createdReleases;
+  let staleCache;
 
   const server = setupServer(
     http.get(`${API_BASE}/projects/:slug/releases`, () => {
@@ -29,7 +30,11 @@ describe('api-strategy', () => {
       });
     }),
     http.delete(`${API_BASE}/projects/:slug/releases/:version`, ({ params }) => {
-      deletedVersions.push(decodeURIComponent(params.version));
+      const version = decodeURIComponent(params.version);
+      deletedVersions.push(version);
+      if (!staleCache) {
+        releases = releases.filter((r) => r.version !== version);
+      }
       return new HttpResponse(null, { status: 204 });
     }),
     http.post(`${API_BASE}/projects/:slug/releases`, async ({ request }) => {
@@ -46,6 +51,7 @@ describe('api-strategy', () => {
     releases = [];
     deletedVersions = [];
     createdReleases = [];
+    staleCache = false;
     server.resetHandlers();
   });
 
@@ -73,6 +79,36 @@ describe('api-strategy', () => {
     expect(createdReleases).toHaveLength(2);
     expect(createdReleases[0].version).toBe('1.2.3');
     expect(createdReleases[1].version).toBe('1.2.4-SNAPSHOT');
+  });
+
+  it('waits for the API to drop deleted releases before creating', async () => {
+    releases = [{ version: '1.2.3-SNAPSHOT', status: 'SNAPSHOT' }];
+    staleCache = true;
+    let polls = 0;
+    server.use(
+      http.get(`${API_BASE}/projects/:slug/releases`, () => {
+        // the first listing is the one the deletes are chosen from; the cache refreshes on the third
+        if (++polls >= 3) {
+          releases = [];
+        }
+        return HttpResponse.json({ _embedded: { releases } });
+      }),
+    );
+
+    await updateViaApi({ ...defaultInputs, deletePollIntervalMs: 1 });
+
+    expect(polls).toBeGreaterThanOrEqual(3);
+    expect(createdReleases).toHaveLength(2);
+  });
+
+  it('fails if the API never drops the deleted releases', async () => {
+    releases = [{ version: '1.2.3-SNAPSHOT', status: 'SNAPSHOT' }];
+    staleCache = true;
+
+    await expect(
+      updateViaApi({ ...defaultInputs, deletePollIntervalMs: 1 }),
+    ).rejects.toThrow(/Timed out/);
+    expect(createdReleases).toHaveLength(0);
   });
 
   it('sends correct fields in POST body', async () => {

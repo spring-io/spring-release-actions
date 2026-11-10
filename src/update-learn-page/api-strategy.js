@@ -7,6 +7,12 @@ const PROJECTS_API_BASE = "https://api.spring.io";
 // GitHub team and that user's token, so the username cannot be the project slug.
 const PROJECTS_API_USERNAME = "spring-builds";
 
+// A DELETE commits to the project's documentation.json, and the API only drops the release
+// from the list it answers with when GitHub's push webhook refreshes its cache. Until then
+// a POST of the same version is refused as already present, so wait for the deletes to show.
+const DELETE_POLL_INTERVAL_MS = 2000;
+const DELETE_POLL_ATTEMPTS = 60;
+
 async function updateViaApi(inputs) {
   const apiBase = inputs.projectsApiBase ?? PROJECTS_API_BASE;
   const slug = inputs.projectSlug;
@@ -19,12 +25,20 @@ async function updateViaApi(inputs) {
   const auth = `Basic ${credentials}`;
 
   const existing = await _fetchReleases(apiBase, slug);
+  const deleted = [];
   for (const r of existing) {
     if (version.isSameMajorMinor(new Version(r.version))) {
       core.info(`Deleting release ${r.version} from ${slug}`);
       await _deleteRelease(apiBase, slug, r.version, auth);
+      deleted.push(r.version);
     }
   }
+  await _awaitDeleted(
+    apiBase,
+    slug,
+    deleted,
+    inputs.deletePollIntervalMs ?? DELETE_POLL_INTERVAL_MS,
+  );
 
   core.info(`Creating release ${inputs.version} for ${slug}`);
   await _createRelease(
@@ -59,6 +73,27 @@ async function _fetchReleases(apiBase, slug) {
   }
   const body = await response.json();
   return body._embedded?.releases ?? [];
+}
+
+async function _awaitDeleted(apiBase, slug, versions, intervalMs) {
+  if (versions.length === 0) {
+    return;
+  }
+  for (let attempt = 1; attempt <= DELETE_POLL_ATTEMPTS; attempt++) {
+    const remaining = (await _fetchReleases(apiBase, slug)).filter((r) =>
+      versions.includes(r.version),
+    );
+    if (remaining.length === 0) {
+      return;
+    }
+    core.info(
+      `Waiting for the API to drop ${remaining.map((r) => r.version).join(", ")} (${attempt}/${DELETE_POLL_ATTEMPTS})`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error(
+    `Timed out waiting for the API to drop the deleted releases of ${slug}: ${versions.join(", ")}`,
+  );
 }
 
 async function _deleteRelease(apiBase, slug, version, auth) {
